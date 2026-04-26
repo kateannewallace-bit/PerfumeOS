@@ -2965,6 +2965,7 @@ function Card({ p, onClick, annotation, simScore }) {
       <div className="card-meta">
         <span className="dot" style={{ background: STATUS_COLOR[p.status] }} />
         {p.rating != null && <span className="card-rating" style={{ color: p.rating >= 9 ? "#c8a97e" : p.rating >= 8 ? "#8aaa80" : "#999" }}>{p.rating}/10</span>}
+        {p.gender && <span style={{fontSize:10,fontWeight:600,letterSpacing:"0.04em",padding:"2px 6px",borderRadius:10,textTransform:"uppercase",background:p.gender==="feminine"?"#f3e6f0":p.gender==="masculine"?"#e6edf8":"#eef3e6",color:p.gender==="feminine"?"#9b5f8a":p.gender==="masculine"?"#4a6fa5":"#5a7a4a",marginLeft:4}}>{p.gender==="feminine"?"Fem":p.gender==="masculine"?"Masc":"Uni"}</span>}
       </div>
     </div>
     {annotation && <div className="card-annotation">{annotation}</div>}
@@ -3029,6 +3030,7 @@ function Modal({ p, onClose, onEdit }) {
         <div className="modal-rating">
           {p.rating != null && <div className="rating-big" style={{ color: p.rating >= 9 ? "#c8a97e" : p.rating >= 8 ? "#8aaa80" : "#999" }}>{p.rating}<span className="rating-of">/10</span></div>}
           <div className="status-line"><span className="dot" style={{ background: STATUS_COLOR[p.status] }} /><span>{p.status}</span></div>
+          {p.gender && <div style={{marginTop:4}}><span style={{fontSize:11,fontWeight:600,letterSpacing:"0.05em",padding:"3px 8px",borderRadius:10,textTransform:"uppercase",background:p.gender==="feminine"?"#f3e6f0":p.gender==="masculine"?"#e6edf8":"#eef3e6",color:p.gender==="feminine"?"#9b5f8a":p.gender==="masculine"?"#4a6fa5":"#5a7a4a"}}>{p.gender}</span></div>}
         </div>
       </div>
       {p.tags.length > 0 && (() => {
