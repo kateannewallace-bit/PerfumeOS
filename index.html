@@ -1611,7 +1611,7 @@ const CANONICAL_MAP = {
   'wildflowers':'floral','wild flowers':'floral','white floral':'white floral',
   'white florals':'white floral','exotic floral':'floral','black water lily':'lotus',
   'bleeding heart':'floral','clover':'floral','chrysanthemum':'chrysanthemum',
-  'poppy':'floral','sequoia':'cedar','mahogany':'cedar',
+  'poppy':'floral','sequoia':'cedar','mahogany':'mahogany',
   'rosewood':'cedar','brazilian rosewood':'cedar','driftwood':'cedar',
   'coolwood':'cedar','dreamwood':'cedar','okoumé wood from gabon':'cedar',
   'hinoki':'cedar','siam wood':'cedar','siam':'cedar',
@@ -1642,8 +1642,8 @@ const CANONICAL_MAP = {
   'cannabis':'cannabis','morel mushroom':'mushroom','smoked tea':'lapsang souchong',
   'oolong':'tea','rooibos':'tea','rooibos tea':'tea',
   'beeswax':'wax','melted wax':'wax','shaving soap':'wax',
-  'silk':'skin musk','flesh':'skin musk','violin varnish':'ink',
-  'turpentine':'ink','are iris':'iris','are rose':'rose',
+  'silk':'skin musk','flesh':'skin musk','violin varnish':'violin varnish',
+  'turpentine':'turpentine','are iris':'iris','are rose':'rose',
   'are vanilla':'vanilla','are honey':'honey','are aldehydes':'aldehydes',
   'are ambroxan':'ambrox','are leather':'leather','are frangipani':'frangipani',
   'are fig':'fig','are barley':'hay','are star anise':'anise',
@@ -2594,8 +2594,11 @@ function buildTagsFromText(notes, family) {
   if (has('petrichor','lava rock','volcanic rock','forest floor','soil tincture','wet earth accord')) tags.add('unusual');
   if (has('wax','beeswax','melted wax','hot wax','candlewax')) tags.add('unusual');
   if (has('earthy notes','earthy accord')) tags.add('unusual');
-  if (hasW('ink') && !has('linking','drinking','thinking')) tags.add('unusual');
-  if (has('rubber','gasoline','petrol','asphalt','vapors','fumes','exhaust')) tags.add('unusual');
+  // 'ink' must be a standalone word — exclude common false positives where "ink" is embedded in another word
+  const INK_FALSE_POSITIVES = ['pink','drink','think','link','blink','mink','rink','sink','wink','brink','shrink','stink','kink','clink','fink','oink','linking','drinking','thinking'];
+  if (hasW('ink') && !INK_FALSE_POSITIVES.some(w => has(w))) { tags.add('unusual'); }
+  if (has('rubber','gasoline','petrol','asphalt','vapors','fumes','exhaust','turpentine')) tags.add('unusual');
+  if (has('violin varnish','varnish','lacquer','shellac')) tags.add('unusual');
   if (has('ozonic','ozone','ozonic notes')) tags.add('unusual');
   if (hasW('tar') && !has('tarragon')) tags.add('unusual');
   if (has('cade','birch tar')) tags.add('unusual');
@@ -2656,8 +2659,8 @@ function buildTagsFromText(notes, family) {
   if (has('powder','powdery','aldehyde','aldehydic','talc')) tags.add('powdery');
   if (has('aldehyde','aldehydic')) tags.add('aldehydic');
   if (has('chypre')) tags.add('chypre');
-  // 'ink' must be a whole word — substring match was triggering on pink, drink, sink, thinking, etc.
-  if (/\bink\b/.test(text)) tags.add('ink');
+  // 'ink' tag: only when ink is a real standalone note, not embedded in pink/drink/think/etc.
+  if (hasW('ink') && !INK_FALSE_POSITIVES.some(w => has(w))) tags.add('ink');
   if (has('beeswax')) tags.add('wax');
   if (has(' hay')) tags.add('hay');
   if (has('carrot seed','carrot')) tags.add('carrot seed');
