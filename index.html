@@ -645,6 +645,21 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   font-size: 12px;
   color: var(--fg-mute);
 }
+.rating-evo { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
+.rating-evo strong { margin-right: 4px; }
+.evo-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  font-size: 11px;
+  color: var(--fg);
+}
+.evo-pill .evo-date { color: var(--fg-soft); margin-left: 4px; font-size: 10px; }
+.evo-delta { margin-left: auto; font-weight: 600; font-size: 12px; }
+.evo-delta.up { color: var(--sage); }
+.evo-delta.down { color: var(--dusty-rose); }
 
 /* ─── FORMS ───────────────────────────────────────────────────────────────── */
 .form-card {
@@ -1093,6 +1108,60 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   font-size: 12px;
 }
 
+/* ─── WEAR TODAY ──────────────────────────────────────────────────────────── */
+.context-group {
+  margin-bottom: 20px;
+}
+.context-group-label {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--fg-soft);
+  margin-bottom: 8px;
+}
+.context-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ctx-chip {
+  background: #fff;
+  border: 1px solid var(--border);
+  padding: 8px 14px;
+  font-size: 13px;
+  color: var(--fg-mute);
+  min-height: 36px;
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: 0.04em;
+  transition: all 0.1s;
+}
+.ctx-chip.active {
+  background: var(--fg);
+  color: #fff;
+  border-color: var(--fg);
+}
+.ctx-chip:hover:not(.active) {
+  border-color: var(--gold);
+  color: var(--fg);
+}
+.today-rank-label {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 2px;
+}
+.today-score-badge {
+  display: inline-block;
+  font-size: 11px;
+  color: var(--fg-soft);
+  background: var(--bg-soft);
+  border: 1px solid var(--border-soft);
+  padding: 2px 8px;
+  margin-left: auto;
+}
+
 /* ─── MISC ────────────────────────────────────────────────────────────────── */
 select:focus, input:focus, textarea:focus, button:focus-visible {
   outline: 2px solid var(--gold);
@@ -1286,8 +1355,8 @@ select:focus, input:focus, textarea:focus, button:focus-visible {
 
 const CONFIG = {
   appTitle: "Perfume OS",                     // nav bar + browser tab title
-  partnerName: "Trevor",                       // or "" to hide partner features
-  tagline: "A Remarkable Waste of Time!",
+  partnerName: "Safe",                       // or "" to hide partner features
+  tagline: "Your collection, your way",
   accentColor: "#c8a97e",                     // gold (default). Try "#9b7db8" (lilac), "#8aaa80" (sage)
 };
 
@@ -2213,14 +2282,21 @@ function computeWearStats(wearLog) {
   for (const entry of wearLog) {
     const pid = entry.perfumeId;
     if (pid == null) continue;
-    const cur = stats.get(pid) || { count: 0, lastWorn: null };
+    const cur = stats.get(pid) || { count: 0, lastWorn: null, ratings: [] };
     cur.count += 1;
     const d = new Date(entry.date);
     if (!cur.lastWorn || d > cur.lastWorn) cur.lastWorn = d;
+    if (entry.rating != null && entry.rating !== "" && !isNaN(Number(entry.rating))) {
+      cur.ratings.push({ date: d, rating: Number(entry.rating) });
+    }
     stats.set(pid, cur);
   }
-  for (const [id, s] of stats) {
+  for (const [, s] of stats) {
     s.daysAgo = Math.floor((now - s.lastWorn) / 86400000);
+    s.ratings.sort((a, b) => a.date - b.date);
+    s.latestRating = s.ratings.length ? s.ratings[s.ratings.length - 1].rating : null;
+    s.firstRating = s.ratings.length ? s.ratings[0].rating : null;
+    s.ratingDelta = (s.firstRating != null && s.latestRating != null) ? (s.latestRating - s.firstRating) : null;
   }
   return stats;
 }
@@ -2228,8 +2304,14 @@ function computeWearStats(wearLog) {
 function enrich(perfumes, stats) {
   return perfumes.map(p => {
     const s = stats.get(p.id);
+    const diaryRating = s?.latestRating;
     return {
       ...p,
+      // Diary entries override the seed rating so a perfume's card reflects the latest verdict.
+      rating: diaryRating != null ? diaryRating : p.rating,
+      seedRating: p.rating,
+      ratingHistory: s?.ratings || [],
+      ratingDelta: s?.ratingDelta ?? null,
       wearCount: s?.count || 0,
       daysAgo: s?.daysAgo,
       isForgottenLove: !!(s && p.preference === "Love" && s.daysAgo > 30),
@@ -2238,7 +2320,88 @@ function enrich(perfumes, stats) {
   });
 }
 
-// ─── SHEETS SYNC ──────────────────────────────────────────────────────────────
+// ─── DIARY → COLLECTION MATCHER ──────────────────────────────────────────────
+// New diary entries arrive with just `house` and `perfume` strings. Match them
+// to a perfume in the collection so that count + rating updates work.
+function _norm(s) {
+  return (s || "").toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+function attachPerfumeIdToEntry(entry, perfumes) {
+  if (!entry || entry.perfumeId != null) return entry;
+  if (!entry.perfume) return { ...entry, unmatched: true };
+  const targetName = _norm(entry.perfume);
+  const targetHouse = _norm(entry.house);
+  // Strict: exact house + name
+  let m = perfumes.find(p => _norm(p.name) === targetName && _norm(p.house) === targetHouse);
+  if (m) return { ...entry, perfumeId: m.id, fuzzy: false, unmatched: false };
+  // Loose: same name, any house
+  m = perfumes.find(p => _norm(p.name) === targetName);
+  if (m) return { ...entry, perfumeId: m.id, fuzzy: !!targetHouse && _norm(m.house) !== targetHouse, unmatched: false };
+  // Fuzzy: substring match within same house
+  if (targetHouse) {
+    m = perfumes.find(p => _norm(p.house) === targetHouse && (_norm(p.name).includes(targetName) || targetName.includes(_norm(p.name))));
+    if (m) return { ...entry, perfumeId: m.id, fuzzy: true, unmatched: false };
+  }
+  // Last resort: substring across collection
+  m = perfumes.find(p => {
+    const n = _norm(p.name);
+    return n.length > 2 && targetName.length > 2 && (n.includes(targetName) || targetName.includes(n));
+  });
+  if (m) return { ...entry, perfumeId: m.id, fuzzy: true, unmatched: false };
+  return { ...entry, perfumeId: null, unmatched: true };
+}
+
+// ─── CLOUD SYNC ───────────────────────────────────────────────────────────────
+// Dispatches between JSONBin.io (preferred — proper REST + readable errors) and
+// the legacy Google Sheets webhook. Each dispatcher is independent so old
+// Sheets users keep working while new users get a more reliable backend.
+
+const JSONBIN_BASE = "https://api.jsonbin.io/v3/b";
+
+function _localStateBlob() {
+  let wearLog = [], wishlist = [], userPerfumes = [];
+  try { wearLog = JSON.parse(localStorage.getItem("perfume_diary") || "[]"); } catch (e) {}
+  try { wishlist = JSON.parse(localStorage.getItem("perfume_wishlist") || "[]"); } catch (e) {}
+  try { userPerfumes = JSON.parse(localStorage.getItem("perfume_user_perfumes") || "[]"); } catch (e) {}
+  return { wearLog, wishlist, userPerfumes, _updatedAt: new Date().toISOString() };
+}
+
+async function jsonbinPush(blob) {
+  const binId = localStorage.getItem("cloud_bin_id");
+  const apiKey = localStorage.getItem("cloud_api_key");
+  if (!binId || !apiKey) return { ok: false, reason: "not-configured" };
+  try {
+    const res = await fetch(`${JSONBIN_BASE}/${binId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Master-Key": apiKey,
+        "X-Bin-Versioning": "false",
+      },
+      body: JSON.stringify(blob || _localStateBlob()),
+    });
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      return { ok: false, status: res.status, body: txt };
+    }
+    return { ok: true };
+  } catch (e) { return { ok: false, error: String(e) }; }
+}
+
+async function jsonbinLoad() {
+  const binId = localStorage.getItem("cloud_bin_id");
+  const apiKey = localStorage.getItem("cloud_api_key");
+  if (!binId || !apiKey) return null;
+  try {
+    const res = await fetch(`${JSONBIN_BASE}/${binId}/latest`, {
+      headers: { "X-Master-Key": apiKey, "X-Bin-Meta": "false" },
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (e) { return null; }
+}
+
+// Legacy Google Sheets sync — kept for users who set this up earlier.
 async function sheetsSync(action, data) {
   const url = localStorage.getItem("sheets_webhook_url");
   if (!url) return { ok: false };
@@ -2256,6 +2419,26 @@ async function sheetsLoad() {
     if (!res.ok) return null;
     return await res.json();
   } catch (e) { return null; }
+}
+
+// Unified dispatchers used by the app.
+async function cloudSync(action, data) {
+  if (localStorage.getItem("cloud_bin_id") && localStorage.getItem("cloud_api_key")) {
+    return jsonbinPush();
+  }
+  return sheetsSync(action, data);
+}
+
+async function cloudLoad() {
+  if (localStorage.getItem("cloud_bin_id") && localStorage.getItem("cloud_api_key")) {
+    return jsonbinLoad();
+  }
+  return sheetsLoad();
+}
+
+function cloudConfigured() {
+  return !!(localStorage.getItem("cloud_bin_id") && localStorage.getItem("cloud_api_key"))
+      || !!localStorage.getItem("sheets_webhook_url");
 }
 
 // ─── AUTO-SCORING for user-added perfumes ────────────────────────────────────
@@ -2408,7 +2591,7 @@ function buildTagsFromText(notes, family) {
   if (has('rosemary')) tags.add('rosemary');
   if (has('thyme')) tags.add('thyme');
   if (has('basil')) tags.add('basil');
-  if (has('lavender','lavande','lavandin')) tags.add('lavender');
+  if (has('lavender','lavande')) tags.add('lavender');
   if (has('eucalyptus')) tags.add('eucalyptus');
   if (has('mint','menthe')) tags.add('mint');
   if (has(' tea','the ','matcha','lapsang','maté','mate ','green tea','black tea','white tea','earl grey','oolong')) tags.add('tea');
@@ -2425,7 +2608,8 @@ function buildTagsFromText(notes, family) {
   if (has('moss')) tags.add('moss');
   if (has('powder','powdery','aldehyde','aldehydic','talc')) tags.add('powdery');
   if (has('chypre')) tags.add('chypre');
-  if (has('ink')) tags.add('ink');
+  // 'ink' must be a whole word — substring match was triggering on pink, drink, sink, thinking, etc.
+  if (/\bink\b/.test(text)) tags.add('ink');
   if (has('beeswax')) tags.add('wax');
   if (has(' hay')) tags.add('hay');
   if (has('carrot seed','carrot')) tags.add('carrot seed');
@@ -2734,6 +2918,21 @@ function Modal({ p, onClose }) {
         <div><span className="sec-lbl">Family</span> <span>{p.family || "—"}</span></div>
       </div>
       {p.wearCount > 0 && <div className="wear-box"><strong>Wear history:</strong> {p.wearCount}{p.wearCount === 1 ? " time" : " times"}{p.daysAgo != null && ` · Last worn ${p.daysAgo === 0 ? "today" : `${p.daysAgo} day${p.daysAgo === 1 ? "" : "s"} ago`}`}</div>}
+      {p.ratingHistory && p.ratingHistory.length >= 2 && (
+        <div className="wear-box rating-evo">
+          <strong>Rating evolution:</strong>{' '}
+          {p.ratingHistory.map((r, i) => (
+            <span key={i} className="evo-pill">
+              {r.rating}/10 <span className="evo-date">{new Date(r.date).toISOString().slice(0,10)}</span>
+            </span>
+          ))}
+          {p.ratingDelta != null && p.ratingDelta !== 0 && (
+            <span className={`evo-delta ${p.ratingDelta > 0 ? 'up' : 'down'}`}>
+              {p.ratingDelta > 0 ? '↑' : '↓'} {Math.abs(p.ratingDelta).toFixed(1)}
+            </span>
+          )}
+        </div>
+      )}
       {p.notes && <><div className="sec-lbl">Notes</div><p className="notes-body">{p.notes}</p></>}
       {p.myNotes && <><div className="sec-lbl">My Experience</div><div className="my-notes">{p.myNotes}</div></>}
     </div>
@@ -3326,17 +3525,137 @@ function AddPerfumeView({ onAdd, perfumes }) {
   </div>;
 }
 
+// ─── DIARY MARKDOWN PARSER ────────────────────────────────────────────────────
+// Accepts two formats:
+//   1. JSON backup ({"diary":[...],"wishlist":[...]}) — merges diary into wearLog
+//   2. Markdown diary in the form:
+//        ## YYYY-MM-DD [– House – Perfume]
+//        **Perfume:** Name        (or bare line after heading)
+//        **House:** Name
+//        **Rating:** 8.5
+//        **Notes:** free text...
+//        **Partner:** positive/negative/—
+function parseDiaryMarkdown(text) {
+  // Try JSON first
+  const trimmed = text.trim();
+  if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      // {diary:[...]} shape
+      if (parsed.diary && Array.isArray(parsed.diary)) return parsed.diary;
+      // plain array of entries
+      if (Array.isArray(parsed)) return parsed;
+    } catch (e) {}
+  }
+
+  // Parse markdown
+  const entries = [];
+  const lines = text.split(/\r?\n/);
+  let current = null;
+  const flush = () => { if (current && current.perfume && current.date) entries.push(current); };
+
+  for (let raw of lines) {
+    const line = raw.trim();
+
+    // New entry: ## YYYY-MM-DD or ## YYYY-MM-DD – House – Perfume
+    const headingMatch = line.match(/^##\s+(\d{4}-\d{2}-\d{2})(.*)?$/);
+    if (headingMatch) {
+      flush();
+      const date = headingMatch[1];
+      const rest = (headingMatch[2] || "").replace(/^[\s–—-]+/, "").trim();
+      // rest might be "House – Perfume" or just "Perfume" or empty
+      const parts = rest.split(/\s*[–—]\s*/);
+      current = { date };
+      if (parts.length >= 2) { current.house = parts[0]; current.perfume = parts.slice(1).join(" — "); }
+      else if (parts.length === 1 && parts[0]) { current.perfume = parts[0]; }
+      continue;
+    }
+    if (!current) continue;
+
+    // Field lines: **Field:** value or *Field:* value
+    const fieldMatch = line.match(/^\*{1,2}([^*:]+?)\*{0,2}:\*{0,2}\s*(.*)$/);
+    if (fieldMatch) {
+      const key = fieldMatch[1].trim().toLowerCase();
+      const val = fieldMatch[2].trim();
+      if (key === "perfume" || key === "name") current.perfume = val;
+      else if (key === "house") current.house = val;
+      else if (key === "concentration" || key === "conc") current.concentration = val;
+      else if (key === "rating") {
+        const n = parseFloat(val.replace(/\/\d+/, ""));
+        if (!isNaN(n)) current.rating = n;
+      }
+      else if (key === "notes" || key === "note") current.notes = val;
+      else if (key === "partner" || key === "reaction" || key === "safe" || key === "trev") current.safeReaction = val;
+    }
+    // Append continuation lines to notes (non-empty, non-heading, non-field)
+    else if (line && !line.startsWith("#") && current.notes !== undefined) {
+      current.notes += " " + line;
+    }
+  }
+  flush();
+  return entries;
+}
+
+function MarkdownImport({ onImported }) {
+  const [status, setStatus] = useState("");
+  const [importing, setImporting] = useState(false);
+
+  const handleFile = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setImporting(true); setStatus("");
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const entries = parseDiaryMarkdown(ev.target.result);
+        if (!entries.length) { setStatus("✗ No diary entries found. Check the file format."); setImporting(false); return; }
+        // Merge into localStorage wear log (dedup by date+perfume)
+        let existing = [];
+        try { existing = JSON.parse(localStorage.getItem("perfume_diary") || "[]"); } catch (_) {}
+        const existingKeys = new Set(existing.map(e => `${e.date}|${(e.perfume||"").toLowerCase()}`));
+        const newEntries = entries.filter(e => !existingKeys.has(`${e.date}|${(e.perfume||"").toLowerCase()}`));
+        const merged = [...existing, ...newEntries];
+        localStorage.setItem("perfume_diary", JSON.stringify(merged));
+        setStatus(`✓ Imported ${newEntries.length} new entries (${entries.length - newEntries.length} duplicates skipped). Reload to see them.`);
+        if (onImported) onImported();
+      } catch (err) {
+        setStatus(`✗ Parse error: ${err.message}`);
+      }
+      setImporting(false);
+      e.target.value = "";
+    };
+    reader.readAsText(file);
+  };
+
+  return <div>
+    <div className="mini-lbl" style={{marginBottom:8}}>Import Diary (Markdown or JSON backup)</div>
+    <p style={{fontSize:12,color:"var(--fg-soft)",marginBottom:10,fontStyle:"italic"}}>Accepts the JSON backup file, or a Markdown diary with <code style={{background:"var(--bg-soft)",padding:"1px 4px"}}>## YYYY-MM-DD</code> headings and <code style={{background:"var(--bg-soft)",padding:"1px 4px"}}>**Field:** value</code> fields. Duplicates are skipped.</p>
+    <label style={{display:"inline-block",cursor:"pointer"}}>
+      <span className="btn-ghost" style={{display:"inline-block",pointerEvents:"none"}}>{importing ? "Importing…" : "Choose File"}</span>
+      <input type="file" accept=".md,.txt,.json" onChange={handleFile} style={{display:"none"}} />
+    </label>
+    {status && <div className={`test-result ${status.startsWith("✓") ? "ok" : status.startsWith("✗") ? "fail" : ""}`} style={{marginTop:10}}>{status}</div>}
+  </div>;
+}
+
 function SettingsView({ syncStatus, onSyncChange }) {
   const [url, setUrl] = useState(localStorage.getItem("sheets_webhook_url") || "");
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState("");
 
-  const save = () => {
+  // JSONBin state
+  const [binId, setBinId] = useState(localStorage.getItem("cloud_bin_id") || "");
+  const [apiKey, setApiKey] = useState(localStorage.getItem("cloud_api_key") || "");
+  const [binTesting, setBinTesting] = useState(false);
+  const [binResult, setBinResult] = useState("");
+  const [binPushing, setBinPushing] = useState(false);
+
+  const saveSheets = () => {
     localStorage.setItem("sheets_webhook_url", url);
     onSyncChange();
     setTestResult("Saved. Refresh to load from Sheets.");
   };
-  const test = async () => {
+  const testSheets = async () => {
     if (!url) { setTestResult("Enter a URL first."); return; }
     setTesting(true); setTestResult("");
     localStorage.setItem("sheets_webhook_url", url);
@@ -3344,6 +3663,37 @@ function SettingsView({ syncStatus, onSyncChange }) {
     setTesting(false);
     if (data) setTestResult(`✓ Connected — ${(data.wearLog||[]).length} entries, ${(data.wishlist||[]).length} wishlist items.`);
     else setTestResult("✗ Failed. Check URL and deployment settings.");
+  };
+
+  const saveBin = () => {
+    localStorage.setItem("cloud_bin_id", binId.trim());
+    localStorage.setItem("cloud_api_key", apiKey.trim());
+    onSyncChange();
+    setBinResult("Saved. Reloading from cloud…");
+  };
+  const testBin = async () => {
+    if (!binId.trim() || !apiKey.trim()) { setBinResult("Enter Bin ID and Master Key first."); return; }
+    setBinTesting(true); setBinResult("");
+    // Save credentials first so the helpers can read them
+    localStorage.setItem("cloud_bin_id", binId.trim());
+    localStorage.setItem("cloud_api_key", apiKey.trim());
+    // Write round-trip
+    const writeRes = await jsonbinPush({ _test: true, _ts: Date.now() });
+    if (!writeRes.ok) { setBinTesting(false); setBinResult(`✗ Write failed — ${writeRes.reason || writeRes.status || writeRes.error || "unknown error"}`); return; }
+    const readData = await jsonbinLoad();
+    setBinTesting(false);
+    if (readData) setBinResult(`✓ Round-trip OK — bin is readable and writable.`);
+    else setBinResult("✗ Write succeeded but read failed. Check Master Key permissions.");
+  };
+  const pushNow = async () => {
+    if (!binId.trim() || !apiKey.trim()) { setBinResult("Save credentials first."); return; }
+    setBinPushing(true); setBinResult("");
+    localStorage.setItem("cloud_bin_id", binId.trim());
+    localStorage.setItem("cloud_api_key", apiKey.trim());
+    const res = await jsonbinPush();
+    setBinPushing(false);
+    if (res.ok) setBinResult("✓ Pushed local data to JSONBin.");
+    else setBinResult(`✗ Push failed — ${res.reason || res.status || res.error || "unknown"}`);
   };
 
   const exportData = () => {
@@ -3363,14 +3713,41 @@ function SettingsView({ syncStatus, onSyncChange }) {
     <h1 className="page-title">Settings</h1>
     <p className="page-sub">{syncStatus}</p>
 
+    {/* ── JSONBin.io ── */}
     <div className="settings-card">
-      <h2 className="settings-h">Google Sheets Sync</h2>
+      <h2 className="settings-h">JSONBin.io Sync <span style={{fontSize:11,fontWeight:400,color:"var(--gold)",letterSpacing:"0.08em",marginLeft:8}}>RECOMMENDED</span></h2>
+      <p style={{fontSize:13,color:"var(--fg-mute)",marginBottom:16,lineHeight:1.6}}>Free, reliable, no server needed. Create a free bin at <a href="https://jsonbin.io" target="_blank" rel="noopener" style={{color:"var(--gold)"}}>jsonbin.io</a>, then paste your Bin ID and Master Key below.</p>
+      <div className="form-grid" style={{marginBottom:14}}>
+        <label><span className="mini-lbl">Bin ID</span><input className="mono-input" value={binId} onChange={e => setBinId(e.target.value)} placeholder="e.g. 64a1f2…" /></label>
+        <label><span className="mini-lbl">Master Key</span><input className="mono-input" type="password" value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder="$2a$10$…" /></label>
+      </div>
+      <div className="form-actions">
+        <button className="btn-primary" onClick={saveBin}>Save</button>
+        <button className="btn-ghost" onClick={testBin} disabled={binTesting}>{binTesting ? "Testing…" : "Test (round-trip)"}</button>
+        <button className="btn-ghost" onClick={pushNow} disabled={binPushing}>{binPushing ? "Pushing…" : "Push Now"}</button>
+      </div>
+      {binResult && <div className={`test-result ${binResult.startsWith("✓") ? "ok" : binResult.startsWith("✗") ? "fail" : ""}`}>{binResult}</div>}
+      <details className="setup-details">
+        <summary>Setup Instructions</summary>
+        <ol>
+          <li>Sign up free at <b>jsonbin.io</b></li>
+          <li>Dashboard → <b>+ Create Bin</b> → paste <code>{"{ \"wearLog\": [], \"wishlist\": [], \"userPerfumes\": [] }"}</code> → Create</li>
+          <li>Copy the Bin ID from the URL bar</li>
+          <li>Account → <b>API Keys</b> → copy your Master Key</li>
+          <li>Paste both above, Save, then Test to verify</li>
+        </ol>
+      </details>
+    </div>
+
+    {/* ── Google Sheets (legacy) ── */}
+    <div className="settings-card">
+      <h2 className="settings-h">Google Sheets Sync <span style={{fontSize:11,fontWeight:400,color:"var(--fg-soft)",letterSpacing:"0.08em",marginLeft:8}}>LEGACY</span></h2>
       <label className="full-label"><span className="mini-lbl">Webhook URL</span>
         <input className="mono-input" value={url} onChange={e => setUrl(e.target.value)} placeholder="https://script.google.com/macros/s/…/exec" />
       </label>
       <div className="form-actions">
-        <button className="btn-primary" onClick={save}>Save</button>
-        <button className="btn-ghost" onClick={test} disabled={testing}>{testing ? "…" : "Test Connection"}</button>
+        <button className="btn-primary" onClick={saveSheets}>Save</button>
+        <button className="btn-ghost" onClick={testSheets} disabled={testing}>{testing ? "…" : "Test Connection"}</button>
       </div>
       {testResult && <div className={`test-result ${testResult.startsWith("✓") ? "ok" : testResult.startsWith("✗") ? "fail" : ""}`}>{testResult}</div>}
       <details className="setup-details">
@@ -3386,9 +3763,181 @@ function SettingsView({ syncStatus, onSyncChange }) {
     </div>
 
     <div className="settings-card">
-      <h2 className="settings-h">Backup</h2>
-      <p>Download your diary and wishlist as JSON.</p>
-      <button className="btn-ghost" onClick={exportData}>Download Backup</button>
+      <h2 className="settings-h">Backup &amp; Import</h2>
+      <p>Download your diary and wishlist as JSON, or import a diary from a Markdown file.</p>
+      <div className="form-actions" style={{marginBottom:20}}>
+        <button className="btn-ghost" onClick={exportData}>Download Backup</button>
+      </div>
+      <MarkdownImport onImported={onSyncChange} />
+    </div>
+  </div>;
+}
+
+// ─── WHAT TO WEAR TODAY ───────────────────────────────────────────────────────
+const SEASONS = ["Spring","Summer","Autumn","Winter"];
+const OCCASIONS = ["Casual","Work","Evening","Date Night","Outdoors","Weekend"];
+const VIBES = ["Fresh","Cozy","Romantic","Bold","Soft","Energizing"];
+
+function contextScore(p, { season, occasion, vibe }) {
+  const tags = new Set((p.tags || []).map(t => t.toLowerCase()));
+  const family = (p.family || "").toLowerCase();
+  let bonus = 0;
+
+  // Season
+  if (season === "Spring") {
+    if (tags.has("floral") || tags.has("violet") || tags.has("iris") || tags.has("rose") ||
+        tags.has("green") || tags.has("citrus") || tags.has("cherry blossom") || tags.has("lily of the valley")) bonus += 3;
+    if (p.mood === "Air") bonus += 1;
+  } else if (season === "Summer") {
+    if (tags.has("citrus") || tags.has("aquatic") || tags.has("mint") || tags.has("herbal fresh") ||
+        tags.has("grapefruit") || tags.has("bergamot") || tags.has("lemon") || tags.has("green")) bonus += 3;
+    if (p.mood === "Air") bonus += 2;
+    if (tags.has("resinous") || tags.has("oud") || tags.has("leather") || tags.has("smoky")) bonus -= 2;
+  } else if (season === "Autumn") {
+    if (tags.has("woody") || tags.has("resinous") || tags.has("amber") || tags.has("spicy") ||
+        tags.has("leather") || tags.has("vetiver") || tags.has("patchouli") || tags.has("tobacco")) bonus += 3;
+    if (p.mood === "Resin" || p.mood === "Classic") bonus += 1;
+  } else if (season === "Winter") {
+    if (tags.has("resinous") || tags.has("gourmand") || tags.has("vanilla") || tags.has("musk") ||
+        tags.has("oud") || tags.has("amber") || tags.has("smoky") || tags.has("incense")) bonus += 3;
+    if (p.mood === "Resin") bonus += 2;
+    if (tags.has("citrus") || tags.has("aquatic")) bonus -= 1;
+  }
+
+  // Occasion
+  if (occasion === "Work") {
+    bonus += Math.min(p.sigScore || 0, 7) * 0.3;
+    if ((p.intScore || 0) > 8) bonus -= 2; // too loud
+    if (tags.has("smoky") || tags.has("tobacco") || tags.has("oud")) bonus -= 1;
+  } else if (occasion === "Evening") {
+    bonus += (p.intScore || 0) * 0.3;
+    if (p.mood === "Resin" || p.mood === "Classic") bonus += 2;
+  } else if (occasion === "Date Night") {
+    bonus += (p.safeScore || 0) * 0.4;
+    if (tags.has("rose") || tags.has("jasmine") || tags.has("musk") || tags.has("gardenia")) bonus += 2;
+    if (tags.has("vanilla") || tags.has("tonka")) bonus += 1;
+  } else if (occasion === "Outdoors") {
+    if (tags.has("citrus") || tags.has("green") || tags.has("herbal fresh") || tags.has("mint") ||
+        tags.has("aquatic") || tags.has("bergamot")) bonus += 3;
+    if (p.mood === "Air") bonus += 2;
+  } else if (occasion === "Weekend") {
+    bonus += (p.balScore || 0) * 0.2;
+  } else if (occasion === "Casual") {
+    bonus += (p.balScore || 0) * 0.15;
+    if (tags.has("musk") || tags.has("sandalwood") || tags.has("cedar")) bonus += 1;
+  }
+
+  // Vibe
+  if (vibe === "Fresh") {
+    if (tags.has("citrus") || tags.has("mint") || tags.has("green") || tags.has("aquatic") || tags.has("herbal fresh")) bonus += 3;
+  } else if (vibe === "Cozy") {
+    if (tags.has("vanilla") || tags.has("tonka") || tags.has("amber") || tags.has("resinous") ||
+        tags.has("sandalwood") || tags.has("honey") || tags.has("cream")) bonus += 3;
+  } else if (vibe === "Romantic") {
+    if (tags.has("rose") || tags.has("jasmine") || tags.has("musk") || tags.has("gardenia") ||
+        tags.has("peony") || tags.has("iris")) bonus += 3;
+    bonus += (p.safeScore || 0) * 0.2;
+  } else if (vibe === "Bold") {
+    bonus += (p.intScore || 0) * 0.4;
+    if (tags.has("oud") || tags.has("leather") || tags.has("smoky") || tags.has("incense")) bonus += 2;
+  } else if (vibe === "Soft") {
+    if (tags.has("musk") || tags.has("powdery") || tags.has("floral") || tags.has("iris") || tags.has("violet")) bonus += 3;
+    if ((p.intScore || 0) > 8) bonus -= 2;
+  } else if (vibe === "Energizing") {
+    if (tags.has("citrus") || tags.has("grapefruit") || tags.has("bergamot") || tags.has("mint") ||
+        tags.has("cardamom") || tags.has("pepper")) bonus += 3;
+    if (p.mood === "Air") bonus += 1;
+  }
+
+  return bonus;
+}
+
+function WearTodayView({ onSelect, wearStats, perfumes }) {
+  const [season, setSeason] = useState(() => {
+    const m = new Date().getMonth();
+    if (m >= 2 && m <= 4) return "Spring";
+    if (m >= 5 && m <= 7) return "Summer";
+    if (m >= 8 && m <= 10) return "Autumn";
+    return "Winter";
+  });
+  const [occasion, setOccasion] = useState("Casual");
+  const [vibe, setVibe] = useState("Fresh");
+
+  const enriched = useMemo(() => enrich(perfumes, wearStats), [wearStats, perfumes]);
+
+  const ranked = useMemo(() => {
+    const ctx = { season, occasion, vibe };
+    return enriched
+      .filter(p => p.status !== "Avoid" && p.status !== "Dislike" && p.preference !== "Dislike")
+      .map(p => {
+        const base = (p.balScore || 0);
+        const ctxBonus = contextScore(p, ctx);
+        const forgottenBonus = p.isForgottenLove ? 3 : 0;
+        const overwornPenalty = p.isOverworn ? -5 : 0;
+        const lovePref = p.preference === "Love" ? 2 : 0;
+        const total = base + ctxBonus + forgottenBonus + overwornPenalty + lovePref;
+        return { ...p, todayScore: total, ctxBonus };
+      })
+      .sort((a, b) => b.todayScore - a.todayScore)
+      .slice(0, 12);
+  }, [enriched, season, occasion, vibe]);
+
+  const top = ranked[0];
+
+  return <div>
+    <h1 className="page-title">What to Wear Today</h1>
+    <p className="page-sub">Tell me the context — I'll rank your collection for right now.</p>
+
+    <div className="context-group">
+      <div className="context-group-label">Season</div>
+      <div className="context-chips">
+        {SEASONS.map(s => <button key={s} className={`ctx-chip ${season === s ? "active" : ""}`} onClick={() => setSeason(s)}>{s}</button>)}
+      </div>
+    </div>
+
+    <div className="context-group">
+      <div className="context-group-label">Occasion</div>
+      <div className="context-chips">
+        {OCCASIONS.map(o => <button key={o} className={`ctx-chip ${occasion === o ? "active" : ""}`} onClick={() => setOccasion(o)}>{o}</button>)}
+      </div>
+    </div>
+
+    <div className="context-group" style={{marginBottom: 28}}>
+      <div className="context-group-label">Vibe</div>
+      <div className="context-chips">
+        {VIBES.map(v => <button key={v} className={`ctx-chip ${vibe === v ? "active" : ""}`} onClick={() => setVibe(v)}>{v}</button>)}
+      </div>
+    </div>
+
+    {top && (
+      <div className="surprise-card" style={{marginBottom: 28}}>
+        <div className="surprise-label">Top Pick for {season} · {occasion} · {vibe}</div>
+        <div className="surprise-house">{top.house}</div>
+        <div className="surprise-name">{top.name}</div>
+        {top.concentration && <div className="surprise-conc">{top.concentration}</div>}
+        <div className="tag-row centered" style={{justifyContent:"center",marginBottom:8}}>
+          {(top.tags || []).slice(0,5).map(t => <Tag key={t} tag={t} />)}
+        </div>
+        {top.myNotes && <div className="surprise-quote">{top.myNotes}</div>}
+        <div className="surprise-rating" style={{color:"var(--gold)"}}>
+          {top.rating != null ? `${top.rating}/10` : ""}
+          {top.isForgottenLove && " · ↩ Forgotten Love"}
+        </div>
+        <div className="surprise-actions">
+          <button className="btn-primary" onClick={() => onSelect(top)}>Details</button>
+        </div>
+      </div>
+    )}
+
+    <div className="result-count">{ranked.length} ranked for your context</div>
+    <div className="grid">
+      {ranked.map((p, i) => {
+        let annotation = null;
+        if (i === 0) annotation = `✦ Today's Pick`;
+        else if (p.isForgottenLove) annotation = "↩ Forgotten Love";
+        else if (p.ctxBonus >= 5) annotation = "Great fit";
+        return <Card key={p.id} p={p} onClick={onSelect} annotation={annotation} />;
+      })}
     </div>
   </div>;
 }
@@ -3410,9 +3959,8 @@ function App() {
   const [loaded, setLoaded] = useState(false);
 
   const loadAll = useCallback(async () => {
-    const hasWebhook = !!localStorage.getItem("sheets_webhook_url");
-    if (hasWebhook) {
-      const data = await sheetsLoad();
+    if (cloudConfigured()) {
+      const data = await cloudLoad();
       if (data) {
         setWearLog([...WEAR_LOG_SEED, ...(data.wearLog || [])]);
         setWishlist([...WISHLIST_SEED, ...(data.wishlist || [])]);
@@ -3420,7 +3968,7 @@ function App() {
         setSyncStatus("✓ Synced");
         setLoaded(true); return;
       }
-      setSyncStatus("⚠ Sheets unreachable");
+      setSyncStatus("⚠ Cloud unreachable");
     } else {
       setSyncStatus("Local · set up sync in Settings");
     }
@@ -3438,21 +3986,22 @@ function App() {
   useEffect(() => { loadAll(); }, [loadAll]);
 
   const addWearEntry = useCallback((entry) => {
+    const matched = attachPerfumeIdToEntry(entry, perfumes);
     setWearLog(prev => {
-      const next = [...prev, entry];
+      const next = [...prev, matched];
       const user = next.filter(e => !WEAR_LOG_SEED.includes(e));
       try { localStorage.setItem("perfume_diary", JSON.stringify(user)); } catch (e) {}
-      sheetsSync("add_wear", entry);
+      cloudSync("add_wear", matched);
       return next;
     });
-  }, []);
+  }, [perfumes]);
 
   const addWishlistItem = useCallback((item) => {
     setWishlist(prev => {
       const next = [...prev, item];
       const user = next.filter(w => !WISHLIST_SEED.includes(w));
       try { localStorage.setItem("perfume_wishlist", JSON.stringify(user)); } catch (e) {}
-      sheetsSync("add_wishlist", item);
+      cloudSync("add_wishlist", item);
       return next;
     });
   }, []);
@@ -3461,7 +4010,7 @@ function App() {
     setUserPerfumes(prev => {
       const next = [...prev, compactPerfume];
       try { localStorage.setItem("perfume_user_perfumes", JSON.stringify(next)); } catch (e) {}
-      sheetsSync("add_perfume", compactPerfume);
+      cloudSync("add_perfume", compactPerfume);
       return next;
     });
   }, []);
@@ -3471,7 +4020,7 @@ function App() {
       const next = prev.filter((_, i) => i !== idx);
       const user = next.filter(w => !WISHLIST_SEED.includes(w));
       try { localStorage.setItem("perfume_wishlist", JSON.stringify(user)); } catch (e) {}
-      sheetsSync("set_wishlist", user);
+      cloudSync("set_wishlist", user);
       return next;
     });
   }, []);
@@ -3479,6 +4028,7 @@ function App() {
   const wearStats = useMemo(() => computeWearStats(wearLog), [wearLog]);
 
   const NAV = [
+    { k: "today", l: "Wear Today" },
     { k: "pick", l: "Pick" },
     { k: "surprise", l: "Surprise" },
     { k: "collection", l: "Collection" },
@@ -3510,6 +4060,7 @@ function App() {
 
     <main className="main">
       {!loaded && <div className="loading">Loading…</div>}
+      {loaded && view === "today" && <WearTodayView onSelect={setSelected} wearStats={wearStats} perfumes={perfumes} />}
       {loaded && view === "pick" && <PickView onSelect={setSelected} wearStats={wearStats} perfumes={perfumes} />}
       {loaded && view === "surprise" && <SurpriseView onSelect={setSelected} perfumes={perfumes} />}
       {loaded && view === "collection" && <CollectionView onSelect={setSelected} wearStats={wearStats} perfumes={perfumes} />}
