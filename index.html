@@ -3490,6 +3490,217 @@ function SimilarView({ onSelect, perfumes }) {
   </div>;
 }
 
+// CompareView component — paste this before TaxonomyView
+
+function CompareView({ perfumes }) {
+  const [idA, setIdA] = useState(null);
+  const [idB, setIdB] = useState(null);
+  const [queryA, setQueryA] = useState("");
+  const [queryB, setQueryB] = useState("");
+
+  const a = idA ? perfumes.find(p => p.id === idA) : null;
+  const b = idB ? perfumes.find(p => p.id === idB) : null;
+
+  const filtered = (q) => {
+    const lower = q.toLowerCase().trim();
+    return perfumes
+      .filter(p => !lower || p.fullName.toLowerCase().includes(lower))
+      .sort((x, y) => x.fullName.localeCompare(y.fullName));
+  };
+
+  // Compute shared/unique note sets
+  const { sharedTags, onlyA, onlyB, sharedPrimary } = useMemo(() => {
+    if (!a || !b) return { sharedTags: new Set(), onlyA: [], onlyB: [], sharedPrimary: new Set() };
+    const tagsA = new Set(a.tags || []);
+    const tagsB = new Set(b.tags || []);
+    const primA = new Set(a.primary || []);
+    const primB = new Set(b.primary || []);
+    const shared = new Set([...tagsA].filter(t => tagsB.has(t)));
+    const sharedPrim = new Set([...shared].filter(t => primA.has(t) && primB.has(t)));
+    const uniqA = [...tagsA].filter(t => !tagsB.has(t));
+    const uniqB = [...tagsB].filter(t => !tagsA.has(t));
+    return { sharedTags: shared, onlyA: uniqA, onlyB: uniqB, sharedPrimary: sharedPrim };
+  }, [a, b]);
+
+  const tagStyle = (tag, pref) => {
+    const isPrim = (pref?.primary || []).includes(tag);
+    const isShared = sharedTags.has(tag);
+    const isBothPrim = sharedPrimary.has(tag);
+    if (isBothPrim) return { background: "#c8a97e", color: "#fff", border: "none", fontWeight: 700 };
+    if (isShared && isPrim) return { background: "#c8a97e44", color: "#8b6f3e", border: "1px solid #c8a97e99", fontWeight: 600 };
+    if (isShared) return { background: "#e8f0e8", color: "#4a6a4a", border: "1px solid #aaccaa" };
+    if (isPrim) return { background: "#f5f0e8", color: "#8b6f3e", border: "1px solid #d4bc8a", fontWeight: 600 };
+    return { background: "#f0ece6", color: "#888", border: "1px solid transparent" };
+  };
+
+  const genderStyle = (g) => ({
+    fontSize: 11, fontWeight: 600, letterSpacing: "0.05em", padding: "2px 8px",
+    borderRadius: 10, textTransform: "uppercase",
+    background: g === "feminine" ? "#f3e6f0" : g === "masculine" ? "#e6edf8" : "#eef3e6",
+    color: g === "feminine" ? "#9b5f8a" : g === "masculine" ? "#4a6fa5" : "#5a7a4a"
+  });
+
+  const scoreDiff = (a && b) ? {
+    sig: (a.sigScore || 5) - (b.sigScore || 5),
+    int: (a.intScore || 3) - (b.intScore || 3),
+    bal: (a.balScore || 5) - (b.balScore || 5),
+  } : null;
+
+  const ScoreBar = ({ label, valA, valB, max = 10 }) => {
+    const diff = Math.abs(valA - valB);
+    return <div style={{ marginBottom: 10 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#999", marginBottom: 3 }}>
+        <span style={{ fontWeight: 600, color: "#555" }}>{valA}</span>
+        <span style={{ color: "#bbb" }}>{label}</span>
+        <span style={{ fontWeight: 600, color: "#555" }}>{valB}</span>
+      </div>
+      <div style={{ display: "flex", height: 6, borderRadius: 3, overflow: "hidden", background: "#f0ece6" }}>
+        <div style={{ width: `${(valA / max) * 50}%`, background: "#c8a97e", marginLeft: "auto" }} />
+        <div style={{ width: 2, background: "#fff" }} />
+        <div style={{ width: `${(valB / max) * 50}%`, background: "#8aaa80" }} />
+      </div>
+    </div>;
+  };
+
+  const PerfumePanel = ({ p, side }) => {
+    if (!p) return <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "#ccc", fontSize: 14, padding: 24 }}>
+      Pick a perfume
+    </div>;
+
+    const allTags = p.tags || [];
+    const prims = new Set(p.primary || []);
+
+    return <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ marginBottom: 12 }}>
+        <div className="card-house">{p.house}</div>
+        <div style={{ fontSize: 17, fontWeight: 700, color: "#2d2926", lineHeight: 1.2, marginBottom: 4 }}>
+          {p.name}{p.concentration ? <span style={{ fontWeight: 400, color: "#888", fontSize: 14 }}> {p.concentration}</span> : ""}
+        </div>
+        <div style={{ fontSize: 12, color: "#aaa", marginBottom: 6 }}>{p.family}</div>
+        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+          {p.gender && <span style={genderStyle(p.gender)}>{p.gender}</span>}
+          {p.rating != null && <span style={{ fontSize: 13, fontWeight: 600, color: p.rating >= 9 ? "#c8a97e" : p.rating >= 8 ? "#8aaa80" : "#999" }}>{p.rating}/10</span>}
+          {p.preference && p.preference !== "Unrated" && <span style={{ fontSize: 11, color: "#aaa" }}>{p.preference}</span>}
+        </div>
+      </div>
+
+      {/* Mood + wear */}
+      <div style={{ fontSize: 11, color: "#bbb", marginBottom: 10, display: "flex", gap: 10 }}>
+        {p.mood && <span>Mood: <span style={{ color: "#888" }}>{p.mood}</span></span>}
+        {p.wearCount > 0 && <span>Worn {p.wearCount}×</span>}
+        {p.daysAgo != null && <span>{fmtAge(p.daysAgo)}</span>}
+      </div>
+
+      {/* Notes */}
+      {allTags.length > 0 && <div className="tag-row" style={{ flexWrap: "wrap" }}>
+        {/* Primary notes first */}
+        {[...allTags].sort((x, y) => {
+          const xp = prims.has(x), yp = prims.has(y);
+          const xs = sharedTags.has(x), ys = sharedTags.has(y);
+          if (xp && yp) return 0;
+          if (xp) return -1; if (yp) return 1;
+          if (xs && ys) return 0;
+          if (xs) return -1; if (ys) return 1;
+          return 0;
+        }).map(t => <span key={t} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 8, display: "inline-block", margin: "2px", ...tagStyle(t, p) }}>{t}</span>)}
+      </div>}
+    </div>;
+  };
+
+  return <div>
+    <h1 className="page-title">Compare</h1>
+    <p className="page-sub">Side-by-side note breakdown. Shared notes are highlighted.</p>
+
+    {/* Selectors */}
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
+      <div>
+        <input type="search" placeholder="Search A…" value={queryA} onChange={e => setQueryA(e.target.value)} style={{ width: "100%", marginBottom: 6, boxSizing: "border-box" }} />
+        <select value={idA || ""} onChange={e => setIdA(parseInt(e.target.value) || null)} style={{ width: "100%", padding: "10px 12px", fontSize: 13, fontFamily: "inherit", border: "1px solid #ddd", background: "#fff", minHeight: 44, boxSizing: "border-box" }}>
+          <option value="">— Perfume A —</option>
+          {filtered(queryA).map(p => <option key={p.id} value={p.id}>{p.fullName}</option>)}
+        </select>
+      </div>
+      <div>
+        <input type="search" placeholder="Search B…" value={queryB} onChange={e => setQueryB(e.target.value)} style={{ width: "100%", marginBottom: 6, boxSizing: "border-box" }} />
+        <select value={idB || ""} onChange={e => setIdB(parseInt(e.target.value) || null)} style={{ width: "100%", padding: "10px 12px", fontSize: 13, fontFamily: "inherit", border: "1px solid #ddd", background: "#fff", minHeight: 44, boxSizing: "border-box" }}>
+          <option value="">— Perfume B —</option>
+          {filtered(queryB).map(p => <option key={p.id} value={p.id}>{p.fullName}</option>)}
+        </select>
+      </div>
+    </div>
+
+    {/* Legend */}
+    {a && b && <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16, fontSize: 11 }}>
+      <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+        <span style={{ width: 12, height: 12, borderRadius: 3, background: "#c8a97e", display: "inline-block" }} /> Primary in both
+      </span>
+      <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+        <span style={{ width: 12, height: 12, borderRadius: 3, background: "#e8f0e8", border: "1px solid #aaccaa", display: "inline-block" }} /> Shared note
+      </span>
+      <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+        <span style={{ width: 12, height: 12, borderRadius: 3, background: "#f5f0e8", border: "1px solid #d4bc8a", display: "inline-block" }} /> Primary (one side)
+      </span>
+      <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+        <span style={{ width: 12, height: 12, borderRadius: 3, background: "#f0ece6", display: "inline-block" }} /> Unique note
+      </span>
+    </div>}
+
+    {/* Side by side panels */}
+    <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+      <PerfumePanel p={a} side="a" />
+      {a && b && <div style={{ width: 1, background: "#e8e2da", flexShrink: 0, alignSelf: "stretch" }} />}
+      <PerfumePanel p={b} side="b" />
+    </div>
+
+    {/* Summary stats */}
+    {a && b && <div style={{ marginTop: 24, padding: "16px", background: "#faf9f7", border: "1px solid #e8e2da", borderRadius: 12 }}>
+      <div className="sec-lbl" style={{ marginBottom: 12 }}>Comparison summary</div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, textAlign: "center", marginBottom: 16 }}>
+        <div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: "#c8a97e" }}>{sharedTags.size}</div>
+          <div style={{ fontSize: 11, color: "#aaa" }}>shared notes</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: "#8b6f3e" }}>{sharedPrimary.size}</div>
+          <div style={{ fontSize: 11, color: "#aaa" }}>shared primaries</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: "#999" }}>{onlyA.length + onlyB.length}</div>
+          <div style={{ fontSize: 11, color: "#aaa" }}>unique notes total</div>
+        </div>
+      </div>
+
+      {/* Character score comparison */}
+      <ScoreBar label="Signature" valA={a.sigScore || 5} valB={b.sigScore || 5} />
+      <ScoreBar label="Intensity" valA={a.intScore || 3} valB={b.intScore || 3} />
+      <ScoreBar label="Balance" valA={a.balScore || 5} valB={b.balScore || 5} />
+
+      {/* Notes only in A */}
+      {onlyA.length > 0 && <div style={{ marginTop: 12 }}>
+        <div style={{ fontSize: 11, color: "#aaa", marginBottom: 4 }}>Only in {a.name}</div>
+        <div className="tag-row" style={{ flexWrap: "wrap" }}>
+          {onlyA.map(t => <span key={t} style={{ fontSize: 11, padding: "2px 7px", borderRadius: 8, background: "#f5f0e8", color: "#8b6f3e", border: "1px solid #d4bc8a44", margin: 2 }}>{t}</span>)}
+        </div>
+      </div>}
+
+      {/* Notes only in B */}
+      {onlyB.length > 0 && <div style={{ marginTop: 10 }}>
+        <div style={{ fontSize: 11, color: "#aaa", marginBottom: 4 }}>Only in {b.name}</div>
+        <div className="tag-row" style={{ flexWrap: "wrap" }}>
+          {onlyB.map(t => <span key={t} style={{ fontSize: 11, padding: "2px 7px", borderRadius: 8, background: "#e8f0e8", color: "#4a6a4a", border: "1px solid #aaccaa44", margin: 2 }}>{t}</span>)}
+        </div>
+      </div>}
+
+      {/* Gender / mood match */}
+      <div style={{ marginTop: 12, fontSize: 11, color: "#aaa", display: "flex", gap: 16 }}>
+        {a.gender && b.gender && <span>Gender: {a.gender === b.gender ? "✓ match" : a.gender === "unisex" || b.gender === "unisex" ? "~ one unisex" : "✗ different"}</span>}
+        {a.mood && b.mood && <span>Mood: {a.mood === b.mood ? `✓ both ${a.mood}` : `${a.mood} vs ${b.mood}`}</span>}
+      </div>
+    </div>}
+  </div>;
+}
+
+
 function TaxonomyView({ onSelect, perfumes }) {
   const [lane, setLane] = useState("Floral");
   const [inclAvoid, setInclAvoid] = useState(true);
@@ -4430,6 +4641,7 @@ function App() {
     { k: "collection", l: "Collection" },
     { k: "taxonomy", l: "Taxonomy" },
     { k: "similar", l: "Similar" },
+    { k: "compare", l: "Compare" },
     { k: "diary", l: "Diary" },
     { k: "wishlist", l: "Wishlist" },
     { k: "add", l: "Add Perfume" },
@@ -4460,6 +4672,7 @@ function App() {
       {loaded && view === "pick" && <PickView onSelect={setSelected} wearStats={wearStats} perfumes={perfumes} />}
       {loaded && view === "surprise" && <SurpriseView onSelect={setSelected} perfumes={perfumes} />}
       {loaded && view === "collection" && <CollectionView onSelect={setSelected} wearStats={wearStats} perfumes={perfumes} />}
+      {loaded && view === "compare" && <CompareView perfumes={perfumes} />}
       {loaded && view === "taxonomy" && <TaxonomyView onSelect={setSelected} perfumes={perfumes} />}
       {loaded && view === "similar" && <SimilarView onSelect={setSelected} perfumes={perfumes} />}
       {loaded && view === "diary" && <DiaryView wearLog={wearLog} onAdd={addWearEntry} onEdit={editWearEntry} onDelete={deleteWearEntry} syncStatus={syncStatus} />}
