@@ -1355,8 +1355,8 @@ select:focus, input:focus, textarea:focus, button:focus-visible {
 
 const CONFIG = {
   appTitle: "Perfume OS",                     // nav bar + browser tab title
-  partnerName: "Trevor",                       // or "" to hide partner features
-  tagline: "A Remarkable Waste of Time",
+  partnerName: "Safe",                       // or "" to hide partner features
+  tagline: "Your collection, your way",
   accentColor: "#c8a97e",                     // gold (default). Try "#9b7db8" (lilac), "#8aaa80" (sage)
 };
 
@@ -1464,6 +1464,13 @@ const CANONICAL_MAP = {
   'sicilian orange':'orange','orange peel':'orange','orange':'orange',
   'clementine':'mandarin','tangerine':'mandarin',
   'lime peel':'lime','citron':'lemon','lemon verbena':'lemon',
+  'cocoa':'chocolate','cacao':'chocolate','white chocolate':'chocolate',
+  'vanillin':'vanilla','vanilla orchid':'vanilla','roasted tonka bean':'tonka',
+  'hazelnut':'praline','sugared almond':'almond','dragée':'praline',
+  'condensed milk':'cream','milk':'cream','milky skin':'cream',
+  'coconut milk':'coconut','coconut water':'coconut','coconut shell/skin accord':'coconut',
+  'licorice':'anise','liquorice':'anise','fennel':'anise','caraway':'anise',
+  'cotton candy':'caramel','brown sugar':'caramel','sugar':'caramel','salted praline':'praline',
   // ── FLORAL VARIANTS ───────────────────────────────────────────────────────────
   'violet petals':'violet','violet petal':'violet','violet leaves':'violet leaf',
   'black violet':'violet','powdery violet notes':'violet','sugared violets':'violet',
@@ -1675,7 +1682,7 @@ const CANONICAL_MAP = {
   'tes':null,'o':null,
   // ── MISC UNCLEAR ──────────────────────────────────────────────────────────
   'musks':'musk','mineral accord':'mineral','mineral notes':'mineral',
-  'ink accord':'ink','musk accord':'musk', 'skin musk accord':'musk',
+  'ink accord':'ink','musk accord':'musk',
 
   // ── Ylang variants ────────────────────────────────────────────────────────
   'ylang-ylang':'ylang','ylang ylang':'ylang','ylang-ylang (cananga)':'ylang',
@@ -1707,7 +1714,7 @@ const CANONICAL_MAP = {
   'driftwood':'cedar','coolwood':'cedar','dreamwood':'cedar',
   'okoumé wood from gabon':'cedar','blond woods':'cedar',
   'hinoki wood':'cedar','hinoki':'cedar','siam wood':'cedar','siam':'cedar',
-  'cypriol':'papyrus','nagarmotha':'papyrus', 'bamboo':'bamboo',
+  'cypriol':'papyrus','nagarmotha':'papyrus',
   'smoked papyrus':'smoky','amber pine rosin':'incense',
   'palo santo':'incense','copal':'incense',
   // ── Spice/Herb additions ──────────────────────────────────────────────────
@@ -1725,7 +1732,7 @@ const CANONICAL_MAP = {
   'balsam':'benzoin','peru balsam':'benzoin','tolu balsam':'benzoin',
   'mastic':'benzoin','gum mastic':'benzoin',
   // ── Gourmand additions ────────────────────────────────────────────────────
-  'bitter almond':'almond','sweet almond':'almond', 'lactonic':'milky',
+  'bitter almond':'almond','sweet almond':'almond',
   'chestnut':'praline','waffle cone':'caramel','sugar':'caramel',
   'brown sugar':'caramel','maltol':'caramel','candied fruit':'caramel',
   'bubblegum':'caramel','rye bread':'honey','waffle':'caramel',
@@ -1735,30 +1742,24 @@ const CANONICAL_MAP = {
   'prickly pear':'berry','passion fruit':'berry','grape':'berry',
   'riesling grape':'berry','blueberry':'berry','dragon fruit':'berry',
   'dragee':'berry','dragée':'berry','fig leaf':'fig','pink pineapple':'pineapple',
-  'cocoa':'chocolate','cacao':'chocolate','white chocolate':'chocolate',
-  'vanillin':'vanilla','vanilla orchid':'vanilla','roasted tonka bean':'tonka',
-  'hazelnut':'praline','sugared almond':'almond','dragée':'praline',
-  'condensed milk':'cream','milk':'cream','milky skin':'cream',
-  'coconut milk':'coconut','coconut water':'coconut','coconut shell/skin accord':'coconut',
-  'licorice':'anise','liquorice':'anise','fennel':'anise','caraway':'anise',
-  'cotton candy':'caramel','brown sugar':'caramel','sugar':'caramel','salted praline':'praline',
   // ── Aquatic additions ─────────────────────────────────────────────────────
   'seaweed':'aquatic','kelp':'aquatic','ozonic':'aquatic',
   'ocean breeze':'aquatic','pacific spray':'aquatic',
   'marine':'aquatic','sea fennel':'aquatic',
   'cucumber':'aquatic','cucumber water':'aquatic','aloe vera':'aquatic',
+  'bamboo':'bamboo',
   // ── Earthy/Unusual additions ──────────────────────────────────────────────
-  'grass':'hay','dry leaves':'hay','stem greens':'herbal','ivy':'ivy',
-  'english ivy':'ivy','crushed herbs':'herbal','forest floor':'earthy',
-  'soil':'earthy','petrichor':'petrichor','red clay':'earthy',
-  'white moss':'moss','cannabis':'cannabis','morel mushroom':'earthy', 'snow':'snow','ice':'ice',
+  'grass':'hay','dry leaves':'hay','stem greens':'herbal','ivy':'herbal',
+  'english ivy':'herbal','crushed herbs':'herbal','forest floor':'earthy',
+  'soil':'earthy','petrichor':'earthy','red clay':'earthy',
+  'white moss':'moss','cannabis':'earthy','morel mushroom':'earthy',
   // ── Tea additions ─────────────────────────────────────────────────────────
   'smoked tea':'lapsang souchong','oolong tea':'tea','oolong':'tea',
   'rooibos':'tea','rooibos tea':'tea',
   // ── Musk/Skin/Wax additions ───────────────────────────────────────────────
-  'beeswax':'beeswax','melted wax':'wax','shaving soap':'shaving soap',
-  'silk':'silk','flesh':'skin musk',
-  'violin varnish':'violin varnish','turpentine':'turpentine',
+  'beeswax':'wax','melted wax':'wax','shaving soap':'wax',
+  'silk':'skin musk','flesh':'skin musk',
+  'violin varnish':'ink','turpentine':'ink',
   // ── "are X / is X" parsing fragments → canonical ─────────────────────────
   'are iris':'iris','are rose':'rose','are vanilla':'vanilla',
   'are honey':'honey','are aldehydes':'aldehydes','are ambroxan':'ambrox',
@@ -1775,10 +1776,10 @@ const CANONICAL_MAP = {
   'woody notes':null,'green notes':null,'woody facets':null,
   'dry spicy facets':null,'camphorated facet':null,'leather-woody facets':null,
   'white':null,'wet':null,'dry':null,'soft':null,'sweet':null,
-  'creamy':null,'fresh':null,'solar':null,
-  'smooth':null,'crisp':null,'warm':null,'rich':null,
+  'creamy':null,'fresh':null,'lactonic':null,'solar':null,
+  'snow':null,'ice':null,'smooth':null,'crisp':null,'warm':null,'rich':null,
   'exotic':null,'musky':null,'spice':null,'wood':null,'flower':null,
-  'tree':null,'tropical':null,
+  'tree':null,'tropical':null,'skin musk accord':null,
   'animalic amber':null,'chypre chord':null,'amber musk accord':null,
   'floral musky profile with lily-of-the-valley + white musks':null,
 };
@@ -3604,7 +3605,7 @@ function MarkdownImport({ onImported }) {
     if (!file) return;
     setImporting(true); setStatus("");
     const reader = new FileReader();
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       try {
         const entries = parseDiaryMarkdown(ev.target.result);
         if (!entries.length) { setStatus("✗ No diary entries found. Check the file format."); setImporting(false); return; }
@@ -3615,7 +3616,10 @@ function MarkdownImport({ onImported }) {
         const newEntries = entries.filter(e => !existingKeys.has(`${e.date}|${(e.perfume||"").toLowerCase()}`));
         const merged = [...existing, ...newEntries];
         localStorage.setItem("perfume_diary", JSON.stringify(merged));
-        setStatus(`✓ Imported ${newEntries.length} new entries (${entries.length - newEntries.length} duplicates skipped). Reload to see them.`);
+        // Push to cloud so other browsers/devices see the import immediately
+        const cloudOk = await jsonbinPush();
+        const cloudNote = cloudOk?.ok ? " Pushed to cloud." : "";
+        setStatus(`✓ Imported ${newEntries.length} new entries (${entries.length - newEntries.length} duplicates skipped).${cloudNote}`);
         if (onImported) onImported();
       } catch (err) {
         setStatus(`✗ Parse error: ${err.message}`);
