@@ -2029,6 +2029,21 @@ function canonicalizeRawTags(tags) {
   }))];
 }
 
+// Broad family/character words — valid as general tags but NOT as primary notes.
+// Primary notes should be specific ingredients (iris, vetiver, oud…), not categories.
+const PRIMARY_TAG_BLACKLIST = new Set([
+  // Broad families
+  'floral','woody','citrus','amber','musk','resinous','gourmand','leather',
+  'aromatic','aquatic','chypre','fruity','green','spicy','smoky',
+  // Character / descriptors
+  'powdery','aldehydic','animalic','fresh','oriental','musky','herbal',
+  'skin scent','dry citrus','herbal fresh','white floral','yellow floral',
+  'purple floral','hesperidic','ambergris','musks','woods','resins','spices','florals','powders',
+  // Too-vague to be meaningful primaries
+  'woody notes','floral notes','citrus notes','base notes','heart notes','top notes',
+  'natural','synthetic','accord','woody powdery floral','spicy woody',
+]);
+
 function normalizePerfume(p) {
   return {
     id: p.i, house: p.h, name: p.n, concentration: p.c || "",
@@ -2040,7 +2055,7 @@ function normalizePerfume(p) {
     rating: p.r ?? null, tried: p.t ?? false,
     preference: p.pr || "Unrated", status: p.st || "Unrated",
     tags: [...new Set(buildTagsFromText(p.no || "", p.f || ""))],
-    primary: canonicalizeRawTags(cleanTags(p.pm || [])),
+    primary: canonicalizeRawTags(cleanTags(p.pm || [])).filter(t => !PRIMARY_TAG_BLACKLIST.has(t)),
     sigScore: p.ss ?? 5, intScore: p.is ?? 3, balScore: p.bs ?? 5, safeScore: p.ts ?? 5,
     mood: p.m || "Classic", myNotes: p.mn || "",
     // Gender: explicit field from data (p.g) → name inference → null (unknown)
@@ -2715,7 +2730,7 @@ function buildTagsFromText(notes, family) {
   if (has('ambrette','ambrette seed','musk mallow')) tags.add('ambrette');
   // Skin-enhancing aroma molecules — "my skin but better" / skin scent
   // Iso E Super, cetalox, ambroxan/ambrox, ambrette are all "skin amplifiers"
-  if (has('iso e super') || has('cetalox') || has('ambroxan') || has('ambrox') || has('ambrette seed')) tags.add('skin scent');
+  if (has('iso e super') || has('cetalox') || has('ambroxan') || has('ambrox') || has('ambrette') || has('musk','musc','musky')) tags.add('skin scent');
   // Aquatic / mineral
   if (has('aquatic','marine','ozonic','oceanic','calone','seaweed')) tags.add('aquatic');
   if (has('salt ','salty','saline','fleur de sel')) tags.add('salt');
