@@ -1108,6 +1108,40 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   font-size: 12px;
 }
 
+/* ─── EDIT CONTROLS ──────────────────────────────────────────────────────── */
+.entry-actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+}
+.entry-action-btn {
+  background: none;
+  border: 1px solid var(--border-soft);
+  color: var(--fg-very-soft);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  cursor: pointer;
+  font-family: inherit;
+  min-height: 28px;
+}
+.entry-action-btn:hover { border-color: var(--gold); color: var(--gold); }
+.entry-action-btn.del:hover { border-color: var(--dusty-rose); color: var(--dusty-rose); }
+
+.modal-edit-panel {
+  border-top: 1px solid var(--border);
+  margin-top: 16px;
+  padding-top: 16px;
+}
+.modal-edit-title {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--fg-soft);
+  margin-bottom: 12px;
+}
+
 /* ─── WEAR TODAY ──────────────────────────────────────────────────────────── */
 .context-group {
   margin-bottom: 20px;
@@ -1358,6 +1392,7 @@ const CONFIG = {
   partnerName: "Safe",                       // or "" to hide partner features
   tagline: "Your collection, your way",
   accentColor: "#c8a97e",                     // gold (default). Try "#9b7db8" (lilac), "#8aaa80" (sage)
+  publicBinId: "",                            // paste your JSONBin bin ID here for zero-login public read
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -2359,11 +2394,12 @@ function attachPerfumeIdToEntry(entry, perfumes) {
 const JSONBIN_BASE = "https://api.jsonbin.io/v3/b";
 
 function _localStateBlob() {
-  let wearLog = [], wishlist = [], userPerfumes = [];
+  let wearLog = [], wishlist = [], userPerfumes = [], perfumeEdits = {};
   try { wearLog = JSON.parse(localStorage.getItem("perfume_diary") || "[]"); } catch (e) {}
   try { wishlist = JSON.parse(localStorage.getItem("perfume_wishlist") || "[]"); } catch (e) {}
   try { userPerfumes = JSON.parse(localStorage.getItem("perfume_user_perfumes") || "[]"); } catch (e) {}
-  return { wearLog, wishlist, userPerfumes, _updatedAt: new Date().toISOString() };
+  try { perfumeEdits = JSON.parse(localStorage.getItem("perfume_edits") || "{}"); } catch (e) {}
+  return { wearLog, wishlist, userPerfumes, perfumeEdits, _updatedAt: new Date().toISOString() };
 }
 
 async function jsonbinPush(blob) {
@@ -2391,14 +2427,26 @@ async function jsonbinPush(blob) {
 async function jsonbinLoad() {
   const binId = localStorage.getItem("cloud_bin_id");
   const apiKey = localStorage.getItem("cloud_api_key");
-  if (!binId || !apiKey) return null;
-  try {
-    const res = await fetch(`${JSONBIN_BASE}/${binId}/latest`, {
-      headers: { "X-Master-Key": apiKey, "X-Bin-Meta": "false" },
-    });
-    if (!res.ok) return null;
-    return await res.json();
-  } catch (e) { return null; }
+  // Authenticated read (private bin)
+  if (binId && apiKey) {
+    try {
+      const res = await fetch(`${JSONBIN_BASE}/${binId}/latest`, {
+        headers: { "X-Master-Key": apiKey, "X-Bin-Meta": "false" },
+      });
+      if (res.ok) return await res.json();
+    } catch (e) {}
+  }
+  // Public read fallback — uses CONFIG.publicBinId, no auth header required
+  const pubId = (CONFIG.publicBinId || "").trim();
+  if (pubId) {
+    try {
+      const res = await fetch(`${JSONBIN_BASE}/${pubId}/latest`, {
+        headers: { "X-Bin-Meta": "false" },
+      });
+      if (res.ok) return await res.json();
+    } catch (e) {}
+  }
+  return null;
 }
 
 // Legacy Google Sheets sync — kept for users who set this up earlier.
@@ -2438,7 +2486,8 @@ async function cloudLoad() {
 
 function cloudConfigured() {
   return !!(localStorage.getItem("cloud_bin_id") && localStorage.getItem("cloud_api_key"))
-      || !!localStorage.getItem("sheets_webhook_url");
+      || !!localStorage.getItem("sheets_webhook_url")
+      || !!(CONFIG.publicBinId && CONFIG.publicBinId.trim());
 }
 
 // ─── AUTO-SCORING for user-added perfumes ────────────────────────────────────
@@ -2878,8 +2927,33 @@ function Card({ p, onClick, annotation, simScore }) {
   </div>;
 }
 
-function Modal({ p, onClose }) {
+function Modal({ p, onClose, onEdit }) {
+  const [editMode, setEditMode] = useState(false);
+  const [editForm, setEditForm] = useState({});
+
   if (!p) return null;
+
+  const openEdit = () => {
+    setEditForm({
+      rating: p.rating ?? "",
+      status: p.status || "Unrated",
+      myNotes: p.myNotes || "",
+    });
+    setEditMode(true);
+  };
+  const saveEdit = () => {
+    const updates = {
+      rating: editForm.rating !== "" ? parseFloat(editForm.rating) : null,
+      status: editForm.status,
+      preference: editForm.status, // keep preference in sync with status
+      myNotes: editForm.myNotes,
+    };
+    onEdit(p.id, updates);
+    setEditMode(false);
+  };
+  const ef = (k, v) => setEditForm(prev => ({...prev, [k]: v}));
+  const STATUSES = ["Love","Like","Neutral","Retry","Dislike","Avoid","Unrated"];
+
   return <div className="overlay" onClick={e => e.target === e.currentTarget && onClose()}>
     <div className="modal">
       <button className="close-btn" onClick={onClose}>×</button>
@@ -2934,7 +3008,35 @@ function Modal({ p, onClose }) {
         </div>
       )}
       {p.notes && <><div className="sec-lbl">Notes</div><p className="notes-body">{p.notes}</p></>}
-      {p.myNotes && <><div className="sec-lbl">My Experience</div><div className="my-notes">{p.myNotes}</div></>}
+      {p.myNotes && !editMode && <><div className="sec-lbl">My Experience</div><div className="my-notes">{p.myNotes}</div></>}
+
+      {/* ── Edit panel ── */}
+      {editMode ? (
+        <div className="modal-edit-panel">
+          <div className="modal-edit-title">Edit</div>
+          <div className="form-grid" style={{marginBottom: 12}}>
+            <label><span className="mini-lbl">My Rating (x/10)</span>
+              <input type="number" min="0" max="10" step="0.5" value={editForm.rating} onChange={e => ef("rating", e.target.value)} placeholder="leave blank if unrated" />
+            </label>
+            <label><span className="mini-lbl">Status</span>
+              <select value={editForm.status} onChange={e => ef("status", e.target.value)} style={{border:"1px solid #ddd",background:"#fff",padding:"10px 12px",fontSize:14,outline:"none",minHeight:44,width:"100%"}}>
+                {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </label>
+            <label className="full-span"><span className="mini-lbl">My Experience</span>
+              <textarea value={editForm.myNotes} onChange={e => ef("myNotes", e.target.value)} placeholder="How it wears, your impressions, memories…" style={{minHeight:80}} />
+            </label>
+          </div>
+          <div className="form-actions">
+            <button className="btn-primary" onClick={saveEdit}>Save</button>
+            <button className="btn-ghost" onClick={() => setEditMode(false)}>Cancel</button>
+          </div>
+        </div>
+      ) : (
+        <div style={{marginTop: 16, textAlign: "right"}}>
+          <button className="entry-action-btn" onClick={openEdit}>Edit this entry</button>
+        </div>
+      )}
     </div>
   </div>;
 }
@@ -3209,21 +3311,46 @@ function TaxonomyView({ onSelect, perfumes }) {
   </div>;
 }
 
-function DiaryView({ wearLog, onAdd, syncStatus }) {
+function DiaryEntryForm({ initial, onSave, onCancel, title }) {
+  const [form, setForm] = useState(initial);
+  const f = (k, v) => setForm(prev => ({...prev, [k]: v}));
+  const submit = () => {
+    if (!form.perfume || !form.date) return;
+    onSave({ ...form, rating: form.rating !== "" && form.rating != null ? parseFloat(form.rating) : null });
+  };
+  return <div className="form-card">
+    <div className="form-title">{title}</div>
+    <div className="form-grid">
+      <label><span className="mini-lbl">Date</span><input type="date" value={form.date} onChange={e => f("date", e.target.value)} /></label>
+      <label><span className="mini-lbl">House</span><input value={form.house||""} onChange={e => f("house", e.target.value)} placeholder="e.g. Diptyque" /></label>
+      <label><span className="mini-lbl">Perfume *</span><input value={form.perfume||""} onChange={e => f("perfume", e.target.value)} placeholder="e.g. Orphéon EDT" /></label>
+      <label><span className="mini-lbl">Rating</span><input type="number" min="0" max="10" step="0.5" value={form.rating ?? ""} onChange={e => f("rating", e.target.value)} placeholder="x/10" /></label>
+      <label className="full-span"><span className="mini-lbl">{(CONFIG.partnerName || "Partner") + "'s Reaction"}</span><input value={form.safeReaction||""} onChange={e => f("safeReaction", e.target.value)} placeholder="positive / negative / —" /></label>
+      <label className="full-span"><span className="mini-lbl">Notes</span><textarea value={form.notes||""} onChange={e => f("notes", e.target.value)} placeholder="Opening, drydown, longevity…" /></label>
+    </div>
+    <div className="form-actions">
+      <button className="btn-primary" onClick={submit}>Save</button>
+      <button className="btn-ghost" onClick={onCancel}>Cancel</button>
+    </div>
+  </div>;
+}
+
+function DiaryView({ wearLog, onAdd, onEdit, onDelete, syncStatus }) {
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ date: new Date().toISOString().slice(0,10), perfume: "", house: "", rating: "", notes: "", safeReaction: "" });
+  const [editingEntry, setEditingEntry] = useState(null);
   const [filter, setFilter] = useState("");
 
   const sorted = useMemo(() => [...wearLog].sort((a,b) => new Date(b.date) - new Date(a.date)), [wearLog]);
   const filtered = useMemo(() => filter ? sorted.filter(e => (e.perfume + " " + e.house + " " + (e.notes||"")).toLowerCase().includes(filter.toLowerCase())) : sorted, [sorted, filter]);
 
   const fmtDate = d => { const dt = new Date(d + "T12:00:00"); return dt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }); };
-  const submit = () => {
-    if (!form.perfume || !form.date) return;
-    onAdd({ ...form, rating: form.rating ? parseFloat(form.rating) : null });
-    setForm({ date: new Date().toISOString().slice(0,10), perfume: "", house: "", rating: "", notes: "", safeReaction: "" });
-    setShowForm(false);
-  };
+
+  const handleAdd = (entry) => { onAdd(entry); setShowForm(false); };
+  const handleEdit = (updated) => { onEdit(editingEntry, updated); setEditingEntry(null); };
+  const handleDelete = (entry) => { if (window.confirm(`Delete entry for ${entry.perfume}?`)) onDelete(entry); };
+
+  // Seed entries can't be edited/deleted (they're baked into the file)
+  const isUserEntry = (entry) => !WEAR_LOG_SEED.includes(entry);
 
   return <div>
     <h1 className="page-title">Wear Diary</h1>
@@ -3231,43 +3358,39 @@ function DiaryView({ wearLog, onAdd, syncStatus }) {
 
     <div className="diary-controls">
       <input className="search-input" placeholder="Search diary…" value={filter} onChange={e => setFilter(e.target.value)} />
-      <button className="btn-primary" onClick={() => setShowForm(f => !f)}>{showForm ? "Cancel" : "+ Add"}</button>
+      <button className="btn-primary" onClick={() => { setShowForm(f => !f); setEditingEntry(null); }}>{showForm ? "Cancel" : "+ Add"}</button>
     </div>
 
-    {showForm && (
-      <div className="form-card">
-        <div className="form-title">New Entry</div>
-        <div className="form-grid">
-          <label><span className="mini-lbl">Date</span><input type="date" value={form.date} onChange={e => setForm(f => ({...f, date: e.target.value}))} /></label>
-          <label><span className="mini-lbl">House</span><input value={form.house} onChange={e => setForm(f => ({...f, house: e.target.value}))} placeholder="e.g. Diptyque" /></label>
-          <label><span className="mini-lbl">Perfume *</span><input value={form.perfume} onChange={e => setForm(f => ({...f, perfume: e.target.value}))} placeholder="e.g. Orphéon EDT" /></label>
-          <label><span className="mini-lbl">Rating</span><input type="number" min="0" max="10" step="0.5" value={form.rating} onChange={e => setForm(f => ({...f, rating: e.target.value}))} placeholder="x/10" /></label>
-          <label className="full-span"><span className="mini-lbl">{(CONFIG.partnerName || "Partner") + "'s Reaction"}</span><input value={form.safeReaction} onChange={e => setForm(f => ({...f, safeReaction: e.target.value}))} placeholder="positive / negative / —" /></label>
-          <label className="full-span"><span className="mini-lbl">Notes</span><textarea value={form.notes} onChange={e => setForm(f => ({...f, notes: e.target.value}))} placeholder="Opening, drydown, longevity…" /></label>
-        </div>
-        <div className="form-actions">
-          <button className="btn-primary" onClick={submit}>Save</button>
-          <button className="btn-ghost" onClick={() => setShowForm(false)}>Cancel</button>
-        </div>
-      </div>
-    )}
+    {showForm && <DiaryEntryForm
+      title="New Entry"
+      initial={{ date: new Date().toISOString().slice(0,10), perfume: "", house: "", rating: "", notes: "", safeReaction: "" }}
+      onSave={handleAdd}
+      onCancel={() => setShowForm(false)}
+    />}
 
     <div className="diary-list">
       {filtered.map((e, i) => (
         <div key={i} className="diary-entry">
-          <div className="diary-row">
-            <div className="diary-content">
-              <div className="diary-date">{fmtDate(e.date)}{e.fuzzy && <span className="fuzzy-mark" title="Fuzzy match to collection">~</span>}{e.unmatched && <span className="unmatched-mark" title="Unmatched to collection">?</span>}</div>
-              <div className="diary-name">
-                {e.house && <span className="diary-house">{e.house} — </span>}
-                {e.perfume}
-                {e.concentration && <span className="diary-conc"> {e.concentration}</span>}
+          {editingEntry === e
+            ? <DiaryEntryForm title="Edit Entry" initial={{...e, rating: e.rating ?? ""}} onSave={handleEdit} onCancel={() => setEditingEntry(null)} />
+            : <div className="diary-row">
+                <div className="diary-content">
+                  <div className="diary-date">{fmtDate(e.date)}{e.fuzzy && <span className="fuzzy-mark" title="Fuzzy match to collection">~</span>}{e.unmatched && <span className="unmatched-mark" title="Unmatched to collection">?</span>}</div>
+                  <div className="diary-name">
+                    {e.house && <span className="diary-house">{e.house} — </span>}
+                    {e.perfume}
+                    {e.concentration && <span className="diary-conc"> {e.concentration}</span>}
+                  </div>
+                  {e.notes && <div className="diary-notes">{e.notes}</div>}
+                  {e.safeReaction && <div className={`safe-line trev-${e.safeReaction.replace(/\s/g,'-')}`}>{(CONFIG.partnerName || "Partner")}: {e.safeReaction}</div>}
+                  {isUserEntry(e) && <div className="entry-actions">
+                    <button className="entry-action-btn" onClick={() => { setEditingEntry(e); setShowForm(false); }}>Edit</button>
+                    <button className="entry-action-btn del" onClick={() => handleDelete(e)}>Delete</button>
+                  </div>}
+                </div>
+                {e.rating != null && <div className="diary-rating" style={{ color: e.rating >= 9 ? "#c8a97e" : e.rating >= 8 ? "#8aaa80" : "#999" }}>{e.rating}<span className="rating-of">/10</span></div>}
               </div>
-              {e.notes && <div className="diary-notes">{e.notes}</div>}
-              {e.safeReaction && <div className={`safe-line trev-${e.safeReaction.replace(/\s/g,'-')}`}>{(CONFIG.partnerName || "Partner")}: {e.safeReaction}</div>}
-            </div>
-            {e.rating != null && <div className="diary-rating" style={{ color: e.rating >= 9 ? "#c8a97e" : e.rating >= 8 ? "#8aaa80" : "#999" }}>{e.rating}<span className="rating-of">/10</span></div>}
-          </div>
+          }
         </div>
       ))}
     </div>
@@ -3957,7 +4080,14 @@ function App() {
   const [wearLog, setWearLog] = useState(WEAR_LOG_SEED);
   const [wishlist, setWishlist] = useState(WISHLIST_SEED);
   const [userPerfumes, setUserPerfumes] = useState([]);
-  const perfumes = useMemo(() => [...PERFUMES_SEED, ...userPerfumes.map(normalizePerfume)], [userPerfumes]);
+  const [perfumeEdits, setPerfumeEdits] = useState({});
+  const perfumes = useMemo(() => {
+    const base = [...PERFUMES_SEED, ...userPerfumes.map(normalizePerfume)];
+    return base.map(p => {
+      const ed = perfumeEdits[p.id];
+      return ed ? { ...p, ...ed } : p;
+    });
+  }, [userPerfumes, perfumeEdits]);
   const [syncStatus, setSyncStatus] = useState("Local storage");
   const [loaded, setLoaded] = useState(false);
 
@@ -3968,6 +4098,7 @@ function App() {
         setWearLog([...WEAR_LOG_SEED, ...(data.wearLog || [])]);
         setWishlist([...WISHLIST_SEED, ...(data.wishlist || [])]);
         setUserPerfumes(data.userPerfumes || []);
+        setPerfumeEdits(data.perfumeEdits || {});
         setSyncStatus("✓ Synced");
         setLoaded(true); return;
       }
@@ -3979,9 +4110,11 @@ function App() {
       const d = JSON.parse(localStorage.getItem("perfume_diary") || "[]");
       const w = JSON.parse(localStorage.getItem("perfume_wishlist") || "[]");
       const p = JSON.parse(localStorage.getItem("perfume_user_perfumes") || "[]");
+      const ed = JSON.parse(localStorage.getItem("perfume_edits") || "{}");
       setWearLog([...WEAR_LOG_SEED, ...d]);
       setWishlist([...WISHLIST_SEED, ...w]);
       setUserPerfumes(p);
+      setPerfumeEdits(ed);
     } catch (e) {}
     setLoaded(true);
   }, []);
@@ -3998,6 +4131,38 @@ function App() {
       return next;
     });
   }, [perfumes]);
+
+  const editWearEntry = useCallback((oldEntry, newEntry) => {
+    setWearLog(prev => {
+      const idx = prev.indexOf(oldEntry);
+      if (idx === -1) return prev;
+      const next = [...prev];
+      next[idx] = newEntry;
+      const user = next.filter(e => !WEAR_LOG_SEED.includes(e));
+      try { localStorage.setItem("perfume_diary", JSON.stringify(user)); } catch (e) {}
+      cloudSync("edit_wear", newEntry);
+      return next;
+    });
+  }, []);
+
+  const deleteWearEntry = useCallback((entry) => {
+    setWearLog(prev => {
+      const next = prev.filter(e => e !== entry);
+      const user = next.filter(e => !WEAR_LOG_SEED.includes(e));
+      try { localStorage.setItem("perfume_diary", JSON.stringify(user)); } catch (e) {}
+      cloudSync("delete_wear", null);
+      return next;
+    });
+  }, []);
+
+  const editPerfume = useCallback((id, updates) => {
+    setPerfumeEdits(prev => {
+      const next = { ...prev, [id]: { ...(prev[id] || {}), ...updates } };
+      try { localStorage.setItem("perfume_edits", JSON.stringify(next)); } catch (e) {}
+      cloudSync("edit_perfume", { id, updates });
+      return next;
+    });
+  }, []);
 
   const addWishlistItem = useCallback((item) => {
     setWishlist(prev => {
@@ -4069,14 +4234,14 @@ function App() {
       {loaded && view === "collection" && <CollectionView onSelect={setSelected} wearStats={wearStats} perfumes={perfumes} />}
       {loaded && view === "taxonomy" && <TaxonomyView onSelect={setSelected} perfumes={perfumes} />}
       {loaded && view === "similar" && <SimilarView onSelect={setSelected} perfumes={perfumes} />}
-      {loaded && view === "diary" && <DiaryView wearLog={wearLog} onAdd={addWearEntry} syncStatus={syncStatus} />}
+      {loaded && view === "diary" && <DiaryView wearLog={wearLog} onAdd={addWearEntry} onEdit={editWearEntry} onDelete={deleteWearEntry} syncStatus={syncStatus} />}
       {loaded && view === "wishlist" && <WishlistView wishlist={wishlist} onAdd={addWishlistItem} onRemove={removeWishlistItem} />}
       {loaded && view === "insights" && <InsightsView onSelect={setSelected} wearStats={wearStats} perfumes={perfumes} />}
       {loaded && view === "add" && <AddPerfumeView onAdd={addPerfume} perfumes={perfumes} />}
       {loaded && view === "settings" && <SettingsView syncStatus={syncStatus} onSyncChange={loadAll} />}
     </main>
 
-    {selected && <Modal p={selected} onClose={() => setSelected(null)} />}
+    {selected && <Modal p={selected} onClose={() => setSelected(null)} onEdit={editPerfume} />}
   </div>;
 }
 
