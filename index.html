@@ -4336,9 +4336,10 @@ function WearTodayView({ onSelect, wearStats, perfumes }) {
 
   const enriched = useMemo(() => enrich(perfumes, wearStats), [wearStats, perfumes]);
 
-  const ranked = useMemo(() => {
+  const [ranked, setRanked] = useState([]);
+  useEffect(() => {
     const ctx = { season, occasion, vibe };
-    return enriched
+    const result = enriched
       .filter(p => p.status !== "Avoid" && p.status !== "Dislike" && p.preference !== "Dislike")
       .map(p => {
         // Context is the primary signal — multiply it so the right-for-right-now perfume wins.
@@ -4353,6 +4354,7 @@ function WearTodayView({ onSelect, wearStats, perfumes }) {
       })
       .sort((a, b) => b.todayScore - a.todayScore)
       .slice(0, 12);
+    setRanked(result);
   }, [enriched, season, occasion, vibe]);
 
   const top = ranked[0];
