@@ -1785,7 +1785,7 @@ const CANONICAL_MAP = {
   // ── Earthy/Unusual additions ──────────────────────────────────────────────
   'grass':'hay','dry leaves':'hay','stem greens':'herbal','ivy':'herbal',
   'english ivy':'herbal','crushed herbs':'herbal','forest floor':'earthy',
-  'soil':'earthy','petrichor':'earthy','red clay':'earthy',
+  'soil':'earthy','red clay':'earthy',
   'white moss':'moss','cannabis':'earthy','morel mushroom':'earthy',
   // ── Tea additions ─────────────────────────────────────────────────────────
   'smoked tea':'lapsang souchong','oolong tea':'tea','oolong':'tea',
@@ -2073,7 +2073,14 @@ function normalizePerfume(p) {
     notes: processNotes(p.no || "").join("; ") || p.no || "",
     rating: p.r ?? null, tried: p.t ?? false,
     preference: p.pr || "Unrated", status: p.st || "Unrated",
-    tags: [...new Set([...buildTagsFromText(p.no || "", p.f || ""), ...(p.m === 'Air' ? ['airy'] : [])])],
+    tags: (() => {
+    const t = new Set([...buildTagsFromText(p.no || "", p.f || ""), ...(p.m === 'Air' ? ['airy'] : [])]);
+    // Diary-word unusual detection
+    const mn = (p.mn || '').toLowerCase();
+    const WEIRD_WORDS = ['weird','strange','unusual','odd','bizarre','unexpected','funky','wild','peculiar','metallic','antiseptic','crazy','experimental'];
+    if (WEIRD_WORDS.some(w => new RegExp('\\b' + w + '\\b').test(mn))) t.add('unusual');
+    return [...t];
+  })(),
     primary,
     sigScore: p.ss ?? 5, intScore: p.is ?? 3, balScore: p.bs ?? 5, safeScore: p.ts ?? 5,
     mood: p.m || "Classic", myNotes: p.mn || "",
@@ -2091,7 +2098,7 @@ const MOODS = ["All","Air","Resin","Bridge","Classic"];
 // Lanes are organized into groups for the dropdown
 const LANE_GROUPS = [
   { label: "Broad families", lanes: ["Floral","Woody","Citrus","Amber","Ambergris","Musk","Resinous","Gourmand","Leather","Aromatic","Aquatic","Chypre","Fruity"] },
-  { label: "Character", lanes: ["Airy","Skin Scent","Powdery","Resinous","Spicy","Green","Smoky","Dry Citrus","Herbal Fresh"] },
+  { label: "Character", lanes: ["Airy","Unusual","Skin Scent","Powdery","Resinous","Spicy","Green","Smoky","Dry Citrus","Herbal Fresh"] },
   { label: "Florals", lanes: ["White Floral","Yellow Floral","Purple Floral","Violet","Iris","Lipstick Iris","Rose","Jasmine","Tuberose","Ylang","Magnolia","Orange Blossom","Neroli","Osmanthus","Mimosa","Peony","Lily of the Valley","Narcissus","Heliotrope","Carnation"] },
   { label: "Woods", lanes: ["Sandalwood","Cedar","Vetiver","Patchouli","Oud","Gaiac","Cypress","Papyrus","Birch","Cashmeran"] },
   { label: "Resinous / Smoky", lanes: ["Incense","Myrrh","Benzoin","Labdanum","Styrax","Tobacco","Oakmoss","Moss"] },
@@ -2101,7 +2108,7 @@ const LANE_GROUPS = [
   { label: "Fruit / Tea", lanes: ["Peach","Fig","Pear","Apple","Berry","Plum","Cherry","Tea"] },
   { label: "Herbal / Aromatic", lanes: ["Sage","Rosemary","Thyme","Basil","Lavender","Eucalyptus","Mint"] },
   { label: "Saline / Mineral", lanes: ["Salt","Mineral","Suede"] },
-  { label: "Unusual", lanes: ["Ink","Wax","Hay","Carrot Seed","Aldehydic","Skin Scent"] },
+  { label: "Unusual", lanes: ["Petrichor","Ink","Wax","Aldehydic","Hay"] },
 ];
 // Flat list for the taxonomy tabs
 const LANES = ["All", ...LANE_GROUPS.flatMap(g => g.lanes)];
@@ -2109,10 +2116,10 @@ const LANES = ["All", ...LANE_GROUPS.flatMap(g => g.lanes)];
 // Broad families + character descriptors — shown as single-select dropdown
 // Two separate dropdowns:
 const FAMILY_OPTIONS = ["All","Floral","White Floral","Yellow Floral","Purple Floral","Woody","Citrus","Amber","Ambergris","Musk","Resinous","Gourmand","Leather","Aromatic","Aquatic","Chypre","Fruity","Green","Aldehydic"];
-const CHARACTER_OPTIONS = ["All","Airy","Skin Scent","Lipstick Iris","Powdery","Resinous","Spicy","Smoky","Dry Citrus","Herbal Fresh","Fruity"];
+const CHARACTER_OPTIONS = ["All","Airy","Unusual","Skin Scent","Lipstick Iris","Powdery","Resinous","Spicy","Smoky","Dry Citrus","Herbal Fresh","Fruity"];
 
 const BROAD_FAMILIES_SET = new Set(["floral","woody","citrus","amber","musk","resinous","gourmand","leather","aromatic","aquatic","chypre","fruity","green"]);
-const CHARACTER_SET = new Set(["airy","skin scent","powdery","resinous","spicy","smoky","dry citrus","herbal fresh","lipstick iris","powder","aldehydes","aldehydic"]);
+const CHARACTER_SET = new Set(["airy","unusual","skin scent","powdery","resinous","spicy","smoky","dry citrus","herbal fresh","lipstick iris","powder","aldehydes","aldehydic"]);
 
 // Static curated note groups — canonical names only, no variants.
 // These must match exactly what buildTagsFromText + canonicalizeRawTags produce.
@@ -2176,7 +2183,7 @@ const NOTE_GROUPS = [
     "Truffle","Earthy","Moss","Bamboo",
   ]},
   { label: "Unusual", notes: [
-    "Aldehydic","Aldehydes","Ink","Wax","Hay","Carrot Seed","Skin Scent",
+    "Petrichor","Aldehydic","Ink","Wax","Hay",
   ]},
 ];
 
@@ -2737,7 +2744,8 @@ function buildTagsFromText(notes, family) {
   if (has('hawthorn','hawthorne')) tags.add('hawthorn');
   if (has('pistachio')) tags.add('pistachio');
   if (has('truffle')) tags.add('truffle');
-  if (has('earthy','petrichor','forest floor')) tags.add('earthy');
+  if (has('petrichor')) tags.add('petrichor');
+  if (has('earthy','forest floor')) tags.add('earthy');
   if (has('bamboo')) tags.add('bamboo');
   if (has('seaweed','kelp')) tags.add('seaweed');
   if (has('orange ','orange,','orange;',' orange','blood orange','bitter orange','bigarade') && !has('orange blossom')) tags.add('orange');
@@ -2748,6 +2756,31 @@ function buildTagsFromText(notes, family) {
   if (has('ambrette','ambrette seed','musk mallow')) tags.add('ambrette');
   // Skin-enhancing aroma molecules — "my skin but better" / skin scent
   // Iso E Super, cetalox, ambroxan/ambrox, ambrette are all "skin amplifiers"
+  // Unusual / non-standard-material notes
+  // hasW uses word boundaries to avoid substring false positives (ink≠pink, tar≠tarragon, morel≠morello)
+  const hasW = (...words) => words.some(w => new RegExp('\\b' + w + '\\b').test(text));
+  // Non-perfume / unexpected materials
+  if (hasW('mushroom','morel','truffle','fungal','mildew')) tags.add('unusual');
+  if (has('petrichor','lava rock','volcanic rock','forest floor','soil tincture','wet earth accord')) tags.add('unusual');
+  if (has('wax','beeswax','melted wax','hot wax','candlewax')) tags.add('unusual');
+  if (has('earthy notes','earthy accord')) tags.add('unusual');
+  if (hasW('ink') && !has('linking','drinking','thinking')) tags.add('unusual');
+  if (has('rubber','gasoline','petrol','asphalt')) tags.add('unusual');
+  if (hasW('tar') && !has('tarragon')) tags.add('unusual');
+  if (has('cade','birch tar')) tags.add('unusual');
+  if (has('metallic','metal accord','iron accord','gunpowder','blood accord')) tags.add('unusual');
+  // Unusual plant / natural materials
+  if (has('prickly pear','cactus')) tags.add('unusual');
+  // Seaweed is unusual only when paired with something it doesn't belong with
+  if (has('seaweed','kelp','briny seaweed')) {
+    const seaweedFloral = has('narcissus','jasmine','tuberose','rose','ylang','frangipani','magnolia','osmanthus','gardenia');
+    const seaweedAnimalic = has('civet','castoreum','animalic','barnyard');
+    const seaweedUnexpected = has('labdanum','oud','tobacco','leather','suede','myrrh');
+    if (seaweedFloral || seaweedAnimalic || seaweedUnexpected) tags.add('unusual');
+  }
+  if (hasW('chrysanthemum')) tags.add('unusual');
+  // Extreme animalics (specific molecules, not the generic 'animalic' descriptor)
+  if (has('civet','castoreum','costus','barnyard','fecal')) tags.add('unusual');
   // Skin scent: specific synthetic skin molecules only (musk alone is too broad)
   if (has('iso e super') || has('cetalox') || has('ambroxan') || has('ambrox') || has('ambrette')) tags.add('skin scent');
   // Aquatic / mineral
@@ -2763,8 +2796,9 @@ function buildTagsFromText(notes, family) {
   if (has('lavender','lavande')) tags.add('lavender');
   if (has('eucalyptus')) tags.add('eucalyptus');
   if (has('mint','menthe')) tags.add('mint');
-  if (has(' tea','the ','matcha','lapsang','maté','mate ','green tea','black tea','white tea','earl grey','oolong')) tags.add('tea');
+  if (has(' tea','matcha','lapsang','maté','mate ','green tea','black tea','white tea','earl grey','oolong')) tags.add('tea');
   if (has('green tea')) tags.add('green tea');
+  if (has('wax','beeswax','melted wax','candlewax','hot wax','church candle')) tags.add('wax');
   if (has('black tea')) tags.add('black tea');
   if (has('white tea')) tags.add('white tea');
   if (has('lapsang')) tags.add('lapsang souchong');
