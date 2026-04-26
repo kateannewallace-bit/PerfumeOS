@@ -2433,7 +2433,11 @@ async function jsonbinLoad() {
       const res = await fetch(`${JSONBIN_BASE}/${binId}/latest`, {
         headers: { "X-Master-Key": apiKey, "X-Bin-Meta": "false" },
       });
-      if (res.ok) return await res.json();
+      if (res.ok) {
+        const json = await res.json();
+        // Handle both raw data shape and wrapped {record: {...}} shape
+        return json && json.record ? json.record : json;
+      }
     } catch (e) {}
   }
   // Public read fallback — uses CONFIG.publicBinId, no auth header required
@@ -2443,7 +2447,11 @@ async function jsonbinLoad() {
       const res = await fetch(`${JSONBIN_BASE}/${pubId}/latest`, {
         headers: { "X-Bin-Meta": "false" },
       });
-      if (res.ok) return await res.json();
+      if (res.ok) {
+        const json = await res.json();
+        // Handle both raw data shape and wrapped {record: {...}} shape
+        return json && json.record ? json.record : json;
+      }
     } catch (e) {}
   }
   return null;
@@ -2478,9 +2486,11 @@ async function cloudSync(action, data) {
 }
 
 async function cloudLoad() {
-  if (localStorage.getItem("cloud_bin_id") && localStorage.getItem("cloud_api_key")) {
-    return jsonbinLoad();
-  }
+  // Always try jsonbinLoad first — it handles both authenticated reads
+  // (when credentials are in localStorage) and public bin reads (CONFIG.publicBinId).
+  // Only fall back to sheets if jsonbinLoad returns null.
+  const binData = await jsonbinLoad();
+  if (binData) return binData;
   return sheetsLoad();
 }
 
