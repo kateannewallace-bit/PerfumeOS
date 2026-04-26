@@ -1389,8 +1389,8 @@ select:focus, input:focus, textarea:focus, button:focus-visible {
 
 const CONFIG = {
   appTitle: "Perfume OS",                     // nav bar + browser tab title
-  partnerName: "Trevor",                       // or "" to hide partner features
-  tagline: "A Colossal Waste of Time",
+  partnerName: "Safe",                       // or "" to hide partner features
+  tagline: "Your collection, your way",
   accentColor: "#c8a97e",                     // gold (default). Try "#9b7db8" (lilac), "#8aaa80" (sage)
   publicBinId: "69ed6bc1aaba8821973a433d",    // JSONBin bin ID — public read, no login required
 };
@@ -1409,420 +1409,253 @@ const RAW_DATA = {"perfumes":[{"i":0,"h":"19-69","n":"San Pedro","f":"citrus, ar
 // null means "needs splitting" (handled in SPLIT_MAP).
 // ══════════════════════════════════════════════════════════════════════════════
 const CANONICAL_MAP = {
-  // ── IRIS / ORRIS ──────────────────────────────────────────────────────────
-  'orris':'iris','orris butter':'iris','orris root':'iris','orris wood':'iris',
-  'orris/iris':'iris','orris/iris concrete':'iris','iris/orris':'iris',
-  'iris pallida':'iris','iris germanica extract':'iris','iris absolute':'iris',
-  'iris butter':'iris','iris root':'iris','iris accord':'iris',
-  'florentine iris':'iris','florentine orris':'iris','italian orris':'iris',
-  'white orris':'iris','white orris butter':'iris','italian/florentine iris':'iris',
-  'green wild orris':'iris','black orris':'iris','tuscan iris':'iris',
-  // ── JASMINE ───────────────────────────────────────────────────────────────
-  'jasmine absolute':'jasmine','jasmine sambac':'jasmine','jasmine nectar':'jasmine',
-  'jasminum grandiflorum (france)':'jasmine','jasminum grandiflorum (india)':'jasmine',
+  'orris':'iris','orris butter':'iris','orris root':'iris',
+  'orris wood':'iris','orris/iris':'iris','orris/iris concrete':'iris',
+  'iris/orris':'iris','iris pallida':'iris','iris germanica extract':'iris',
+  'iris absolute':'iris','iris butter':'iris','iris root':'iris',
+  'iris accord':'iris','florentine iris':'iris','florentine orris':'iris',
+  'italian orris':'iris','white orris':'iris','white orris butter':'iris',
+  'italian/florentine iris':'iris','green wild orris':'iris','black orris':'iris',
+  'tuscan iris':'iris','jasmine absolute':'jasmine','jasmine sambac':'jasmine',
+  'jasmine nectar':'jasmine','jasminum grandiflorum (france)':'jasmine','jasminum grandiflorum (india)':'jasmine',
   'sambac jasmine':'jasmine','egyptian jasmine':'jasmine','water jasmine':'jasmine',
-  'white jasmine':'jasmine','jasmine (grandiflorum)':'jasmine',
-  // ── PEPPER ────────────────────────────────────────────────────────────────
-  'black pepper':'pepper','pink pepper':'pink pepper','green pepper':'pepper',
-  'pimento':'pepper','pimento leaf':'pepper','pimento seeds':'pepper',
-  'chilli pepper':'pepper','pepper berries':'pepper','sichuan pepper':'pepper',
-  'timur (timut) pepper':'pepper','madagascan black pepper oil':'pepper',
-  'black pepper from madagascar':'pepper','white pepper from india':'pepper',
+  'white jasmine':'jasmine','jasmine (grandiflorum)':'jasmine','black pepper':'pepper',
+  'pink pepper':'pink pepper','green pepper':'pepper','pimento':'pepper',
+  'pimento leaf':'pepper','pimento seeds':'pepper','chilli pepper':'pepper',
+  'pepper berries':'pepper','sichuan pepper':'pepper','timur (timut) pepper':'pepper',
+  'madagascan black pepper oil':'pepper','black pepper from madagascar':'pepper','white pepper from india':'pepper',
   'pink peppercorn':'pink pepper','green peppercorn':'pepper','red pepper berries':'pepper',
   'brazilian pink peppercorn':'pink pepper','pink pepper leaf':'pink pepper','pepper wood':'pepper',
-  // ── APRICOT ───────────────────────────────────────────────────────────────
-  'apricot skin':'apricot','apricot-like facets':'apricot',
-  'pricot':'apricot','pricot skin':'apricot','pricot-like facets':'apricot',
-  // ── ROSE ──────────────────────────────────────────────────────────────────
-  'bulgarian rose':'rose','bulgarian rose essence':'rose','bulgarian rose extract':'rose',
-  'centifolia rose':'rose','centifolia rose absolute':'rose','rose absolute':'rose',
-  'rose centifolia':'rose','rose centifolia absolute':'rose','rose de grasse':'rose',
-  'rose essence':'rose','rose bourbon absolute':'rose','rose (may rose/rose oil)':'rose',
-  'rose (rose de grasse)':'rose','damascena rose':'rose','damascena rose (oil)':'rose',
-  'damask rose':'rose',"ta'if rose":'rose','taif rose':'rose','turkish rose':'rose',
-  'turkish rose absolute':'rose','turkish rose essence':'rose','turkish rose water':'rose',
-  'ottoman rose absolute':'rose','moroccan rose':'rose','may rose':'rose',
-  'white rose':'rose','black rose':'rose','wild rose':'rose','rose petals':'rose',
-  'rose water':'rose','rose oxide':'rose','mascena rose':'rose','mask rose':'rose',
-  'rose •':'rose',
-  // ── SANDALWOOD ────────────────────────────────────────────────────────────
-  'indian sandalwood':'sandalwood','mysore sandalwood':'sandalwood',
-  'australian sandalwood':'sandalwood','new caledonian sandalwood oil':'sandalwood',
-  // ── LAVENDER ──────────────────────────────────────────────────────────────
+  'apricot skin':'apricot','apricot-like facets':'apricot','pricot':'apricot',
+  'pricot skin':'apricot','pricot-like facets':'apricot','bulgarian rose':'rose',
+  'bulgarian rose essence':'rose','bulgarian rose extract':'rose','centifolia rose':'rose',
+  'centifolia rose absolute':'rose','rose absolute':'rose','rose centifolia':'rose',
+  'rose centifolia absolute':'rose','rose de grasse':'rose','rose essence':'rose',
+  'rose bourbon absolute':'rose','rose (may rose/rose oil)':'rose','rose (rose de grasse)':'rose',
+  'damascena rose':'rose','damascena rose (oil)':'rose','damask rose':'rose',
+  'taif rose':'rose','turkish rose':'rose','turkish rose absolute':'rose',
+  'turkish rose essence':'rose','turkish rose water':'rose','ottoman rose absolute':'rose',
+  'moroccan rose':'rose','may rose':'rose','white rose':'rose',
+  'black rose':'rose','wild rose':'rose','rose petals':'rose',
+  'rose water':'rose','rose oxide':'rose','mascena rose':'rose',
+  'mask rose':'rose','rose •':'rose','indian sandalwood':'sandalwood',
+  'mysore sandalwood':'sandalwood','australian sandalwood':'sandalwood','new caledonian sandalwood oil':'sandalwood',
   'english lavender':'lavender','french (carla) lavender':'lavender','lavandin':'lavender',
   'lavandin grosso':'lavender','lavandin super':'lavender','provence lavender':'lavender',
-  'lavender •':'lavender',
-  // ── NEROLI ────────────────────────────────────────────────────────────────
-  'moroccan neroli':'neroli','tunisian neroli':'neroli','neroli blossom':'neroli',
-  'eroli':'neroli','eroli accord':'neroli','eroli buds':'neroli','eroli essence':'neroli',
-  // ── BERGAMOT ──────────────────────────────────────────────────────────────
-  'calabrian bergamot':'bergamot','italian bergamot':'bergamot',
-  'bergamot peel':'bergamot','bergamot rind':'bergamot','bergamot nectar':'bergamot',
-  // ── VETIVER ───────────────────────────────────────────────────────────────
-  'haitian vetiver':'vetiver','madagascan vetiver':'vetiver','bourbon vetiver':'vetiver',
-  'vetiver root':'vetiver','vetiver from haiti':'vetiver','haitian vetiver':'vetiver',
-  // ── VANILLA ───────────────────────────────────────────────────────────────
+  'lavender •':'lavender','moroccan neroli':'neroli','tunisian neroli':'neroli',
+  'neroli blossom':'neroli','eroli':'neroli','eroli accord':'neroli',
+  'eroli buds':'neroli','eroli essence':'neroli','calabrian bergamot':'bergamot',
+  'italian bergamot':'bergamot','bergamot peel':'bergamot','bergamot rind':'bergamot',
+  'bergamot nectar':'bergamot','haitian vetiver':'vetiver','madagascan vetiver':'vetiver',
+  'bourbon vetiver':'vetiver','vetiver root':'vetiver','vetiver from haiti':'vetiver',
   'bourbon vanilla':'vanilla','madagascan vanilla':'vanilla','madagascar vanilla':'vanilla',
-  'madagascan vanilla bean extract co2':'vanilla','vanilla bean':'vanilla',
-  'vanilla beans':'vanilla','vanilla absolute':'vanilla','vanilla from madagascar':'vanilla',
-  'vanilla infusion':'vanilla','vanilla madagascar':'vanilla','vanilla pod':'vanilla',
-  'vanilla tincture':'vanilla','vanilla (tahitensis)':'vanilla','black vanilla':'vanilla',
-  'toasted vanilla':'vanilla','firnat vanilla':'vanilla',
-  // ── PATCHOULI ─────────────────────────────────────────────────────────────
-  'indonesian patchouli':'patchouli','sulawesian patchouli':'patchouli',
-  'patchouli essence':'patchouli',
-  // ── CEDAR ─────────────────────────────────────────────────────────────────
-  'virginia cedar':'cedar','virginia cedarwood':'cedar','virginian cedarwood':'cedar',
-  'red cedar':'cedar','moroccan cedarwood':'cedar','atlas cedarwood':'cedar',
-  'cedar atlas':'cedar','cedar essence':'cedar','cedar leaf':'cedar',
-  'cedar wood':'cedar','cedarwood':'cedar','cedarwoods':'cedar',
-  'green cedar':'cedar','white cedar':'cedar','white cedar extract':'cedar',
-  'asian cypress':'cypress',
-  // ── MUSK ──────────────────────────────────────────────────────────────────
-  'cashmere musk':'musk','coconut musk':'musk','pink musk':'musk','powdery musk':'musk',
-  'sweet musk':'musk','velvet musk':'musk','musks':'musk','white musk':'musk',
-  'white musks':'musk','silk musk':'musk','chantilly musk':'musk','hot musk':'musk',
-  'proprietary musk accord':'musk','warm skin accord':'skin musk','sensual skin accord':'skin musk',
-  'egyptian musk accord':'musk','ambery musk':'amber musk','vanilla musk':'vanilla musk',
-  'cashmere musk':'musk',
-  // ── FRUIT VARIANTS ────────────────────────────────────────────────────────────
-  'blackberry':'berry','raspberry':'berry','strawberry':'berry','blueberry':'berry',
-  'dewberry':'berry','wild strawberry':'berry','pink berries':'berry','red currant':'berry',
-  'nectarine':'peach','pêche de vigne':'peach','warm plum':'plum',
-  'dark cherry':'cherry','morello cherry':'cherry','cherry wine':'cherry',
-  'cherry liqueur':'cherry','black cherry':'cherry','cherry blossom accord':'cherry blossom',
-  'green apple':'apple','red apple':'apple',
+  'madagascan vanilla bean extract co2':'vanilla','vanilla bean':'vanilla','vanilla beans':'vanilla',
+  'vanilla absolute':'vanilla','vanilla from madagascar':'vanilla','vanilla infusion':'vanilla',
+  'vanilla madagascar':'vanilla','vanilla pod':'vanilla','vanilla tincture':'vanilla',
+  'vanilla (tahitensis)':'vanilla','black vanilla':'vanilla','toasted vanilla':'vanilla',
+  'firnat vanilla':'vanilla','indonesian patchouli':'patchouli','sulawesian patchouli':'patchouli',
+  'patchouli essence':'patchouli','virginia cedar':'cedar','virginia cedarwood':'cedar',
+  'virginian cedarwood':'cedar','red cedar':'cedar','moroccan cedarwood':'cedar',
+  'atlas cedarwood':'cedar','cedar atlas':'cedar','cedar essence':'cedar',
+  'cedar leaf':'cedar','cedar wood':'cedar','cedarwood':'cedar',
+  'cedarwoods':'cedar','green cedar':'cedar','white cedar':'cedar',
+  'white cedar extract':'cedar','asian cypress':'cypress','cashmere musk':'musk',
+  'coconut musk':'musk','pink musk':'musk','powdery musk':'musk',
+  'sweet musk':'musk','velvet musk':'musk','musks':'musk',
+  'white musk':'musk','white musks':'musk','silk musk':'musk',
+  'chantilly musk':'musk','hot musk':'musk','proprietary musk accord':'musk',
+  'warm skin accord':'skin musk','sensual skin accord':'skin musk','egyptian musk accord':'musk',
+  'ambery musk':'amber musk','vanilla musk':'vanilla musk','blackberry':'berry',
+  'raspberry':'berry','strawberry':'berry','blueberry':'berry',
+  'dewberry':'berry','wild strawberry':'berry','pink berries':'berry',
+  'red currant':'berry','nectarine':'peach','pêche de vigne':'peach',
+  'warm plum':'plum','dark cherry':'cherry','morello cherry':'cherry',
+  'cherry wine':'cherry','cherry liqueur':'cherry','black cherry':'cherry',
+  'cherry blossom accord':'cherry blossom','green apple':'apple','red apple':'apple',
   'green pear':'pear','pear stem':'pear','pear water':'pear',
-  'pink grapefruit':'grapefruit','white grapefruit':'grapefruit',
-  'blood orange':'orange','sweet orange':'orange','bitter orange':'orange',
-  'sicilian orange':'orange','orange peel':'orange','orange':'orange',
-  'clementine':'mandarin','tangerine':'mandarin',
-  'lime peel':'lime','citron':'lemon','lemon verbena':'lemon',
-  'cocoa':'chocolate','cacao':'chocolate','white chocolate':'chocolate',
-  'vanillin':'vanilla','vanilla orchid':'vanilla','roasted tonka bean':'tonka',
-  'hazelnut':'praline','sugared almond':'almond','dragée':'praline',
-  'condensed milk':'cream','milk':'cream','milky skin':'cream',
-  'coconut milk':'coconut','coconut water':'coconut','coconut shell/skin accord':'coconut',
-  'licorice':'anise','liquorice':'anise','fennel':'anise','caraway':'anise',
-  'cotton candy':'caramel','brown sugar':'caramel','sugar':'caramel','salted praline':'praline',
-  // ── FLORAL VARIANTS ───────────────────────────────────────────────────────────
+  'pink grapefruit':'grapefruit','white grapefruit':'grapefruit','blood orange':'orange',
+  'sweet orange':'orange','bitter orange':'orange','sicilian orange':'orange',
+  'orange peel':'orange','orange':'orange','clementine':'mandarin',
+  'tangerine':'mandarin','lime peel':'lime','citron':'lemon',
+  'lemon verbena':'lemon','cocoa':'chocolate','cacao':'chocolate',
+  'white chocolate':'chocolate','vanillin':'vanilla','vanilla orchid':'vanilla',
+  'roasted tonka bean':'tonka','hazelnut':'praline','sugared almond':'almond',
+  'dragée':'praline','condensed milk':'cream','milk':'cream',
+  'milky skin':'cream','coconut milk':'coconut','coconut water':'coconut',
+  'coconut shell/skin accord':'coconut','licorice':'anise','liquorice':'anise',
+  'fennel':'anise','caraway':'caraway','cotton candy':'caramel',
+  'brown sugar':'caramel','sugar':'caramel','salted praline':'praline',
   'violet petals':'violet','violet petal':'violet','violet leaves':'violet leaf',
   'black violet':'violet','powdery violet notes':'violet','sugared violets':'violet',
   'neroli buds':'neroli','linden blossom':'linden','silver lime':'linden',
-  'cherry blossom leaf':'cherry blossom',
-  'pink freesia':'freesia','pink orchid':'orchid','wild orchid':'orchid',
-  'red lily':'lily','spicy lily':'lily','white champaca':'champaca','champaca':'champaca',
-  'southern magnolia':'magnolia','tea rose':'rose','rosewater':'rose',
-  'nyctanthes arbor-tristis':'jasmine','wild narcissus':'narcissus',
-  'bluebell':'floral','wisteria':'floral','stephanotis':'floral','sweet pea':'floral',
-  'dianthus':'carnation','gillyflower':'carnation',
-  'pink tulips':'floral','tulip':'floral','apple blossom':'floral',
-  'almond flower':'floral','cotton flower':'floral','lotus':'floral',
-  'water lily':'floral','peach blossom':'floral','raspberry blossom':'floral',
-  'pittosporum':'floral','marigold':'floral','oleander':'floral','jonquil':'floral',
-  'cacao flower':'floral','jasmine sambac':'jasmine',
-  // ── WOOD VARIANTS ─────────────────────────────────────────────────────────────
-  'guaiac wood':'gaiac','natural cedarwood':'cedar',
-  'hinoki wood':'hinoki','japanese pine':'hinoki',
-  'juniper berry':'juniper','juniper berries':'juniper',
+  'cherry blossom leaf':'cherry blossom','pink freesia':'freesia','pink orchid':'orchid',
+  'wild orchid':'orchid','red lily':'lily','spicy lily':'lily',
+  'white champaca':'champaca','champaca':'champaca','southern magnolia':'magnolia',
+  'tea rose':'rose','rosewater':'rose','nyctanthes arbor-tristis':'jasmine',
+  'wild narcissus':'narcissus','bluebell':'floral','wisteria':'floral',
+  'stephanotis':'stephanotis','sweet pea':'floral','dianthus':'carnation',
+  'gillyflower':'carnation','pink tulips':'floral','tulip':'floral',
+  'apple blossom':'floral','almond flower':'floral','cotton flower':'floral',
+  'lotus':'floral','water lily':'water lily','peach blossom':'floral',
+  'raspberry blossom':'floral','pittosporum':'floral','marigold':'marigold',
+  'oleander':'oleander','jonquil':'jonquil','cacao flower':'floral',
+  'guaiac wood':'gaiac','natural cedarwood':'cedar','hinoki wood':'hinoki',
+  'japanese pine':'hinoki','juniper berry':'juniper','juniper berries':'juniper',
   'cypress needles':'cypress','pine needle':'pine','pine needles':'pine',
-  'french oakwood co2':'oak','roasted oak':'oak','oak':'oak','oak wood':'oak',
-  'cade':'smoky','cade wood':'smoky','birch tar':'smoky',
-  'firewood smoke':'smoky','smoked wood':'smoky','pine tar':'smoky',
-  'palo santo':'incense',
-  'gurjun balsam':'benzoin','balsam':'benzoin',
-  // ── SPICE VARIANTS ────────────────────────────────────────────────────────────
-  'cloves':'clove','cassia':'cinnamon','cinnamon leaf':'cinnamon',
-  'coriander seed':'coriander','indian cumin':'cumin',
-  // ── AQUATIC/MINERAL VARIANTS ──────────────────────────────────────────────────
-  'sea salt':'salt','salt water':'salt','salted':'salt','fleur de sel':'salt',
-  'salted crystals':'salt','salty mineral':'salt','smoked sea salt':'salt',
-  'briny seaweed':'seaweed','red seaweed':'seaweed','sargassum':'seaweed',
-  'seaweed/kelp':'seaweed','marine':'aquatic',
-  // ── GREEN/HERBAL VARIANTS ─────────────────────────────────────────────────────
-  'artemisia':'wormwood',
-  'bay leaf':'herbal','laurel':'herbal',
-  'grass':'grass','green grass':'grass','dune grass':'grass','indigo grass':'grass',
-  'green leaf':'green leaf','green leaves':'green leaf','violet leaves':'violet leaf',
-  // ── TONKA / FRANGIPANI / MISC ──────────────────────────────────────────────
+  'french oakwood co2':'oak','roasted oak':'oak','oak':'oak',
+  'oak wood':'oak','cade':'cade','cade wood':'cade',
+  'birch tar':'birch tar','firewood smoke':'smoky','smoked wood':'smoky',
+  'pine tar':'birch tar','palo santo':'incense','gurjun balsam':'benzoin',
+  'balsam':'benzoin','cloves':'clove','cassia':'cinnamon',
+  'cinnamon leaf':'cinnamon','coriander seed':'coriander','indian cumin':'cumin',
+  'sea salt':'salt','salt water':'salt','salted':'salt',
+  'fleur de sel':'salt','salted crystals':'salt','salty mineral':'salt',
+  'smoked sea salt':'salt','briny seaweed':'seaweed','red seaweed':'seaweed',
+  'sargassum':'seaweed','seaweed/kelp':'seaweed','marine':'aquatic',
+  'artemisia':'wormwood','bay leaf':'herbal','laurel':'herbal',
+  'grass':'grass','green grass':'grass','dune grass':'grass',
+  'indigo grass':'grass','green leaf':'green leaf','green leaves':'green leaf',
   'tonka bean':'tonka','tonka beans':'tonka','tonka bean extract':'tonka',
-  'tonkin musk':'musk',
-  'plumeria':'frangipani','frangipane':'frangipani','plumeria flower':'frangipani',
-  'frangipani flower':'frangipani','red frangipani':'frangipani',
-  'monoi':'frangipani','monoï':'frangipani','monoi de tahiti':'frangipani','tiare flower':'frangipani','tiare':'frangipani',
-  'jasminum grandiflorum':'jasmine',
-  'blackcurrant':'blackcurrant','black currant':'blackcurrant',
-  'red berries':'berry','red berry':'berry',
-  'palmarosa':'palmarosa','tarragon':'tarragon','wormwood':'wormwood',
-  'sycamore':'sycamore','sycamore wood':'sycamore','maplewood':'maplewood','maple wood':'maplewood',
-  'hawthorn':'hawthorn','bamboo':'bamboo','rum':'rum',
-  'musky notes':'musk','aldehyde':'aldehydes','aldehyde accord':'aldehydes',
-  // ── AMBRETTE ──────────────────────────────────────────────────────────────
-  'ambrette':'ambrette','ambrette (musk mallow)':'ambrette','ambrette (musk)':'ambrette',
-  'ambrette seed':'ambrette','ambrettolide':'ambrette','mbrette':'ambrette',
-  'mbrette (musk mallow)':'ambrette','mbrette butter':'ambrette','mbrette musk':'ambrette',
-  'mbrette seed':'ambrette','mbrettolide':'ambrette',
-  // ── AMBER ─────────────────────────────────────────────────────────────────
-  'fossilized amber':'amber','golden amber':'amber','black amber':'amber',
-  'white amber':'amber','amber resin accord':'amber','woody amber accord':'amber',
-  'crisp amber':'amber','mber':'amber','mbergris':'ambergris',
-  'mbermax':'amber','mberwood':'amberwood','ambermax':'amber',
-  // ── SYNTHETICS / AROMA CHEMICALS ─────────────────────────────────────────
-  'ambrox':'ambrox','ambroxan':'ambrox','ambrox/ambroxan':'ambrox',
-  'mbrox':'ambrox','mbroxan':'ambrox',
+  'tonkin musk':'musk','plumeria':'frangipani','frangipane':'frangipani',
+  'plumeria flower':'frangipani','frangipani flower':'frangipani','red frangipani':'frangipani',
+  'monoi':'frangipani','monoï':'frangipani','monoi de tahiti':'frangipani',
+  'tiare flower':'frangipani','tiare':'frangipani','jasminum grandiflorum':'jasmine',
+  'blackcurrant':'blackcurrant','black currant':'blackcurrant','red berries':'berry',
+  'red berry':'berry','palmarosa':'palmarosa','tarragon':'tarragon',
+  'wormwood':'wormwood','sycamore':'sycamore','sycamore wood':'sycamore',
+  'maplewood':'maplewood','maple wood':'maplewood','hawthorn':'hawthorn',
+  'bamboo':'bamboo','rum':'rum','musky notes':'musk',
+  'aldehyde':'aldehydic','aldehyde accord':'aldehydes','ambrette':'ambrette',
+  'ambrette (musk mallow)':'ambrette','ambrette (musk)':'ambrette','ambrette seed':'ambrette',
+  'ambrettolide':'ambrette','mbrette':'ambrette','mbrette (musk mallow)':'ambrette',
+  'mbrette butter':'ambrette','mbrette musk':'ambrette','mbrette seed':'ambrette',
+  'mbrettolide':'ambrette','fossilized amber':'amber','golden amber':'amber',
+  'black amber':'amber','white amber':'amber','amber resin accord':'amber',
+  'woody amber accord':'amber','crisp amber':'amber','mber':'amber',
+  'mbergris':'ambergris','mbermax':'amber','mberwood':'amberwood',
+  'ambermax':'amber','ambrox':'ambrox','ambroxan':'ambrox',
+  'ambrox/ambroxan':'ambrox','mbrox':'ambrox','mbroxan':'ambrox',
   'iso e super':'iso e super','hedione':'hedione','habanolide':'habanolide',
-  'helvetolide':'helvetolide','muscenone':'muscenone','muscone':'muscone',
-  'muscone (musk)':'muscone','civettone':'civettone','cetalox':'cetalox',
-  "orcanox\u2122":'orcanox',"orcanox\u00e2_x0084_\u00a2":'orcanox',
-  "mugane\u2122":'mugane','grisalva':'grisalva','coumarin':'coumarin',
-  'hexyl acetate':'hexyl acetate','timbersilk':'timbersilk',"aqual\u2122":'aqual',
-  'ihydromyrcenol (lime/clean citrus accord)':'dihydromyrcenol',
-  // ── LEMON / CITRUS ────────────────────────────────────────────────────────
-  'italian lemon':'lemon','sicilian lemon':'lemon','amalfi lemon':'lemon',
-  'verdelli lemon':'lemon','lemon oil':'lemon','lemon peel':'lemon',
-  'malfi lemon':'lemon','cedrat':'citron',
-  // ── ORANGE BLOSSOM ────────────────────────────────────────────────────────
-  'moroccan orange blossom':'orange blossom','moroccan orange flower absolute':'orange blossom',
-  'tunisian orange blossom':'orange blossom','orange flower':'orange blossom',
-  'orange flower absolute':'orange blossom','orange blossom absolute':'orange blossom',
-  'african orange flower':'orange blossom','frican orange flower':'orange blossom',
-  // ── INCENSE ───────────────────────────────────────────────────────────────
+  'helvetolide':'helvetolide','muscenone':'muscenone','muscone':'musk',
+  'muscone (musk)':'musk','civettone':'civettone','cetalox':'cetalox',
+  'grisalva':'grisalva','coumarin':'coumarin','hexyl acetate':'hexyl acetate',
+  'timbersilk':'timbersilk','ihydromyrcenol (lime/clean citrus accord)':'dihydromyrcenol','italian lemon':'lemon',
+  'sicilian lemon':'lemon','amalfi lemon':'lemon','verdelli lemon':'lemon',
+  'lemon oil':'lemon','lemon peel':'lemon','malfi lemon':'lemon',
+  'cedrat':'citron','moroccan orange blossom':'orange blossom','moroccan orange flower absolute':'orange blossom',
+  'tunisian orange blossom':'orange blossom','orange flower':'orange blossom','orange flower absolute':'orange blossom',
+  'orange blossom absolute':'orange blossom','african orange flower':'orange blossom','frican orange flower':'orange blossom',
   'olibanum':'incense','olibanum (frankincense)':'incense','olibanum (incense)':'incense',
-  'olibanum (incense) extract':'incense','olibanum absolute':'incense',
-  'black african olibanum':'incense','frankincense':'incense','church incense':'incense',
-  // ── OUD ───────────────────────────────────────────────────────────────────
-  'agarwood (oud)':'oud','agarwood':'oud','aloewood':'oud','garwood (oud)':'oud',
-  'thai oud wood':'oud',
-  // ── LABDANUM ──────────────────────────────────────────────────────────────
-  'cistus (labdanum)':'labdanum','cistus':'labdanum','rockrose':'labdanum',
-  'rockrose (labdanum)':'labdanum','rock rose':'labdanum','spanish labdanum':'labdanum',
-  // ── YLANG-YLANG ───────────────────────────────────────────────────────────
-  'ylang ylang':'ylang-ylang','madagascan ylang-ylang':'ylang-ylang',
-  // ── GERANIUM ──────────────────────────────────────────────────────────────
-  'bourbon geranium':'geranium','madagascan geranium':'geranium',
-  // ── ANISE ─────────────────────────────────────────────────────────────────
-  'aniseed':'anise','badiane':'star anise',
-  // ── MANDARIN / TANGERINE ──────────────────────────────────────────────────
-  'italian mandarin':'mandarin','red mandarin':'mandarin','green mandarin':'mandarin',
-  'mandarin orange':'mandarin','mandarin nectar':'mandarin','tangerine/mandarin':'mandarin',
-  'green tangerine':'tangerine',
-  // ── PETITGRAIN ────────────────────────────────────────────────────────────
-  'petitgrain bigarade':'petitgrain','paraguayan petitgrain':'petitgrain',
-  'lemon petitgrain':'petitgrain','pettigrain':'petitgrain',
-  // ── ANGELICA ──────────────────────────────────────────────────────────────
+  'olibanum (incense) extract':'incense','olibanum absolute':'incense','black african olibanum':'incense',
+  'frankincense':'incense','church incense':'incense','agarwood (oud)':'oud',
+  'agarwood':'oud','aloewood':'oud','garwood (oud)':'oud',
+  'thai oud wood':'oud','cistus (labdanum)':'labdanum','cistus':'labdanum',
+  'rockrose':'labdanum','rockrose (labdanum)':'labdanum','rock rose':'labdanum',
+  'spanish labdanum':'labdanum','ylang ylang':'ylang','madagascan ylang-ylang':'ylang-ylang',
+  'bourbon geranium':'geranium','madagascan geranium':'geranium','aniseed':'anise',
+  'badiane':'star anise','italian mandarin':'mandarin','red mandarin':'mandarin',
+  'green mandarin':'mandarin','mandarin orange':'mandarin','mandarin nectar':'mandarin',
+  'tangerine/mandarin':'mandarin','green tangerine':'tangerine','petitgrain bigarade':'petitgrain',
+  'paraguayan petitgrain':'petitgrain','lemon petitgrain':'petitgrain','pettigrain':'petitgrain',
   'angelica root':'angelica','angelica roots':'angelica','angelica seed':'angelica',
-  'angelica seeds':'angelica','angelica (seed/root)':'angelica',
-  'gelica':'angelica','gelica root':'angelica','gelica seed':'angelica',
-  // ── CARDAMOM ──────────────────────────────────────────────────────────────
-  'sri lankan cardamom':'cardamom',
-  // ── CARROT SEED ───────────────────────────────────────────────────────────
-  'carrot seeds':'carrot seed',
-  // ── TOBACCO ───────────────────────────────────────────────────────────────
-  'tobacco absolute':'tobacco','tobacco leaf':'tobacco','tobacco leaves':'tobacco',
-  // ── COFFEE ────────────────────────────────────────────────────────────────
-  'coffee absolute':'coffee','roasted coffee':'coffee',
-  // ── PEACH ─────────────────────────────────────────────────────────────────
+  'angelica seeds':'angelica','angelica (seed/root)':'angelica','gelica':'angelica',
+  'gelica root':'angelica','gelica seed':'angelica','sri lankan cardamom':'cardamom',
+  'carrot seeds':'carrot seed','tobacco absolute':'tobacco','tobacco leaf':'tobacco',
+  'tobacco leaves':'tobacco','coffee absolute':'coffee','roasted coffee':'coffee',
   'peach skin':'peach','peach skin/flesh':'peach','white peach':'peach',
-  'velvet peach':'peach','watery peach':'peach',
-  // ── BERRY ─────────────────────────────────────────────────────────────────
-  'blackberry/raspberry':'berry','red berries/raspberry':'berry',
-  'blackcurrant bud':'blackcurrant','blackcurrant bud (cassis)':'blackcurrant',
-  'blackcurrant buds':'blackcurrant','blackcurrant leaf':'blackcurrant',
-  'blackcurrant accord':'blackcurrant','burgundy blackcurrant':'blackcurrant',
-  'cassis':'blackcurrant','black currant':'blackcurrant',
-  // ── FIG ───────────────────────────────────────────────────────────────────
-  'fig fruit':'fig','fig tree':'fig','fig tree accord':'fig','fig accord':'fig',
-  'wild fig':'fig','fig leaves':'fig leaf',
-  // ── LYCHEE ────────────────────────────────────────────────────────────────
-  'litchi':'lychee',
-  // ── CEDAR / WOODY ─────────────────────────────────────────────────────────
-  'sycamore':'sycamore','sycamore wood':'sycamore',
-  'maplewood':'maple wood','maple wood':'maple wood',
-  'gaiac wood':'guaiac wood',
-  'blond woods':'blond woods','blonde woods':'blond woods',
-  'blonde woods accord':'blond woods',
-  'blonde woods (description also references saffron + vanilla)':'blond woods',
-  'radiant wood':'blond woods','leatherwood':'leather wood',
-  'akigalawood':'akigalawood','kigalawood':'akigalawood',
-  'birch (smoky/leathery)':'birch tar',
-  // ── FLORAL ────────────────────────────────────────────────────────────────
-  'oleander':'oleander','jonquille':'jonquil','marigold':'marigold',
-  'african marigold':'marigold','ianthus':'carnation',
-  'roman chamomile':'chamomile',
-  'roman chamomile essence':'chamomile',
-  'immortelle flower absolute':'immortelle','corsican immortelle':'immortelle',
-  'everlasting flower':'immortelle',
-  // ── TEA ───────────────────────────────────────────────────────────────────
-  'black tea absolute':'black tea','black tea leaves':'black tea',
-  'ceylon black tea':'black tea','chinese black tea':'black tea',
-  'earl grey tea':'earl grey tea','green tea':'green tea','white tea':'white tea','oolong tea':'oolong tea',
-  'lapsang souchong tea':'lapsang souchong','maté tea absolute':'maté',
-  'matã\xa9':'maté','matcha (green tea)':'matcha','matcha tea':'matcha',
-  // ── SAGE ──────────────────────────────────────────────────────────────────
-  'sage/clary sage':'sage','clary sage':'sage',
-  // ── LEATHER ───────────────────────────────────────────────────────────────
+  'velvet peach':'peach','watery peach':'peach','blackberry/raspberry':'berry',
+  'red berries/raspberry':'berry','blackcurrant bud':'blackcurrant','blackcurrant bud (cassis)':'blackcurrant',
+  'blackcurrant buds':'blackcurrant','blackcurrant leaf':'blackcurrant','blackcurrant accord':'blackcurrant',
+  'burgundy blackcurrant':'blackcurrant','cassis':'blackcurrant','fig fruit':'fig',
+  'fig tree':'fig','fig tree accord':'fig','fig accord':'fig',
+  'wild fig':'fig','fig leaves':'fig leaf','litchi':'lychee',
+  'gaiac wood':'guaiac wood','blond woods':'blond woods','blonde woods':'blond woods',
+  'blonde woods accord':'blond woods','blonde woods (description also references saffron + vanilla)':'blond woods','radiant wood':'blond woods',
+  'leatherwood':'leather wood','akigalawood':'akigalawood','kigalawood':'akigalawood',
+  'birch (smoky/leathery)':'birch tar','jonquille':'jonquil','african marigold':'marigold',
+  'ianthus':'carnation','roman chamomile':'chamomile','roman chamomile essence':'chamomile',
+  'immortelle flower absolute':'immortelle','corsican immortelle':'immortelle','everlasting flower':'immortelle',
+  'black tea absolute':'black tea','black tea leaves':'black tea','ceylon black tea':'black tea',
+  'chinese black tea':'black tea','earl grey tea':'earl grey tea','green tea':'green tea',
+  'white tea':'white tea','oolong tea':'tea','lapsang souchong tea':'lapsang souchong',
+  'maté tea absolute':'maté','matã\xa9':'maté','matcha (green tea)':'matcha',
+  'matcha tea':'matcha','sage/clary sage':'sage','clary sage':'sage',
   'volynka leather':'leather','tuscan leather':'leather','black leather accord':'leather',
   'dark leather':'leather','smoked leather':'leather','tanned leather':'leather',
-  'leather accord':'leather','leather-like labdanum derivatives':'labdanum',
-  'suede accord':'suede','suede/leather':'suede',
-  // ── LABDANUM / CISTUS ─────────────────────────────────────────────────────
-  'leather/woody facets':'leather',
-  // ── MOSS ──────────────────────────────────────────────────────────────────
-  'oakmoss absolute':'oakmoss','moss accord':'moss','kyoto moss':'moss','tree moss':'moss',
-  // ── ELEMI / MYRRH / BENZOIN ───────────────────────────────────────────────
-  'elemi resin':'elemi','myrrh essential oil':'myrrh',
-  'siam benzoin':'benzoin','styrax resins':'styrax','opopanine':'opoponax',
-  // ── MISC CLEANUP ──────────────────────────────────────────────────────────
-  'lily-of-the-valley':'lily of the valley','muguet':'lily of the valley',
-  'green hay':'hay',
-  'mastic (lentisk)':'mastic','lentisque (mastic)':'mastic','lentisk':'mastic',
-  'green lentisk':'mastic',
-  'cypriol (nagarmotha)':'cypriol','cypriol oil (nagarmotha)':'cypriol',
-  'cypriol oil':'cypriol',
-  'cashmere wood (cashmeran)':'cashmeran','cashmere wood':'cashmeran',
-  'cashmere woods':'cashmeran',
-  'palo santo accord':'palo santo',
-  'laurel blossom accord':'laurel',
-  'peru balsam':'balsam','tolu balsam':'balsam','copaiba balsam':'balsam',
-  'fir balsam':'balsam','balsam fir':'balsam',
-  'silver birch':'birch','white birch':'birch','birch leaf':'birch',
-  'paper birch':'birch',
-  'davana':'davana',
-  'orcanox™':'orcanox',
-  'freesia •':'freesia','tulip •':'tulip',
-  'rose •':'rose','lavender •':'lavender',
-  // ── TRUNCATED DATA ARTIFACTS ──────────────────────────────────────────────
-  'ldehydes':'aldehydes','ldehyde accord':'aldehydes',
-  'pple':'apple','pple blossom':'apple blossom',
-  'rcissus':'narcissus','rtemisia':'artemisia',
+  'leather accord':'leather','leather-like labdanum derivatives':'labdanum','suede accord':'suede',
+  'suede/leather':'suede','leather/woody facets':'leather','oakmoss absolute':'oakmoss',
+  'moss accord':'moss','kyoto moss':'moss','tree moss':'moss',
+  'elemi resin':'elemi','myrrh essential oil':'myrrh','siam benzoin':'benzoin',
+  'styrax resins':'styrax','opopanine':'opoponax','lily-of-the-valley':'lily of the valley',
+  'muguet':'lily of the valley','green hay':'hay','mastic (lentisk)':'mastic',
+  'lentisque (mastic)':'mastic','lentisk':'mastic','green lentisk':'mastic',
+  'cypriol (nagarmotha)':'cypriol','cypriol oil (nagarmotha)':'cypriol','cypriol oil':'cypriol',
+  'cashmere wood (cashmeran)':'cashmeran','cashmere wood':'cashmeran','cashmere woods':'cashmeran',
+  'palo santo accord':'palo santo','laurel blossom accord':'laurel','peru balsam':'peru balsam',
+  'tolu balsam':'tolu balsam','copaiba balsam':'balsam','fir balsam':'balsam',
+  'balsam fir':'balsam','silver birch':'birch','white birch':'birch',
+  'birch leaf':'birch','paper birch':'birch','davana':'davana',
+  'orcanox™':'orcanox','freesia •':'freesia','tulip •':'tulip',
+  'ldehydes':'aldehydes','ldehyde accord':'aldehydes','pple':'apple',
+  'pple blossom':'apple blossom','rcissus':'narcissus','rtemisia':'artemisia',
   'utmeg':'nutmeg','loe vera':'aloe vera','ise':'anise',
   'lmond':'almond','lmond flower':'almond blossom','lmond woods':'almond',
-  'csugar':'sugar','lumroot':'plum',
-  'igerian ginger':'ginger',
-  // ── FAMILY DESCRIPTORS (map to null = skip) ───────────────────────────────
-  'hesperidic':null,'(citrus notes)':null,'citrus notes':null,
-  'floral notes':null,'fruity notes':null,'herbal notes':null,
-  'green notes':null,'woody notes':null,'wood notes':null,'woodsy notes':null,
-  'musky notes':null,'animalic notes':null,'animal notes':null,
-  'watery notes':null,'spicy notes':null,'resin':null,'resins':null,
-  'flowers':null,'fruits':null,'woods':null,'spices':null,
-  'fresh green notes':null,'resinous balmy notes':null,
-  'asian spices':null,'dried fruits':null,'crispy facets':null,
-  'olfactory family':null,'citruses':null,'citruses and lemon':null,
-  'floral fruity':null,'fruity-woody accord':null,'fruity amber style':null,
-  'o official pyramid given on source)':null,
-  'base includes suede accord + white musk)':null,
-  'floral musky profile with lily-of-the-valley + white musks':null,
-  'tes':null,'o':null,
-  // ── MISC UNCLEAR ──────────────────────────────────────────────────────────
-  'musks':'musk','mineral accord':'mineral','mineral notes':'mineral',
-  'ink accord':'ink','musk accord':'musk',
-
-  // ── Ylang variants ────────────────────────────────────────────────────────
-  'ylang-ylang':'ylang','ylang ylang':'ylang','ylang-ylang (cananga)':'ylang',
-  // ── Citrus additions ──────────────────────────────────────────────────────
-  'orange':'orange','blood orange':'orange','bitter orange':'orange',
-  'bigarade':'orange','bigarade (bitter orange)':'orange',
-  'bitter orange (bigarade)':'orange','orange zest':'orange',
-  'tangerine':'mandarin','citron':'lemon','litsea cubeba':'lemon',
-  'lemon zest':'lemon','lemon balm':'lemon',
-  'citrus zest':'citrus','citruses':'citrus','hesperidic':'citrus',
-  // ── Floral additions ──────────────────────────────────────────────────────
-  'white peony':'peony','white rose':'rose','wild rose':'rose',
-  "ta'if rose":'rose','may rose':'rose','rose oil':'rose',
-  'hawthorn':'hawthorn','hawthorne':'hawthorn',
-  'jonquil':'narcissus','jonquille':'narcissus',
-  'marigold':'chamomile','calendula':'chamomile',
-  'camellia':'tea',
-  'wildflowers':'floral','wild flowers':'floral',
-  'white floral':'floral','white florals':'floral',
-  'exotic floral':'floral',
-  'black water lily':'lotus','water lily':'lotus',
-  'oleander':'floral','sweet pea':'floral',
-  'bleeding heart':'floral','clover':'floral',
-  'chrysanthemum':'floral','poppy':'floral',
-  'stephanotis':'jasmine',
-  // ── Wood additions ────────────────────────────────────────────────────────
-  'sycamore':'cedar','sequoia':'cedar','mahogany':'cedar','rosewood':'cedar',
-  'brazilian rosewood':'cedar','maple wood':'cedar','maplewood':'cedar',
-  'driftwood':'cedar','coolwood':'cedar','dreamwood':'cedar',
-  'okoumé wood from gabon':'cedar','blond woods':'cedar',
-  'hinoki wood':'cedar','hinoki':'cedar','siam wood':'cedar','siam':'cedar',
-  'cypriol':'papyrus','nagarmotha':'papyrus',
-  'smoked papyrus':'smoky','amber pine rosin':'incense',
-  'palo santo':'incense','copal':'incense',
-  // ── Spice/Herb additions ──────────────────────────────────────────────────
-  'star anise':'anise','aniseed':'anise',
-  'cumin':'cumin','caraway':'cumin','turmeric':'cumin',
-  'coriander':'coriander','nigerian ginger':'ginger','galangal':'ginger',
-  'wormwood':'sage','artemisia':'sage',
-  'peppermint':'mint','spearmint':'mint','citrata mint':'mint',
-  'laurel':'herbal','bay leaf':'herbal','calamus':'herbal',
-  'myrtle':'herbal','tarragon':'herbal','hyssop':'herbal',
-  'nettle':'herbal','wild achillea':'herbal','cilantro':'herbal',
-  'shiso':'herbal','rye':'hay','wheat germ':'hay','cereals':'hay',
-  'angelica':'angelica','angelica root':'angelica',
-  // ── Resin additions ───────────────────────────────────────────────────────
-  'balsam':'benzoin','peru balsam':'benzoin','tolu balsam':'benzoin',
-  'mastic':'benzoin','gum mastic':'benzoin',
-  // ── Gourmand additions ────────────────────────────────────────────────────
-  'bitter almond':'almond','sweet almond':'almond',
-  'chestnut':'praline','waffle cone':'caramel','sugar':'caramel',
-  'brown sugar':'caramel','maltol':'caramel','candied fruit':'caramel',
+  'csugar':'sugar','lumroot':'plum','igerian ginger':'ginger',
+  'mineral accord':'mineral','mineral notes':'mineral','ink accord':'ink',
+  'musk accord':'musk','ylang-ylang':'ylang','ylang-ylang (cananga)':'ylang',
+  'bigarade':'orange','bigarade (bitter orange)':'orange','bitter orange (bigarade)':'orange',
+  'orange zest':'orange','litsea cubeba':'lemon','lemon zest':'lemon',
+  'lemon balm':'lemon','citrus zest':'citrus','citruses':'citrus',
+  'hesperidic':'citrus','white peony':'peony','rose oil':'rose',
+  'hawthorne':'hawthorn','calendula':'chamomile','camellia':'tea',
+  'wildflowers':'floral','wild flowers':'floral','white floral':'white floral',
+  'white florals':'white floral','exotic floral':'floral','black water lily':'lotus',
+  'bleeding heart':'floral','clover':'floral','chrysanthemum':'chrysanthemum',
+  'poppy':'floral','sequoia':'cedar','mahogany':'cedar',
+  'rosewood':'cedar','brazilian rosewood':'cedar','driftwood':'cedar',
+  'coolwood':'cedar','dreamwood':'cedar','okoumé wood from gabon':'cedar',
+  'hinoki':'cedar','siam wood':'cedar','siam':'cedar',
+  'cypriol':'papyrus','nagarmotha':'papyrus','smoked papyrus':'smoky',
+  'amber pine rosin':'incense','copal':'incense','star anise':'anise',
+  'cumin':'cumin','turmeric':'cumin','coriander':'coriander',
+  'nigerian ginger':'ginger','galangal':'ginger','peppermint':'mint',
+  'spearmint':'mint','citrata mint':'mint','calamus':'herbal',
+  'myrtle':'herbal','hyssop':'herbal','nettle':'herbal',
+  'wild achillea':'herbal','cilantro':'herbal','shiso':'herbal',
+  'rye':'hay','wheat germ':'hay','cereals':'hay',
+  'angelica':'angelica','mastic':'benzoin','gum mastic':'benzoin',
+  'bitter almond':'almond','sweet almond':'almond','chestnut':'praline',
+  'waffle cone':'caramel','maltol':'caramel','candied fruit':'caramel',
   'bubblegum':'caramel','rye bread':'honey','waffle':'caramel',
-  'rum':'honey','cognac':'amber','bourbon whiskey':'amber','brandy':'amber',
-  'dates':'fig','pandan':'coconut','toasted sesame':'praline','sesame':'praline',
-  'persimmon':'peach','papaya':'peach','green mango':'melon',
-  'prickly pear':'berry','passion fruit':'berry','grape':'berry',
-  'riesling grape':'berry','blueberry':'berry','dragon fruit':'berry',
-  'dragee':'berry','dragée':'berry','fig leaf':'fig','pink pineapple':'pineapple',
-  // ── Aquatic additions ─────────────────────────────────────────────────────
-  'seaweed':'aquatic','kelp':'aquatic','ozonic':'aquatic',
-  'ocean breeze':'aquatic','pacific spray':'aquatic',
-  'marine':'aquatic','sea fennel':'aquatic',
-  'cucumber':'aquatic','cucumber water':'aquatic','aloe vera':'aquatic',
-  'bamboo':'bamboo',
-  // ── Earthy/Unusual additions ──────────────────────────────────────────────
-  'grass':'hay','dry leaves':'hay','stem greens':'herbal','ivy':'herbal',
+  'cognac':'cognac','bourbon whiskey':'whiskey','brandy':'brandy',
+  'dates':'fig','pandan':'coconut','toasted sesame':'praline',
+  'sesame':'praline','persimmon':'peach','papaya':'peach',
+  'green mango':'melon','prickly pear':'berry','passion fruit':'berry',
+  'grape':'berry','riesling grape':'berry','dragon fruit':'berry',
+  'dragee':'berry','fig leaf':'fig','pink pineapple':'pineapple',
+  'seaweed':'aquatic','kelp':'aquatic','ozonic':'ozonic',
+  'ocean breeze':'aquatic','pacific spray':'aquatic','sea fennel':'aquatic',
+  'cucumber':'cucumber','cucumber water':'cucumber','aloe vera':'aloe vera',
+  'dry leaves':'hay','stem greens':'herbal','ivy':'herbal',
   'english ivy':'herbal','crushed herbs':'herbal','forest floor':'earthy',
-  'soil':'earthy','red clay':'earthy',
-  'white moss':'moss','cannabis':'earthy','morel mushroom':'earthy',
-  // ── Tea additions ─────────────────────────────────────────────────────────
-  'smoked tea':'lapsang souchong','oolong tea':'tea','oolong':'tea',
-  'rooibos':'tea','rooibos tea':'tea',
-  // ── Musk/Skin/Wax additions ───────────────────────────────────────────────
+  'soil':'earthy','red clay':'earthy','white moss':'moss',
+  'cannabis':'cannabis','morel mushroom':'mushroom','smoked tea':'lapsang souchong',
+  'oolong':'tea','rooibos':'tea','rooibos tea':'tea',
   'beeswax':'wax','melted wax':'wax','shaving soap':'wax',
-  'silk':'skin musk','flesh':'skin musk',
-  'violin varnish':'ink','turpentine':'ink',
-  // ── "are X / is X" parsing fragments → canonical ─────────────────────────
-  'are iris':'iris','are rose':'rose','are vanilla':'vanilla',
-  'are honey':'honey','are aldehydes':'aldehydes','are ambroxan':'ambrox',
-  'are leather':'leather','are frangipani':'frangipani','are fig':'fig',
-  'are barley':'hay','are star anise':'anise','are vetiver':'vetiver',
-  'are hay':'hay','are earthy':'earthy','are musk':'musk','are moss':'moss',
-  'are heliotrope':'heliotrope','are patchouli':'patchouli',
-  'are tonka bean':'tonka','are powdery':'powdery','are carrot':'carrot seed',
-  'are tuberose':'tuberose','are sandalwood':'sandalwood',
+  'silk':'skin musk','flesh':'skin musk','violin varnish':'ink',
+  'turpentine':'ink','are iris':'iris','are rose':'rose',
+  'are vanilla':'vanilla','are honey':'honey','are aldehydes':'aldehydes',
+  'are ambroxan':'ambrox','are leather':'leather','are frangipani':'frangipani',
+  'are fig':'fig','are barley':'hay','are star anise':'anise',
+  'are vetiver':'vetiver','are hay':'hay','are earthy':'earthy',
+  'are musk':'musk','are moss':'moss','are heliotrope':'heliotrope',
+  'are patchouli':'patchouli','are tonka bean':'tonka','are powdery':'powdery',
+  'are carrot':'carrot seed','are tuberose':'tuberose','are sandalwood':'sandalwood',
   'are violet':'violet','are amber':'amber','are peach':'peach',
-  'are tuscan iris':'iris','is osmanthus':'osmanthus',
-  'is palmarosa':'geranium','is peach':'peach',
-  // ── Garbage blobs → null ─────────────────────────────────────────────────
-  'woody notes':null,'green notes':null,'woody facets':null,
-  'dry spicy facets':null,'camphorated facet':null,'leather-woody facets':null,
-  'white':null,'wet':null,'dry':null,'soft':null,'sweet':null,
-  'creamy':null,'fresh':null,'lactonic':null,'solar':null,
-  'snow':null,'ice':null,'smooth':null,'crisp':null,'warm':null,'rich':null,
-  'exotic':null,'musky':null,'spice':null,'wood':null,'flower':null,
-  'tree':null,'tropical':null,'skin musk accord':null,
-  'animalic amber':null,'chypre chord':null,'amber musk accord':null,
-  'floral musky profile with lily-of-the-valley + white musks':null,
-  // ── HESPERIDIC = CITRUS ───────────────────────────────────────────────────
-  'hesperidic':'citrus','hesperidic citrus':'citrus','agrumes':'citrus',
+  'are tuscan iris':'iris','is osmanthus':'osmanthus','is palmarosa':'geranium',
+  'is peach':'peach','hesperidic citrus':'citrus','agrumes':'citrus',
   'hesperides':'citrus','fresh citrus':'citrus','citrus aromatic':'citrus',
-  'citrusy':'citrus',
-  // ── MUSCONE → MUSK ───────────────────────────────────────────────────────
-  'aldehydes':'aldehydic','aldehyde':'aldehydic',
-  'muscone':'musk','muscone (musk)':'musk','muscone (musk macrolide)':'musk',
+  'citrusy':'citrus','aldehydes':'aldehydic','muscone (musk macrolide)':'musk',
   'muscone (musk':'musk',
 };
 
@@ -2077,7 +1910,7 @@ function normalizePerfume(p) {
     const t = new Set([...buildTagsFromText(p.no || "", p.f || ""), ...(p.m === 'Air' ? ['airy'] : [])]);
     // Diary-word unusual detection
     const mn = (p.mn || '').toLowerCase();
-    const WEIRD_WORDS = ['weird','strange','unusual','odd','bizarre','unexpected','funky','wild','peculiar','metallic','antiseptic','crazy','experimental'];
+    const WEIRD_WORDS = ['weird','strange','odd','bizarre','unexpected','wild','peculiar','metallic','antiseptic','crazy','experimental','pie crust','pie','Play-Doh','playdoh','band-aid','bandaid','hospital'];
     if (WEIRD_WORDS.some(w => new RegExp('\\b' + w + '\\b').test(mn))) t.add('unusual');
     return [...t];
   })(),
@@ -2108,7 +1941,7 @@ const LANE_GROUPS = [
   { label: "Fruit / Tea", lanes: ["Peach","Fig","Pear","Apple","Berry","Plum","Cherry","Tea"] },
   { label: "Herbal / Aromatic", lanes: ["Sage","Rosemary","Thyme","Basil","Lavender","Eucalyptus","Mint"] },
   { label: "Saline / Mineral", lanes: ["Salt","Mineral","Suede"] },
-  { label: "Unusual", lanes: ["Petrichor","Ink","Wax","Aldehydic","Hay"] },
+  { label: "Unusual", lanes: ["Petrichor","Ink","Wax","Aldehydic","Cannabis","Vinyl","Concrete","Copper","Bubblegum","Cotton Candy","Whiskey","Cognac","Ice"] },
 ];
 // Flat list for the taxonomy tabs
 const LANES = ["All", ...LANE_GROUPS.flatMap(g => g.lanes)];
@@ -2119,7 +1952,7 @@ const FAMILY_OPTIONS = ["All","Floral","White Floral","Yellow Floral","Purple Fl
 const CHARACTER_OPTIONS = ["All","Airy","Unusual","Skin Scent","Lipstick Iris","Powdery","Resinous","Spicy","Smoky","Dry Citrus","Herbal Fresh","Fruity"];
 
 const BROAD_FAMILIES_SET = new Set(["floral","woody","citrus","amber","musk","resinous","gourmand","leather","aromatic","aquatic","chypre","fruity","green"]);
-const CHARACTER_SET = new Set(["airy","unusual","skin scent","powdery","resinous","spicy","smoky","dry citrus","herbal fresh","lipstick iris","powder","aldehydes","aldehydic"]);
+const CHARACTER_SET = new Set(["airy","unusual","skin scent","powdery","resinous","spicy","smoky","dry citrus","herbal fresh","lipstick iris","fruity","powder","aldehydes","aldehydic"]);
 
 // Static curated note groups — canonical names only, no variants.
 // These must match exactly what buildTagsFromText + canonicalizeRawTags produce.
@@ -2183,7 +2016,7 @@ const NOTE_GROUPS = [
     "Truffle","Earthy","Moss","Bamboo",
   ]},
   { label: "Unusual", notes: [
-    "Petrichor","Aldehydic","Ink","Wax","Hay",
+    "Petrichor","Aldehydic","Ink","Wax","Cannabis","Vinyl","Concrete","Copper","Bubblegum","Cotton Candy","Whiskey","Cognac","Ice",
   ]},
 ];
 
@@ -2686,7 +2519,6 @@ function buildTagsFromText(notes, family) {
   if (has('ambroxan')) tags.add('ambroxan');
   if (has('ambrox') && !has('ambroxan')) tags.add('ambrox');
   if (has('cetalox')) tags.add('cetalox');
-  if (has('ambroxan')) tags.add('ambroxan');
   if (has('hedione')) tags.add('hedione');
   if (has('muscenone')) tags.add('muscenone');
   // Gourmand
@@ -2749,8 +2581,6 @@ function buildTagsFromText(notes, family) {
   if (has('bamboo')) tags.add('bamboo');
   if (has('seaweed','kelp')) tags.add('seaweed');
   if (has('orange ','orange,','orange;',' orange','blood orange','bitter orange','bigarade') && !has('orange blossom')) tags.add('orange');
-  if (has('bamboo')) tags.add('bamboo');
-  if (has('iris','orris','pallida')) {} // already added above
   // Musk
   if (has('musk','musc','musky','ambrette','ambroxan')) tags.add('musk');
   if (has('ambrette','ambrette seed','musk mallow')) tags.add('ambrette');
@@ -2765,12 +2595,26 @@ function buildTagsFromText(notes, family) {
   if (has('wax','beeswax','melted wax','hot wax','candlewax')) tags.add('unusual');
   if (has('earthy notes','earthy accord')) tags.add('unusual');
   if (hasW('ink') && !has('linking','drinking','thinking')) tags.add('unusual');
-  if (has('rubber','gasoline','petrol','asphalt')) tags.add('unusual');
+  if (has('rubber','gasoline','petrol','asphalt','vapors','fumes','exhaust')) tags.add('unusual');
+  if (has('ozonic','ozone','ozonic notes')) tags.add('unusual');
   if (hasW('tar') && !has('tarragon')) tags.add('unusual');
   if (has('cade','birch tar')) tags.add('unusual');
   if (has('metallic','metal accord','iron accord','gunpowder','blood accord')) tags.add('unusual');
   // Unusual plant / natural materials
-  if (has('prickly pear','cactus')) tags.add('unusual');
+  if (hasW('cactus')) tags.add('unusual');
+  // Edible-but-weird / confectionery notes
+  if (has('bubblegum')) { tags.add('bubblegum'); tags.add('unusual'); }
+  if (has('cotton candy')) { tags.add('cotton candy'); tags.add('unusual'); }
+  // Spirits / boozy notes (when booze is a listed note, not just an accord character)
+  if (has('bourbon whiskey','whiskey','whisky')) { tags.add('whiskey'); tags.add('unusual'); }
+  if (has('cognac')) { tags.add('cognac'); tags.add('unusual'); }
+  // Industrial / synthetic materials
+  if (has('cannabis','hemp')) { tags.add('cannabis'); tags.add('unusual'); }
+  if (has('vinyl')) { tags.add('vinyl'); tags.add('unusual'); }
+  if (has('concrete')) { tags.add('concrete'); tags.add('unusual'); }
+  if (has('copper')) { tags.add('copper'); tags.add('unusual'); }
+  if (has('ice accord','crushed ice')) { tags.add('ice'); tags.add('unusual'); }
+  if (has('pie crust','pie note')) { tags.add('unusual'); }
   // Seaweed is unusual only when paired with something it doesn't belong with
   if (has('seaweed','kelp','briny seaweed')) {
     const seaweedFloral = has('narcissus','jasmine','tuberose','rose','ylang','frangipani','magnolia','osmanthus','gardenia');
@@ -2780,7 +2624,7 @@ function buildTagsFromText(notes, family) {
   }
   if (hasW('chrysanthemum')) tags.add('unusual');
   // Extreme animalics (specific molecules, not the generic 'animalic' descriptor)
-  if (has('civet','castoreum','costus','barnyard','fecal')) tags.add('unusual');
+  if (hasW('civet','castoreum','costus','barnyard','fecal')) tags.add('unusual');
   // Skin scent: specific synthetic skin molecules only (musk alone is too broad)
   if (has('iso e super') || has('cetalox') || has('ambroxan') || has('ambrox') || has('ambrette')) tags.add('skin scent');
   // Aquatic / mineral
@@ -2819,9 +2663,9 @@ function buildTagsFromText(notes, family) {
   if (has('carrot seed','carrot')) tags.add('carrot seed');
   // Broad family derivations
   // Composite floral sub-families
-  const WHITE_FLORAL = ['jasmine','tuberose','gardenia','orange blossom','neroli','lily','lily of the valley','muguet'];
+  const WHITE_FLORAL = ['tuberose','gardenia','orange blossom','neroli','lily of the valley','muguet'];
   const YELLOW_FLORAL = ['mimosa','ylang','osmanthus','champaca'];
-  const PURPLE_FLORAL = ['violet','iris','lilac','wisteria'];
+  const PURPLE_FLORAL = ['violet','lilac','wisteria','heliotrope'];
   if (WHITE_FLORAL.some(t => tags.has(t))) tags.add('white floral');
   if (YELLOW_FLORAL.some(t => tags.has(t))) tags.add('yellow floral');
   if (PURPLE_FLORAL.some(t => tags.has(t))) tags.add('purple floral');
@@ -3406,7 +3250,7 @@ function SurpriseView({ onSelect, perfumes }) {
 
   return <div>
     <h1 className="page-title">Surprise Me</h1>
-    <p className="page-sub">WHO DOESN'T LOVE SURPRISES?.</p>
+    <p className="page-sub">Can't decide. One tap, out the door.</p>
 
     <div className="chip-row mode-row">
       {[["loves","From my loves"],["tried","Anything tried"],["all","Wildcard"]].map(([k,l]) =>
@@ -4595,10 +4439,14 @@ function App() {
     if (cloudConfigured()) {
       const data = await cloudLoad();
       if (data) {
+        // For keys missing from cloud, fall back to localStorage rather than defaulting to empty
+        const localEdits = (() => { try { return JSON.parse(localStorage.getItem("perfume_edits") || "{}"); } catch(e) { return {}; } })();
+        const localPerfumes = (() => { try { return JSON.parse(localStorage.getItem("perfume_user_perfumes") || "[]"); } catch(e) { return []; } })();
+        const localWishlist = (() => { try { return JSON.parse(localStorage.getItem("perfume_wishlist") || "[]"); } catch(e) { return []; } })();
         setWearLog([...WEAR_LOG_SEED, ...(data.wearLog || []).map(normalizeWearEntry)]);
-        setWishlist([...WISHLIST_SEED, ...(data.wishlist || [])]);
-        setUserPerfumes(data.userPerfumes || []);
-        setPerfumeEdits(data.perfumeEdits || {});
+        setWishlist([...WISHLIST_SEED, ...(data.wishlist || localWishlist)]);
+        setUserPerfumes(data.userPerfumes && data.userPerfumes.length ? data.userPerfumes : localPerfumes);
+        setPerfumeEdits(data.perfumeEdits && Object.keys(data.perfumeEdits).length ? data.perfumeEdits : localEdits);
         setSyncStatus("✓ Synced");
         setLoaded(true); return;
       }
