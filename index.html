@@ -2436,7 +2436,11 @@ async function jsonbinLoad() {
       if (res.ok) {
         const json = await res.json();
         // Handle both raw data shape and wrapped {record: {...}} shape
-        return json && json.record ? json.record : json;
+        const data = (json && json.record && typeof json.record === "object") ? json.record : json;
+        // Only return if it looks like app data (has at least one known key)
+        if (data && (Array.isArray(data.wearLog) || Array.isArray(data.wishlist) || Array.isArray(data.userPerfumes) || data.perfumeEdits)) {
+          return data;
+        }
       }
     } catch (e) {}
   }
@@ -2449,8 +2453,10 @@ async function jsonbinLoad() {
       });
       if (res.ok) {
         const json = await res.json();
-        // Handle both raw data shape and wrapped {record: {...}} shape
-        return json && json.record ? json.record : json;
+        const data = (json && json.record && typeof json.record === "object") ? json.record : json;
+        if (data && (Array.isArray(data.wearLog) || Array.isArray(data.wishlist) || Array.isArray(data.userPerfumes) || data.perfumeEdits)) {
+          return data;
+        }
       }
     } catch (e) {}
   }
@@ -4112,7 +4118,7 @@ function App() {
         setSyncStatus("✓ Synced");
         setLoaded(true); return;
       }
-      setSyncStatus("⚠ Cloud unreachable");
+      setSyncStatus("⚠ Cloud unreachable · loading local backup");
     } else {
       setSyncStatus("Local · set up sync in Settings");
     }
