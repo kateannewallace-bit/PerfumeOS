@@ -1616,7 +1616,7 @@ const CANONICAL_MAP = {
   'coolwood':'cedar','dreamwood':'cedar','okoumé wood from gabon':'cedar',
   'hinoki':'cedar','siam wood':'cedar','siam':'cedar',
   'cypriol':'papyrus','nagarmotha':'papyrus','smoked papyrus':'smoky',
-  'amber pine rosin':'incense','copal':'incense','star anise':'anise',
+  'amber pine rosin':'amber pine rosin','copal':'incense','star anise':'anise',
   'cumin':'cumin','turmeric':'cumin','coriander':'coriander',
   'nigerian ginger':'ginger','galangal':'ginger','peppermint':'mint',
   'spearmint':'mint','citrata mint':'mint','calamus':'herbal',
@@ -1934,14 +1934,14 @@ const LANE_GROUPS = [
   { label: "Character", lanes: ["Airy","Unusual","Skin Scent","Powdery","Resinous","Spicy","Green","Smoky","Dry Citrus","Herbal Fresh"] },
   { label: "Florals", lanes: ["White Floral","Yellow Floral","Purple Floral","Violet","Iris","Lipstick Iris","Rose","Jasmine","Tuberose","Ylang","Magnolia","Orange Blossom","Neroli","Osmanthus","Mimosa","Peony","Lily of the Valley","Narcissus","Heliotrope","Carnation"] },
   { label: "Woods", lanes: ["Sandalwood","Cedar","Vetiver","Patchouli","Oud","Gaiac","Cypress","Papyrus","Birch","Cashmeran"] },
-  { label: "Resinous / Smoky", lanes: ["Incense","Myrrh","Benzoin","Labdanum","Styrax","Tobacco","Oakmoss","Moss"] },
+  { label: "Resinous / Smoky", lanes: ["Incense","Palo Santo", "Myrrh","Benzoin","Labdanum","Styrax","Tobacco","Oakmoss","Moss"] },
   { label: "Gourmand notes", lanes: ["Vanilla","Chocolate","Caramel","Honey","Coffee","Praline","Almond","Coconut","Marshmallow","Tonka","Cream"] },
   { label: "Spices", lanes: ["Pepper","Pink Pepper","Cardamom","Cinnamon","Clove","Saffron","Ginger","Nutmeg","Anise"] },
   { label: "Citrus", lanes: ["Grapefruit","Bergamot","Lemon","Lime","Mandarin","Yuzu","Petitgrain"] },
   { label: "Fruit / Tea", lanes: ["Peach","Fig","Pear","Apple","Berry","Plum","Cherry","Tea"] },
   { label: "Herbal / Aromatic", lanes: ["Sage","Rosemary","Thyme","Basil","Lavender","Eucalyptus","Mint"] },
   { label: "Saline / Mineral", lanes: ["Salt","Mineral","Suede"] },
-  { label: "Unusual", lanes: ["Petrichor","Ink","Wax","Aldehydic","Cannabis","Vinyl","Concrete","Copper","Bubblegum","Cotton Candy","Whiskey","Cognac","Ice"] },
+  { label: "Unusual", lanes: ["Petrichor","Ink","Wax","Aldehydic","Cannabis","Vinyl","Concrete","Copper","Bubblegum","Cotton Candy","Whiskey","Amber Pine Rosin","Cognac","Ice"] },
 ];
 // Flat list for the taxonomy tabs
 const LANES = ["All", ...LANE_GROUPS.flatMap(g => g.lanes)];
@@ -1969,7 +1969,7 @@ const NOTE_GROUPS = [
   ]},
   { label: "Woods", notes: [
     "Sandalwood","Cedar","Vetiver","Patchouli","Oud","Gaiac",
-    "Cypress","Papyrus","Birch","Cashmeran","Pine","Juniper",
+    "Cypress","Papyrus","Birch","Cashmeran","Pine","Juniper","palo santo",
   ]},
   { label: "Resins & Smoke", notes: [
     "Incense","Myrrh","Benzoin","Labdanum","Styrax","Elemi","Opoponax",
@@ -2016,7 +2016,7 @@ const NOTE_GROUPS = [
     "Truffle","Earthy","Moss","Bamboo",
   ]},
   { label: "Unusual", notes: [
-    "Petrichor","Aldehydic","Ink","Wax","Cannabis","Vinyl","Concrete","Copper","Bubblegum","Cotton Candy","Whiskey","Cognac","Ice",
+    "Petrichor","Aldehydic","Ink","Wax","Cannabis","Vinyl","Concrete","Copper","Bubblegum","Cotton Candy","Whiskey","Cognac","Ice", "Amber Pine Rosin",
   ]},
 ];
 
