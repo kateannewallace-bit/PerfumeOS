@@ -1373,6 +1373,64 @@ select:focus, input:focus, textarea:focus, button:focus-visible {
   font-weight: 500;
 }
 
+/* ─── CHARTS ──────────────────────────────────────────────────────────────── */
+.charts-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.chart-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  padding: 24px 20px;
+}
+.chart-card-title {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--fg-soft);
+  margin-bottom: 3px;
+}
+.chart-card-sub {
+  font-size: 12px;
+  color: var(--fg-very-soft);
+  font-style: italic;
+  margin-bottom: 18px;
+}
+.chart-row-2 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+}
+@media (min-width: 640px) {
+  .chart-row-2 { grid-template-columns: 1fr 1fr; }
+}
+.journey-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 20px;
+}
+.journey-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.journey-name {
+  font-size: 12px;
+  color: var(--fg);
+  line-height: 1.3;
+}
+.journey-house {
+  font-size: 10px;
+  color: var(--fg-soft);
+  letter-spacing: 0.04em;
+}
+.journey-delta {
+  font-size: 12px;
+  font-style: italic;
+  margin-top: 2px;
+}
+
 
 </style>
 </head>
@@ -1409,7 +1467,7 @@ const RAW_DATA = {"perfumes":[{"i":0,"h":"19-69","n":"San Pedro","f":"citrus, ar
 // null means "needs splitting" (handled in SPLIT_MAP).
 // ══════════════════════════════════════════════════════════════════════════════
 const CANONICAL_MAP = {
-  'orris':'iris','orris butter':'iris','orris root':'iris',
+  'orris':'iris','orris butter':'iris','orris root':'iris','orris concrete':'iris','iris concrete':'iris',
   'orris wood':'iris','orris/iris':'iris','orris/iris concrete':'iris',
   'iris/orris':'iris','iris pallida':'iris','iris germanica extract':'iris',
   'iris absolute':'iris','iris butter':'iris','iris root':'iris',
@@ -1797,7 +1855,7 @@ function processNotes(str) {
     let cleaned = lower
       .replace(/\s+absolute$/,'').replace(/\s+essence$/,'').replace(/\s+extract$/,'')
       .replace(/\s+accord$/,'').replace(/\s+tincture$/,'').replace(/\s+oil$/,'')
-      .replace(/\s+resin$/,'').replace(/\s+from\s+\w[\w\s]*$/,'')
+      .replace(/\s+resin$/,'').replace(/\s+concrete$/,'').replace(/\s+from\s+\w[\w\s]*$/,'')
       .replace(/\s+\(.*?\)$/, '').trim();
 
     if (cleaned !== lower && cleaned.length > 1) {
@@ -1930,7 +1988,7 @@ const WISHLIST_SEED = RAW_DATA.wishlist || [];
 const MOODS = ["All","Air","Resin","Bridge","Classic"];
 // Lanes are organized into groups for the dropdown
 const LANE_GROUPS = [
-  { label: "Broad families", lanes: ["Floral","Woody","Citrus","Amber","Ambergris","Musk","Resinous","Gourmand","Leather","Aromatic","Aquatic","Chypre","Fruity"] },
+  { label: "Broad families", lanes: ["Floral","Woody","Citrus","Amber","Ambergris","Musk","Resinous","Gourmand","Leather","Aromatic","Aquatic","Chypre","Fruity","Oriental"] },
   { label: "Character", lanes: ["Airy","Unusual","Skin Scent","Powdery","Resinous","Spicy","Green","Smoky","Dry Citrus","Herbal Fresh"] },
   { label: "Florals", lanes: ["White Floral","Yellow Floral","Purple Floral","Violet","Iris","Lipstick Iris","Rose","Jasmine","Tuberose","Ylang","Magnolia","Orange Blossom","Neroli","Osmanthus","Mimosa","Peony","Lily of the Valley","Narcissus","Heliotrope","Carnation"] },
   { label: "Woods", lanes: ["Sandalwood","Cedar","Vetiver","Patchouli","Oud","Gaiac","Cypress","Papyrus","Birch","Cashmeran","Palo Santo"] },
@@ -1948,10 +2006,10 @@ const LANES = ["All", ...LANE_GROUPS.flatMap(g => g.lanes)];
 
 // Broad families + character descriptors — shown as single-select dropdown
 // Two separate dropdowns:
-const FAMILY_OPTIONS = ["All","Floral","White Floral","Yellow Floral","Purple Floral","Woody","Citrus","Amber","Ambergris","Musk","Resinous","Gourmand","Leather","Aromatic","Aquatic","Chypre","Fruity","Green","Aldehydic"];
+const FAMILY_OPTIONS = ["All","Floral","White Floral","Yellow Floral","Purple Floral","Woody","Citrus","Amber","Ambergris","Musk","Resinous","Gourmand","Leather","Aromatic","Aquatic","Chypre","Fruity","Green","Aldehydic","Oriental"];
 const CHARACTER_OPTIONS = ["All","Airy","Unusual","Skin Scent","Lipstick Iris","Powdery","Resinous","Spicy","Smoky","Dry Citrus","Herbal Fresh","Fruity"];
 
-const BROAD_FAMILIES_SET = new Set(["floral","woody","citrus","amber","musk","resinous","gourmand","leather","aromatic","aquatic","chypre","fruity","green"]);
+const BROAD_FAMILIES_SET = new Set(["floral","woody","citrus","amber","musk","resinous","gourmand","leather","aromatic","aquatic","chypre","fruity","green","oriental"]);
 const CHARACTER_SET = new Set(["airy","unusual","skin scent","powdery","resinous","spicy","smoky","dry citrus","herbal fresh","lipstick iris","fruity","powder","aldehydes","aldehydic"]);
 
 // Static curated note groups — canonical names only, no variants.
@@ -2498,6 +2556,7 @@ function buildTagsFromText(notes, family) {
   if (has('iso e super')) tags.add('iso e super');
   // Resinous
   if (has('incense','encens','frankincense','olibanum','champaca')) tags.add('incense');
+  if (has('palo santo')) tags.add('palo santo');
   if (has('champaca')) tags.add('champaca');
   if (has('myrrh')) tags.add('myrrh');
   if (has('benzoin')) tags.add('benzoin');
@@ -2614,7 +2673,8 @@ function buildTagsFromText(notes, family) {
   // Industrial / synthetic materials
   if (has('cannabis','hemp')) { tags.add('cannabis'); tags.add('unusual'); }
   if (has('vinyl')) { tags.add('vinyl'); tags.add('unusual'); }
-  if (has('concrete')) { tags.add('concrete'); tags.add('unusual'); }
+  // 'concrete' is a standard perfumery extraction method (orris concrete, jasmine concrete, etc.)
+  // — not an unusual material. Skipped here; handled as a note suffix instead.
   if (has('copper')) { tags.add('copper'); tags.add('unusual'); }
   if (has('ice accord','crushed ice')) { tags.add('ice'); tags.add('unusual'); }
   if (has('pie crust','pie note')) { tags.add('unusual'); }
@@ -2702,6 +2762,7 @@ function buildTagsFromText(notes, family) {
   if (hasF('musk','musc')) tags.add('musk');
   if (hasF('aquatic','marine','ocean','ozonic','aquatique')) tags.add('aquatic');
   if (hasF('chypre')) tags.add('chypre');
+  if (hasF('oriental')) tags.add('oriental');
   if (hasF('green','vert','verdant')) tags.add('green');
   if (hasF('powder','powdery','poudré')) tags.add('powdery');
   if (hasF('aldehydic','aldehyde')) { tags.add('powdery'); tags.add('aldehydic'); }
@@ -3792,6 +3853,468 @@ function WishlistView({ wishlist, onAdd, onRemove }) {
   </div>;
 }
 
+// ─── CHARTS VIEW ──────────────────────────────────────────────────────────────
+function ChartsView({ wearLog, perfumes, wearStats }) {
+  const enriched = useMemo(() => enrich(perfumes, wearStats), [perfumes, wearStats]);
+  const BROAD_FAM = ["floral","woody","citrus","amber","musk","resinous","gourmand",
+    "leather","aromatic","aquatic","chypre","fruity","green","oriental"];
+  const FAM_COLORS = {
+    floral:'var(--dusty-rose)', woody:'#a07855', citrus:'#c8b560', amber:'var(--gold)',
+    musk:'#b0a8a0', resinous:'#8a6545', gourmand:'#c87a9a', leather:'#7a5a3a',
+    aromatic:'var(--sage)', aquatic:'#6a9ab0', chypre:'var(--lilac)', fruity:'#c87060',
+    green:'#7aaa6a', oriental:'#9b6888'
+  };
+  const MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  const perfMap = useMemo(() => {
+    const m = new Map();
+    for (const p of perfumes) m.set(p.id, p);
+    return m;
+  }, [perfumes]);
+
+  const mk = date => {
+    if (!date) return null;
+    const s = typeof date==='string' ? date : new Date(date).toISOString();
+    return s.slice(0,7);
+  };
+  const fmtMk = k => k ? `${MO[parseInt(k.split('-')[1])-1]} '${k.split('-')[0].slice(2)}` : '';
+
+  // NOTE palette — 7 distinct colours cycling through the app's accent set
+  const NOTE_PALETTE = ['var(--gold)','var(--sage)','var(--dusty-rose)','var(--lilac)',
+    '#6a9ab0','#a07855','#c8b560'];
+
+  // 1. NOTES OVER TIME — top notes by total wear frequency, tracked month-by-month
+  const notesOverTime = useMemo(() => {
+    // Build a "chart-ready" note list per perfume:
+    // Start from p.primary (strips generic base-note musk, cedar, amber, etc. via PRIMARY_TAG_BLACKLIST)
+    // then re-add 'musk' only when the family field explicitly flags it — so primary musk
+    // perfumes (Another 13, Fleur de Peau, etc.) count, but incidental base-note musk doesn't.
+    const chartNotes = p => {
+      const base = Array.isArray(p.primary) ? [...p.primary] : [];
+      const famTokens = (p.family||'').toLowerCase().split(/[\s,\/\-]+/);
+      if (famTokens.includes('musk') && !base.includes('musk')) base.push('musk');
+      return base;
+    };
+    const totalByNote = {};
+    for (const e of wearLog) {
+      const p = perfMap.get(e.perfumeId); if (!p) continue;
+      const notes = chartNotes(p);
+      for (const note of notes) if (note) totalByNote[note]=(totalByNote[note]||0)+1;
+    }
+    // top 7 characterful notes across all diary entries
+    const topNotes = Object.entries(totalByNote)
+      .sort(([,a],[,b])=>b-a).slice(0,7).map(([n])=>n);
+    // build per-month counts
+    const allMks = new Set(), byMkNote = {};
+    for (const e of wearLog) {
+      const key = mk(e.date); if (!key) continue;
+      const p = perfMap.get(e.perfumeId); if (!p) continue;
+      const notes = chartNotes(p);
+      allMks.add(key);
+      if (!byMkNote[key]) byMkNote[key]={};
+      for (const note of topNotes) {
+        if (notes.includes(note)) byMkNote[key][note]=(byMkNote[key][note]||0)+1;
+      }
+    }
+    const months = [...allMks].sort();
+    const data = months.map(key=>({key,label:fmtMk(key),
+      ...Object.fromEntries(topNotes.map(n=>[n,(byMkNote[key]||{})[n]||0]))}));
+    return {topNotes, data};
+  }, [wearLog, perfMap]);
+
+  // 2. EXPLORER → CURATOR — new tries vs rewears per month
+  const explorerCurator = useMemo(() => {
+    const seen = {}, byMk = {};
+    const sorted = [...wearLog].filter(e=>e.date)
+      .sort((a,b)=>mk(a.date).localeCompare(mk(b.date)));
+    for (const e of sorted) {
+      const key = mk(e.date); if (!key) continue;
+      if (!byMk[key]) byMk[key] = {newTry:0,rewear:0};
+      if (seen[e.perfumeId]) byMk[key].rewear++;
+      else { seen[e.perfumeId]=key; byMk[key].newTry++; }
+    }
+    return Object.entries(byMk).sort(([a],[b])=>a.localeCompare(b))
+      .map(([key,{newTry,rewear}])=>({key,label:fmtMk(key),newTry,rewear,total:newTry+rewear}));
+  }, [wearLog]);
+
+  // 3. HOUSE BATTING AVERAGES — diary-based avg rating, 2+ rated wears
+  const houseBatting = useMemo(() => {
+    const h = {};
+    for (const e of wearLog) {
+      if (e.rating==null||isNaN(+e.rating)) continue;
+      const p = perfMap.get(e.perfumeId);
+      if (!p?.house) continue;
+      if (!h[p.house]) h[p.house]={sum:0,n:0};
+      h[p.house].sum += +e.rating; h[p.house].n++;
+    }
+    return Object.entries(h).filter(([,{n}])=>n>=2)
+      .map(([house,{sum,n}])=>({label:house,avg:+(sum/n).toFixed(1),n}))
+      .sort((a,b)=>b.avg-a.avg||b.n-a.n).slice(0,12);
+  }, [wearLog, perfMap]);
+
+  // 4. OLFACTORY FAMILIES — tag-based collection count
+  const familyCollection = useMemo(() => {
+    const c = {};
+    for (const p of perfumes) {
+      const tags = Array.isArray(p.tags) ? p.tags : [];
+      for (const f of BROAD_FAM) if (tags.includes(f)) c[f]=(c[f]||0)+1;
+    }
+    return Object.entries(c).sort(([,a],[,b])=>b-a)
+      .map(([f,n])=>({label:f.charAt(0).toUpperCase()+f.slice(1),fam:f,value:n,color:FAM_COLORS[f]||'var(--gold)'}));
+  }, [perfumes]);
+
+  // 5. OLFACTORY FAMILIES OVER TIME — monthly wear counts by family
+  const famOverTime = useMemo(() => {
+    const allMks = new Set(), byMkFam = {};
+    for (const e of wearLog) {
+      const key = mk(e.date); if (!key) continue;
+      const p = perfMap.get(e.perfumeId); if (!p) continue;
+      const tags = Array.isArray(p.tags) ? p.tags : [];
+      allMks.add(key);
+      if (!byMkFam[key]) byMkFam[key]={};
+      for (const f of BROAD_FAM) if (tags.includes(f)) byMkFam[key][f]=(byMkFam[key][f]||0)+1;
+    }
+    const months = [...allMks].sort();
+    const totals = {};
+    for (const fc of Object.values(byMkFam))
+      for (const [f,n] of Object.entries(fc)) totals[f]=(totals[f]||0)+n;
+    const topFams = Object.entries(totals).sort(([,a],[,b])=>b-a).slice(0,6).map(([f])=>f);
+    const data = months.map(key=>({key,label:fmtMk(key),
+      ...Object.fromEntries(topFams.map(f=>[f,(byMkFam[key]||{})[f]||0]))}));
+    return {months, topFams, data};
+  }, [wearLog, perfMap]);
+
+  // 6. RATING JOURNEYS — sparklines for big taste shifts (needs enriched for ratingHistory)
+  const journeys = useMemo(() =>
+    enriched.filter(p=>p.ratingHistory?.length>=2&&p.ratingDelta!=null&&p.ratingDelta!==0)
+      .sort((a,b)=>Math.abs(b.ratingDelta)-Math.abs(a.ratingDelta)).slice(0,8)
+  , [enriched]);
+
+  // 7. MOST WORN — top fragrances by diary count
+  const mostWorn = useMemo(() =>
+    enriched.filter(p=>p.wearCount>0)
+      .sort((a,b)=>b.wearCount-a.wearCount||b.ratingHistory.slice(-1)[0]?.rating-a.ratingHistory.slice(-1)[0]?.rating)
+      .slice(0,14)
+  , [enriched]);
+
+  // 8. RATING × WEARS SCATTER — each worn perfume as a dot
+  // 8. SEASONAL WEAR PATTERNS — which families dominate each season
+  const SEASONS = [
+    {key:'winter', label:'Winter', months:[12,1,2], color:'#7a9bb5'},
+    {key:'spring', label:'Spring', months:[3,4,5],  color:'var(--dusty-rose)'},
+    {key:'summer', label:'Summer', months:[6,7,8],  color:'var(--gold)'},
+    {key:'fall',   label:'Autumn', months:[9,10,11], color:'#a07855'},
+  ];
+  const seasonOf = date => {
+    const mo = new Date(date).getMonth()+1;
+    return SEASONS.find(s=>s.months.includes(mo))?.key || null;
+  };
+  const seasonalData = useMemo(() => {
+    // count family tag occurrences per season from wear log
+    const bySeason = {};
+    for (const s of SEASONS) bySeason[s.key] = {};
+    for (const e of wearLog) {
+      const sk = seasonOf(e.date); if (!sk) continue;
+      const p = perfMap.get(e.perfumeId); if (!p) continue;
+      const tags = Array.isArray(p.tags) ? p.tags : [];
+      for (const f of BROAD_FAM) {
+        if (tags.includes(f)) bySeason[sk][f] = (bySeason[sk][f]||0)+1;
+      }
+    }
+    return SEASONS.map(s => {
+      const counts = bySeason[s.key];
+      const total = Object.values(counts).reduce((a,b)=>a+b,0);
+      const top = Object.entries(counts).sort(([,a],[,b])=>b-a).slice(0,6)
+        .map(([f,n])=>({fam:f, label:f.charAt(0).toUpperCase()+f.slice(1), n, pct:total?Math.round((n/total)*100):0}));
+      return {...s, top, total};
+    });
+  }, [wearLog, perfMap]);
+
+  // ── Render helpers ─────────────────────────────────────────────────────────
+
+  const HBar = ({label, value, max, color, sub}) => (
+    <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:9}}>
+      <div style={{width:120,textAlign:'right',fontSize:11,color:'var(--fg-soft)',flexShrink:0,
+        overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',fontFamily:'Georgia,serif'}}>{label}</div>
+      <div style={{flex:1,height:10,background:'var(--bg-soft)',borderRadius:1,overflow:'hidden'}}>
+        <div style={{width:`${Math.round((value/max)*100)}%`,height:'100%',
+          background:color||'var(--gold)',opacity:0.7,transition:'width .3s'}}/>
+      </div>
+      <div style={{width:38,fontSize:10,color:'var(--fg-mute)',flexShrink:0,
+        fontFamily:'Georgia,serif',textAlign:'right'}}>{sub||value}</div>
+    </div>
+  );
+
+  // SVG multi-line — Notes over time
+  const NotesTimeChart = ({topNotes, data}) => {
+    if (!data.length||!topNotes.length) return <p style={{color:'var(--fg-mute)',fontSize:12,fontFamily:'Georgia,serif',marginTop:12}}>Not enough diary data yet.</p>;
+    const W=520,H=100,PL=18,PR=14,PT=10,PB=32;
+    const iW=W-PL-PR, iH=H;
+    const maxV=Math.max(...data.flatMap(d=>topNotes.map(n=>d[n]||0)),1);
+    const xS=data.length>1?iW/(data.length-1):0;
+    const skip=data.length>10?Math.ceil(data.length/8):1;
+    const pts=(note)=>data.map((d,i)=>[PL+(data.length===1?iW/2:i*xS), PT+(1-(d[note]||0)/maxV)*iH]);
+    return (
+      <svg viewBox={`0 0 ${W} ${H+PT+PB}`} style={{width:'100%',display:'block'}}>
+        {[0,Math.round(maxV/2),maxV].map((v,i)=>{
+          const y=PT+(1-v/maxV)*iH;
+          return <line key={i} x1={PL} x2={W-PR} y1={y} y2={y} stroke="var(--border)" strokeWidth={0.4} strokeDasharray="3 3"/>;
+        })}
+        {topNotes.map((note,ni)=>{
+          const col=NOTE_PALETTE[ni%NOTE_PALETTE.length];
+          const ps=pts(note);
+          const d=ps.map((p,i)=>`${i===0?'M':'L'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
+          return (
+            <g key={note}>
+              <path d={d} fill="none" stroke={col} strokeWidth={1.6} strokeLinejoin="round" strokeLinecap="round" opacity={0.82}/>
+              {ps.map(([x,y],i)=>(
+                <circle key={i} cx={x} cy={y} r={2.2} fill={col} opacity={0.9}>
+                  <title>{data[i].label} · {note}: {data[i][note]||0} wears</title>
+                </circle>
+              ))}
+            </g>
+          );
+        })}
+        {data.map((d,i)=>i%skip===0&&(
+          <text key={d.key} x={PL+(data.length===1?iW/2:i*xS)} y={H+PT+PB-2}
+            textAnchor="middle" fontSize={8} fill="var(--fg-very-soft)" fontFamily="Georgia,serif"
+            transform={`rotate(-40,${PL+(data.length===1?iW/2:i*xS)},${H+PT+PB-2})`}>{d.label}</text>
+        ))}
+      </svg>
+    );
+  };
+
+  // SVG stacked bars — Explorer → Curator
+  const ExplorerChart = ({data}) => {
+    if (!data.length) return null;
+    const W=520,H=90,PB=36;
+    const maxT=Math.max(...data.map(d=>d.total),1);
+    const bw=Math.max(14,Math.floor((W-20)/data.length)-4);
+    const skip=data.length>10?Math.ceil(data.length/8):1;
+    return (
+      <svg viewBox={`0 0 ${W} ${H+PB}`} style={{width:'100%',display:'block'}}>
+        <rect x={W-78} y={4} width={8} height={8} fill="var(--gold)" opacity={0.7} rx={1}/>
+        <text x={W-67} y={11} fontSize={8} fill="var(--fg-soft)" fontFamily="Georgia,serif">First wear</text>
+        <rect x={W-78} y={16} width={8} height={8} fill="var(--sage)" opacity={0.7} rx={1}/>
+        <text x={W-67} y={23} fontSize={8} fill="var(--fg-soft)" fontFamily="Georgia,serif">Rewear</text>
+        {data.map((d,i)=>{
+          const x=10+i*(bw+4);
+          const rh=(d.rewear/maxT)*H, nh=(d.newTry/maxT)*H;
+          return (
+            <g key={d.key}>
+              {d.rewear>0&&<rect x={x} y={H-rh-nh} width={bw} height={rh} fill="var(--sage)" opacity={0.65} rx={1}/>}
+              {d.newTry>0&&<rect x={x} y={H-nh} width={bw} height={nh} fill="var(--gold)" opacity={0.65} rx={1}/>}
+              {i%skip===0&&<text x={x+bw/2} y={H+PB-4} textAnchor="middle" fontSize={8}
+                fill="var(--fg-very-soft)" fontFamily="Georgia,serif"
+                transform={`rotate(-40,${x+bw/2},${H+PB-4})`}>{d.label}</text>}
+              <title>{d.label}: {d.newTry} first wears, {d.rewear} rewears</title>
+            </g>
+          );
+        })}
+      </svg>
+    );
+  };
+
+  // SVG multi-line — families over time
+  const FamTimeChart = ({months, topFams, data}) => {
+    if (!data.length||!topFams.length) return <p style={{color:'var(--fg-mute)',fontSize:12,fontFamily:'Georgia,serif',marginTop:12}}>Not enough diary data.</p>;
+    const W=520,H=100,PL=22,PR=14,PT=10,PB=32;
+    const iW=W-PL-PR, iH=H;
+    const maxV=Math.max(...data.flatMap(d=>topFams.map(f=>d[f]||0)),1);
+    const xS=data.length>1?iW/(data.length-1):0;
+    const skip=data.length>10?Math.ceil(data.length/8):1;
+    const pts=(fam)=>data.map((d,i)=>[PL+(data.length===1?iW/2:i*xS), PT+(1-(d[fam]||0)/maxV)*iH]);
+    return (
+      <svg viewBox={`0 0 ${W} ${H+PT+PB}`} style={{width:'100%',display:'block'}}>
+        {[0,Math.round(maxV/2),maxV].map((v,i)=>{
+          const y=PT+(1-v/maxV)*iH;
+          return <line key={i} x1={PL} x2={W-PR} y1={y} y2={y} stroke="var(--border)" strokeWidth={0.4} strokeDasharray="3 3"/>;
+        })}
+        {topFams.map(fam=>{
+          const ps=pts(fam);
+          const col=FAM_COLORS[fam]||'var(--gold)';
+          const d=ps.map((p,i)=>`${i===0?'M':'L'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
+          return (
+            <g key={fam}>
+              <path d={d} fill="none" stroke={col} strokeWidth={1.6} strokeLinejoin="round" strokeLinecap="round" opacity={0.82}/>
+              {ps.map(([x,y],i)=>(
+                <circle key={i} cx={x} cy={y} r={2.2} fill={col} opacity={0.9}>
+                  <title>{data[i].label} · {fam}: {data[i][fam]||0} wears</title>
+                </circle>
+              ))}
+            </g>
+          );
+        })}
+        {data.map((d,i)=>i%skip===0&&(
+          <text key={d.key} x={PL+(data.length===1?iW/2:i*xS)} y={H+PT+PB-2}
+            textAnchor="middle" fontSize={8} fill="var(--fg-very-soft)" fontFamily="Georgia,serif"
+            transform={`rotate(-40,${PL+(data.length===1?iW/2:i*xS)},${H+PT+PB-2})`}>{d.label}</text>
+        ))}
+      </svg>
+    );
+  };
+
+  // Sparkline — Rating Journeys
+  const Spark = ({history, delta}) => {
+    const W=100,H=44;
+    const ratings=history.map(h=>h.rating);
+    const lo=Math.min(...ratings), hi=Math.max(...ratings);
+    const range=Math.max(hi-lo,0.5);
+    const pts=history.map((h,i)=>[history.length===1?W/2:(i/(history.length-1))*W, H-((h.rating-lo)/range)*H]);
+    const path=pts.map((p,i)=>`${i===0?'M':'L'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
+    const col=delta>0?'var(--sage)':'var(--dusty-rose)';
+    return (
+      <svg viewBox={`-3 -6 ${W+6} ${H+14}`} style={{width:'100%',display:'block',marginBottom:5}}>
+        <path d={path} fill="none" stroke={col} strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round"/>
+        {pts.map(([x,y],i)=><circle key={i} cx={x} cy={y} r={2.5} fill={col}/>)}
+        <text x={0} y={H+8} fontSize={8} fill="var(--fg-very-soft)" fontFamily="Georgia,serif">{history[0].rating}</text>
+        <text x={W} y={H+8} textAnchor="end" fontSize={8} fill="var(--fg-very-soft)" fontFamily="Georgia,serif">{history[history.length-1].rating}</text>
+      </svg>
+    );
+  };
+
+  const maxBatting = houseBatting[0]?.avg||10;
+  const maxFamColl = familyCollection[0]?.value||1;
+  const maxWorn = mostWorn[0]?.wearCount||1;
+
+  // Seasonal family mini-bars
+  const SeasonPanel = ({label, color, top, total}) => {
+    const maxN = top[0]?.n||1;
+    return (
+      <div style={{flex:'1 1 200px',minWidth:180}}>
+        <div style={{fontSize:12,fontFamily:'Georgia,serif',color,fontWeight:600,
+          letterSpacing:'0.05em',marginBottom:10,textTransform:'uppercase',fontSize:11}}>{label}</div>
+        <div style={{fontSize:10,color:'var(--fg-mute)',fontFamily:'Georgia,serif',marginBottom:10}}>
+          {total} wear{total!==1?'s':''}
+        </div>
+        {top.length===0
+          ? <p style={{fontSize:11,color:'var(--fg-mute)',fontFamily:'Georgia,serif'}}>No diary entries.</p>
+          : top.map(d=>(
+            <div key={d.fam} style={{display:'flex',alignItems:'center',gap:8,marginBottom:7}}>
+              <div style={{width:72,textAlign:'right',fontSize:10.5,color:'var(--fg-soft)',flexShrink:0,
+                fontFamily:'Georgia,serif',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{d.label}</div>
+              <div style={{flex:1,height:8,background:'var(--bg-soft)',borderRadius:1,overflow:'hidden'}}>
+                <div style={{width:`${Math.round((d.n/maxN)*100)}%`,height:'100%',background:color,opacity:0.65}}/>
+              </div>
+              <div style={{width:28,fontSize:9.5,color:'var(--fg-mute)',textAlign:'right',
+                fontFamily:'Georgia,serif',flexShrink:0}}>{d.pct}%</div>
+            </div>
+          ))
+        }
+      </div>
+    );
+  };
+
+  return (
+    <div>
+      <h1 className="page-title">Charts</h1>
+      <p className="page-sub">Your collection and diary, by the numbers.</p>
+
+      <div className="charts-grid">
+
+        {/* Notes Over Time */}
+        <div className="chart-card">
+          <div className="chart-card-title">Notes Over Time</div>
+          <div className="chart-card-sub">Your most-worn notes tracked month by month — what your nose actually gravitates to</div>
+          <NotesTimeChart {...notesOverTime}/>
+          <div style={{display:'flex',flexWrap:'wrap',gap:'5px 16px',marginTop:12}}>
+            {notesOverTime.topNotes.map((note,i)=>(
+              <div key={note} style={{display:'flex',alignItems:'center',gap:5,fontSize:11,fontFamily:'Georgia,serif',color:'var(--fg-soft)'}}>
+                <div style={{width:9,height:9,borderRadius:'50%',background:NOTE_PALETTE[i%NOTE_PALETTE.length],flexShrink:0,opacity:0.85}}/>
+                {note.charAt(0).toUpperCase()+note.slice(1)}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Explorer → Curator */}
+        <div className="chart-card">
+          <div className="chart-card-title">Explorer → Curator</div>
+          <div className="chart-card-sub">First wears vs. rewears each month — are you still collecting or settling in?</div>
+          <ExplorerChart data={explorerCurator}/>
+        </div>
+
+        {/* Most Worn */}
+        {mostWorn.length>0&&(
+          <div className="chart-card">
+            <div className="chart-card-title">Most Worn</div>
+            <div className="chart-card-sub">Your most-reached-for fragrances by diary count</div>
+            {mostWorn.map(p=>{
+              const lastR=p.ratingHistory?.slice(-1)[0]?.rating;
+              return <HBar key={p.id} label={`${p.house} — ${p.name}`} value={p.wearCount} max={maxWorn}
+                color="var(--lilac)" sub={lastR!=null?`${p.wearCount}× (${lastR})`:String(p.wearCount)}/>;
+            })}
+          </div>
+        )}
+
+        {/* Seasonal Wear Patterns */}
+        <div className="chart-card">
+          <div className="chart-card-title">Seasonal Wear Patterns</div>
+          <div className="chart-card-sub">Which olfactory families you reach for each season — does your nose shift with the weather?</div>
+          <div style={{display:'flex',flexWrap:'wrap',gap:28,marginTop:8}}>
+            {seasonalData.map(s=><SeasonPanel key={s.key} {...s}/>)}
+          </div>
+        </div>
+
+        {/* House Batting + Olfactory Families */}
+        <div className="chart-row-2">
+          <div className="chart-card">
+            <div className="chart-card-title">House Batting Averages</div>
+            <div className="chart-card-sub">Average diary rating per house (2+ rated wears)</div>
+            {houseBatting.length>0
+              ? houseBatting.map(d=><HBar key={d.label} label={d.label} value={d.avg} max={maxBatting}
+                  color="var(--dusty-rose)" sub={`${d.avg} (${d.n}×)`}/>)
+              : <p style={{color:'var(--fg-mute)',fontSize:12,fontFamily:'Georgia,serif',marginTop:12}}>Not enough rated wears yet.</p>}
+          </div>
+          <div className="chart-card">
+            <div className="chart-card-title">Olfactory Families</div>
+            <div className="chart-card-sub">How many pieces you own per family</div>
+            {familyCollection.map(d=><HBar key={d.label} label={d.label} value={d.value} max={maxFamColl} color={d.color}/>)}
+          </div>
+        </div>
+
+        {/* Olfactory Families Over Time */}
+        {famOverTime.data.length>1&&(
+          <div className="chart-card">
+            <div className="chart-card-title">Olfactory Families Over Time</div>
+            <div className="chart-card-sub">Which families you reached for each month — your taste in motion</div>
+            <FamTimeChart {...famOverTime}/>
+            <div style={{display:'flex',flexWrap:'wrap',gap:'5px 16px',marginTop:12}}>
+              {famOverTime.topFams.map(fam=>(
+                <div key={fam} style={{display:'flex',alignItems:'center',gap:5,fontSize:11,fontFamily:'Georgia,serif',color:'var(--fg-soft)'}}>
+                  <div style={{width:9,height:9,borderRadius:'50%',background:FAM_COLORS[fam]||'var(--gold)',flexShrink:0,opacity:0.85}}/>
+                  {fam.charAt(0).toUpperCase()+fam.slice(1)}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Rating Journeys */}
+        {journeys.length>0&&(
+          <div className="chart-card">
+            <div className="chart-card-title">Rating Journeys</div>
+            <div className="chart-card-sub">Fragrances that surprised you — first wear to latest</div>
+            <div className="journey-grid">
+              {journeys.map(p=>(
+                <div key={p.id} className="journey-item">
+                  <Spark history={p.ratingHistory} delta={p.ratingDelta}/>
+                  <div className="journey-name">{p.name}</div>
+                  <div className="journey-house">{p.house}</div>
+                  <div className="journey-delta" style={{color:p.ratingDelta>0?'var(--sage)':'var(--dusty-rose)'}}>
+                    {p.ratingDelta>0?'↑ +':'↓ '}{p.ratingDelta} from {p.ratingHistory[0].rating}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
 function InsightsView({ onSelect, wearStats, perfumes }) {
   const enriched = useMemo(() => enrich(perfumes, wearStats), [wearStats, perfumes]);
   const loves = enriched.filter(p => p.preference === "Love").sort((a,b) => b.balScore - a.balScore);
@@ -4567,6 +5090,7 @@ function App() {
     { k: "diary", l: "Diary" },
     { k: "wishlist", l: "Wishlist" },
     { k: "add", l: "Add Perfume" },
+    { k: "charts", l: "Charts" },
     { k: "insights", l: "Insights" },
     { k: "settings", l: "Settings" },
   ];
@@ -4599,6 +5123,7 @@ function App() {
       {loaded && view === "similar" && <SimilarView onSelect={setSelected} perfumes={perfumes} />}
       {loaded && view === "diary" && <DiaryView wearLog={wearLog} onAdd={addWearEntry} onEdit={editWearEntry} onDelete={deleteWearEntry} syncStatus={syncStatus} />}
       {loaded && view === "wishlist" && <WishlistView wishlist={wishlist} onAdd={addWishlistItem} onRemove={removeWishlistItem} />}
+      {loaded && view === "charts" && <ChartsView wearLog={wearLog} perfumes={perfumes} wearStats={wearStats} />}
       {loaded && view === "insights" && <InsightsView onSelect={setSelected} wearStats={wearStats} perfumes={perfumes} />}
       {loaded && view === "add" && <AddPerfumeView onAdd={addPerfume} perfumes={perfumes} />}
       {loaded && view === "settings" && <SettingsView syncStatus={syncStatus} onSyncChange={loadAll} />}
