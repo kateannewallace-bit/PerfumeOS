@@ -2682,7 +2682,8 @@ function buildTagsFromText(notes, family) {
   if (has('earthy','forest floor')) tags.add('earthy');
   if (has('bamboo')) tags.add('bamboo');
   if (has('seaweed','kelp')) tags.add('seaweed');
-  if (has('orange ','orange,','orange;',' orange','blood orange','bitter orange','bigarade') && !has('orange blossom')) tags.add('orange');
+  if (has('blood orange','bitter orange','bigarade','orange peel','orange zest') ||
+      (has('orange ','orange,','orange;',' orange') && !has('orange blossom'))) tags.add('orange');
   // Musk
   if (has('musk','musc','musky','ambrette','ambroxan')) tags.add('musk');
   if (has('ambrette','ambrette seed','musk mallow')) tags.add('ambrette');
@@ -3097,8 +3098,7 @@ function Modal({ p, onClose, onEdit }) {
       updates.tags = buildTagsFromText(editForm.rawNotes, editForm.family);
       const processedNotes = processNotes(editForm.rawNotes);
       updates.notes = processedNotes.join("; ") || editForm.rawNotes;
-      const rawPrimaryList = editForm.primaryTags.split(",").map(t => t.trim().toLowerCase()).filter(Boolean);
-      updates.primary = canonicalizeRawTags(rawPrimaryList).filter(t => !PRIMARY_TAG_BLACKLIST.has(t));
+      updates.primary = editForm.primaryTags.split(",").map(t => t.trim().toLowerCase()).filter(Boolean);
     }
     onEdit(p.id, updates);
     setEditMode(false);
@@ -4313,14 +4313,10 @@ function ChartsView({ wearLog, perfumes, wearStats, onRefresh }) {
   function dominantCategory(p) {
     if (!p) return "Other";
     const primarySet = new Set(p.primary || []);
-    // Vote using union of tags + primary; primary notes count 3×, tag-only notes 1×.
-    // Higher weight ensures the named hero note beats supporting-role notes that only
-    // appear in tags (e.g. "rose" primary beats jasmine/freesia/violet tag chorus).
-    const allNotes = new Set([...(p.tags || []), ...(p.primary || [])]);
-    // Musk detection: normalizePerfume adds 'musk' to p.primary only for genuinely
-    // musk-forward perfumes (name contains musc/musk, or family is predominantly musk).
-    // Using primarySet.has('musk') is cleaner than re-checking the name here and
-    // avoids false positives from perfumes that merely use musk as a base note.
+    // Union of tags + primary + raw note strings (so "bitter orange" etc.
+    // can match CATEGORY_MAP keys directly via wordKeyMatch).
+    const notesList = (p.notesList || []).map(n => n.toLowerCase());
+    const allNotes = new Set([...(p.tags || []), ...(p.primary || []), ...notesList]);
     let bestLabel = null, bestScore = 0;
     for (const { label, keys } of CATEGORY_MAP) {
       let score = 0;
@@ -4332,7 +4328,6 @@ function ChartsView({ wearLog, perfumes, wearStats, onRefresh }) {
         score = primarySet.has('musk') ? 6 : 0;
       } else {
         for (const note of allNotes) {
-          if (PRIMARY_TAG_BLACKLIST.has(note)) continue;
           if (keys.some(k => wordKeyMatch(note, k))) {
             score += primarySet.has(note) ? 3 : 1;
           }
