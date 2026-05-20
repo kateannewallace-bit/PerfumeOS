@@ -3075,6 +3075,9 @@ function Modal({ p, onClose, onEdit }) {
       status: p.status || "Unrated",
       gender: p.gender || "",
       myNotes: p.myNotes || "",
+      rawNotes: p.rawNotes || "",
+      family: p.family || "",
+      primaryTags: (p.primary || []).join(", "),
     });
     setEditMode(true);
   };
@@ -3086,6 +3089,17 @@ function Modal({ p, onClose, onEdit }) {
       gender: editForm.gender || null,
       myNotes: editForm.myNotes,
     };
+    if (editForm.rawNotes !== (p.rawNotes || "") ||
+        editForm.family !== (p.family || "") ||
+        editForm.primaryTags !== (p.primary || []).join(", ")) {
+      updates.rawNotes = editForm.rawNotes;
+      updates.family = editForm.family;
+      updates.tags = buildTagsFromText(editForm.rawNotes, editForm.family);
+      const processedNotes = processNotes(editForm.rawNotes);
+      updates.notes = processedNotes.join("; ") || editForm.rawNotes;
+      const rawPrimaryList = editForm.primaryTags.split(",").map(t => t.trim().toLowerCase()).filter(Boolean);
+      updates.primary = canonicalizeRawTags(rawPrimaryList).filter(t => !PRIMARY_TAG_BLACKLIST.has(t));
+    }
     onEdit(p.id, updates);
     setEditMode(false);
   };
@@ -3168,6 +3182,15 @@ function Modal({ p, onClose, onEdit }) {
                 <option value="feminine">Feminine</option>
                 <option value="unisex">Unisex</option>
               </select>
+            </label>
+            <label className="full-span"><span className="mini-lbl">Notes (raw, comma or semicolon separated)</span>
+              <textarea value={editForm.rawNotes} onChange={e => ef("rawNotes", e.target.value)} placeholder="e.g. rose, bergamot, sandalwood, musk" style={{minHeight:60}} />
+            </label>
+            <label><span className="mini-lbl">Family / accord</span>
+              <input type="text" value={editForm.family} onChange={e => ef("family", e.target.value)} placeholder="e.g. floral woody" />
+            </label>
+            <label><span className="mini-lbl">Primary notes (comma separated)</span>
+              <input type="text" value={editForm.primaryTags} onChange={e => ef("primaryTags", e.target.value)} placeholder="e.g. rose, sandalwood" />
             </label>
             <label className="full-span"><span className="mini-lbl">My Experience</span>
               <textarea value={editForm.myNotes} onChange={e => ef("myNotes", e.target.value)} placeholder="How it wears, your impressions, memories…" style={{minHeight:80}} />
@@ -4267,6 +4290,7 @@ function ChartsView({ wearLog, perfumes, wearStats, onRefresh }) {
     { label: "Floral",             keys: ["jasmine","peony","neroli","mimosa","freesia","carnation","narcissus","heliotrope","violet","floral","honeysuckle"] },
     { label: "Green / Fresh",      keys: ["green","ivy","lierre","galbanum","grass","hay","moss","fern","leaf","leaves","green tea","white tea","aquatic","marine","sea","water","petrichor","herbal","aldehydic"] },
     { label: "Citrus",             keys: ["bergamot","lemon","lime","grapefruit","orange","mandarin","yuzu","citrus","hesperidic","pomelo"] },
+    { label: "Fruity",             keys: ["peach","apricot","plum","fig","berry","blackcurrant","raspberry","strawberry","cherry","pear","apple","lychee","pineapple","melon","rhubarb","pomegranate","mango","passion fruit"] },
     { label: "Woody",              keys: ["sandalwood","cedar","vetiver","guaiac","gaiac","patchouli","woody","oud wood"] },
     { label: "Amber / Resin",      keys: ["amber","labdanum","benzoin","styrax","vanilla","tonka","resin","resinous","balsam","coumarin"] },
     { label: "Powder",             keys: ["powder","powdery","skin scent","skin","cashmeran"] },
@@ -4274,6 +4298,17 @@ function ChartsView({ wearLog, perfumes, wearStats, onRefresh }) {
     { label: "Gourmand",           keys: ["cocoa","chocolate","coffee","caramel","almond","praline","honey","gourmand","cherry","marzipan","rum"] },
     { label: "Spice",              keys: ["pepper","cardamom","clove","cinnamon","ginger","saffron","spice","spicy"] },
   ];
+
+  // Word-boundary key match: key must appear as a whole word within note.
+  // "rose".includes("rose") ✓  "tuberose".includes("rose") ✓ but wordKeyMatch → ✗
+  // Prevents "tuberose" from voting for Rose, "smoky" from matching "smoke", etc.
+  function wordKeyMatch(note, k) {
+    const i = note.indexOf(k);
+    if (i === -1) return false;
+    const prevOk = i === 0 || note[i - 1] === ' ';
+    const nextOk = i + k.length === note.length || note[i + k.length] === ' ';
+    return prevOk && nextOk;
+  }
 
   function dominantCategory(p) {
     if (!p) return "Other";
@@ -4298,7 +4333,7 @@ function ChartsView({ wearLog, perfumes, wearStats, onRefresh }) {
       } else {
         for (const note of allNotes) {
           if (PRIMARY_TAG_BLACKLIST.has(note)) continue;
-          if (keys.some(k => note.includes(k))) {
+          if (keys.some(k => wordKeyMatch(note, k))) {
             score += primarySet.has(note) ? 3 : 1;
           }
         }
@@ -4309,7 +4344,7 @@ function ChartsView({ wearLog, perfumes, wearStats, onRefresh }) {
     // Fall back to family string
     const fam = (p.family || "").toLowerCase();
     for (const { label, keys } of CATEGORY_MAP) {
-      if (keys.some(k => fam.includes(k))) return label;
+      if (keys.some(k => wordKeyMatch(fam, k))) return label;
     }
     return "Other";
   }
