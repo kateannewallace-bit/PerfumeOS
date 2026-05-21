@@ -1545,9 +1545,9 @@ const CANONICAL_MAP = {
   'cherry wine':'cherry','cherry liqueur':'cherry','black cherry':'cherry',
   'cherry blossom accord':'cherry blossom','green apple':'apple','red apple':'apple',
   'green pear':'pear','pear stem':'pear','pear water':'pear',
-  'pink grapefruit':'grapefruit','white grapefruit':'grapefruit','blood orange':'orange',
-  'sweet orange':'orange','bitter orange':'orange','sicilian orange':'orange',
-  'orange peel':'orange','orange':'orange','clementine':'mandarin',
+  'pink grapefruit':'grapefruit','white grapefruit':'grapefruit',
+  'sweet orange':'orange','sicilian orange':'orange',
+  'orange':'orange','clementine':'mandarin',
   'tangerine':'mandarin','lime peel':'lime','citron':'lemon',
   'lemon verbena':'lemon','cocoa':'chocolate','cacao':'chocolate',
   'white chocolate':'chocolate','vanillin':'vanilla','vanilla orchid':'vanilla',
@@ -2721,7 +2721,8 @@ function buildTagsFromText(notes, family) {
   // 'concrete' is a standard perfumery extraction method (orris concrete, jasmine concrete, etc.)
   // — not an unusual material. Skipped here; handled as a note suffix instead.
   if (has('copper')) { tags.add('copper'); tags.add('unusual'); }
-  if (has('ice accord','crushed ice')) { tags.add('ice'); tags.add('unusual'); }
+  // hasW prevents substring false positives: 'spice accord'.includes('ice accord') is true with plain has()
+  if (hasW('ice') || hasW('ice accord','crushed ice')) { tags.add('ice'); tags.add('unusual'); }
   if (has('pie crust','pie note')) { tags.add('unusual'); }
   // Seaweed is unusual only when paired with something it doesn't belong with
   if (has('seaweed','kelp','briny seaweed')) {
