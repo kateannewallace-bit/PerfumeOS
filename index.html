@@ -3428,7 +3428,7 @@ function SimilarView({ onSelect, perfumes }) {
   const [mode, setMode] = useState("perfume"); // "perfume" | "note"
   const [noteQuery, setNoteQuery] = useState("");
 
-  const ref = refId ? perfumes.find(p => p.id === refId) : null;
+  const ref = refId !== null ? perfumes.find(p => p.id === refId) : null;
   const results = useMemo(() => similar(ref, trevOnly, perfumes), [ref, trevOnly, perfumes]);
 
   // Note-search mode: collect all unique tags, filter by query, show perfumes
@@ -3488,7 +3488,7 @@ function SimilarView({ onSelect, perfumes }) {
     <div className="inline-row" style={{marginBottom:10,gap:4}}>
       {["All","feminine","masculine","unisex"].map(g => <button key={g} className={`tab ${genderFilter===g?"active":""}`} style={{flex:1,padding:"6px 4px",fontSize:11}} onClick={()=>setGenderFilter(g)}>{g==="All"?"All genders":g==="feminine"?"Feminine":g==="masculine"?"Masculine":"Unisex"}</button>)}
     </div>
-    <select value={refId||''} onChange={e=>setRefId(parseInt(e.target.value)||null)} style={{width:'100%',marginBottom:14,padding:'10px 14px',fontSize:14,fontFamily:'inherit',border:'1px solid #ddd',background:'#fff',minHeight:44}}>
+    <select value={refId??''} onChange={e=>setRefId(e.target.value===''?null:parseInt(e.target.value))} style={{width:'100%',marginBottom:14,padding:'10px 14px',fontSize:14,fontFamily:'inherit',border:'1px solid #ddd',background:'#fff',minHeight:44}}>
       <option value="">— Pick a reference perfume ({choices.length}) —</option>
       {choices.map(p => <option key={p.id} value={p.id}>{p.fullName}</option>)}
     </select>
@@ -3541,8 +3541,8 @@ function CompareView({ perfumes }) {
   const [queryA, setQueryA] = useState("");
   const [queryB, setQueryB] = useState("");
 
-  const a = idA ? perfumes.find(p => p.id === idA) : null;
-  const b = idB ? perfumes.find(p => p.id === idB) : null;
+  const a = idA !== null ? perfumes.find(p => p.id === idA) : null;
+  const b = idB !== null ? perfumes.find(p => p.id === idB) : null;
 
   const filtered = (q) => {
     const lower = q.toLowerCase().trim();
@@ -3657,14 +3657,14 @@ function CompareView({ perfumes }) {
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
       <div>
         <input type="search" placeholder="Search A…" value={queryA} onChange={e => setQueryA(e.target.value)} style={{ width: "100%", marginBottom: 6, boxSizing: "border-box" }} />
-        <select value={idA || ""} onChange={e => setIdA(parseInt(e.target.value) || null)} style={{ width: "100%", padding: "10px 12px", fontSize: 13, fontFamily: "inherit", border: "1px solid #ddd", background: "#fff", minHeight: 44, boxSizing: "border-box" }}>
+        <select value={idA ?? ""} onChange={e => setIdA(e.target.value === '' ? null : parseInt(e.target.value))} style={{ width: "100%", padding: "10px 12px", fontSize: 13, fontFamily: "inherit", border: "1px solid #ddd", background: "#fff", minHeight: 44, boxSizing: "border-box" }}>
           <option value="">— Perfume A —</option>
           {filtered(queryA).map(p => <option key={p.id} value={p.id}>{p.fullName}</option>)}
         </select>
       </div>
       <div>
         <input type="search" placeholder="Search B…" value={queryB} onChange={e => setQueryB(e.target.value)} style={{ width: "100%", marginBottom: 6, boxSizing: "border-box" }} />
-        <select value={idB || ""} onChange={e => setIdB(parseInt(e.target.value) || null)} style={{ width: "100%", padding: "10px 12px", fontSize: 13, fontFamily: "inherit", border: "1px solid #ddd", background: "#fff", minHeight: 44, boxSizing: "border-box" }}>
+        <select value={idB ?? ""} onChange={e => setIdB(e.target.value === '' ? null : parseInt(e.target.value))} style={{ width: "100%", padding: "10px 12px", fontSize: 13, fontFamily: "inherit", border: "1px solid #ddd", background: "#fff", minHeight: 44, boxSizing: "border-box" }}>
           <option value="">— Perfume B —</option>
           {filtered(queryB).map(p => <option key={p.id} value={p.id}>{p.fullName}</option>)}
         </select>
