@@ -2200,7 +2200,7 @@ function matches(p, { family, character, lanes, safeOnly, excludeAvoid, triedOnl
   }
   if (search) {
     const q = search.toLowerCase();
-    if (!p.fullName.toLowerCase().includes(q) && !p.notes.toLowerCase().includes(q) && !p.tags.join(" ").includes(q)) return false;
+    if (!p.fullName.toLowerCase().includes(q) && !p.notes.toLowerCase().includes(q) && !p.tags.join(" ").includes(q) && !(p.primary || []).join(" ").includes(q)) return false;
   }
   return true;
 }
@@ -2545,7 +2545,8 @@ function buildTagsFromText(notes, family) {
   if (has('iris', 'orris', 'pallida')) tags.add('iris');
   // Lipstick iris: requires iris + powdery + violet (all three signals)
   // Rule tightened from previous version to avoid false positives
-  if (tags.has('iris') && tags.has('powdery') && tags.has('violet')) tags.add('lipstick iris');
+  // Lipstick iris: iris + either powdery or violet — both contribute to the makeup character
+  if (tags.has('iris') && (tags.has('powdery') || tags.has('violet'))) tags.add('lipstick iris');
   if (has('rose ','rose,','rose;','rose:','rose.',' rose','centifolia','taif rose','damask rose','bulgarian rose')) tags.add('rose');
   if (has('jasmine','jasmin','sambac')) tags.add('jasmine');
   if (has('tuberose','tubereuse')) tags.add('tuberose');
