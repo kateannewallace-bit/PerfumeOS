@@ -1675,8 +1675,8 @@ const CANONICAL_MAP = {
   'csugar':'sugar','lumroot':'plum','igerian ginger':'ginger',
   'mineral accord':'mineral','mineral notes':'mineral','ink accord':'ink',
   'musk accord':'musk','ylang-ylang':'ylang','ylang-ylang (cananga)':'ylang',
-  'bigarade':'orange','bigarade (bitter orange)':'orange','bitter orange (bigarade)':'orange',
-  'orange zest':'orange','litsea cubeba':'lemon','lemon zest':'lemon',
+  'bigarade':'bitter orange','bigarade (bitter orange)':'bitter orange','bitter orange (bigarade)':'bitter orange',
+  'orange zest':'orange zest','litsea cubeba':'lemon','lemon zest':'lemon',
   'lemon balm':'lemon','citrus zest':'citrus','citruses':'citrus',
   'hesperidic':'citrus','white peony':'peony','rose oil':'rose',
   'rose otto':'rose','ottoman rose':'rose','ottoman rose absolute':'rose','juniper berry':'juniper','juniper berries':'juniper','cassis':'blackcurrant','blackcurrant bud':'blackcurrant','blackcurrant buds':'blackcurrant',
@@ -1914,7 +1914,7 @@ const VALID_MULTI_WORD_TAGS = new Set([
   'lily of the valley','orange blossom','pink pepper','iso e super',
   'dry citrus','herbal fresh','skin musk','vanilla musk','amber musk',
   'violet leaf','carrot seed','litsea cubeba','peach skin','cashmere wood',
-  'clary sage','coffee absolute','coriander seed','orange peel','star anise',
+  'clary sage','coffee absolute','coriander seed','orange peel','orange zest','blood orange','bitter orange','star anise',
   'poplar buds','angelica root','rose otto','rose absolute','pine needles',
   'balsam fir','smoked papyrus','raw honey','oak wood','green cactus',
   'ylang ylang','jasmine sambac','damask rose','bulgarian rose','white musk',
@@ -1932,13 +1932,7 @@ function canonicalizeRawTags(tags) {
     const lower = raw.replace(/[\/]/g, ' ').replace(/\s+/g, ' ').trim();
     if (lower in CANONICAL_MAP && CANONICAL_MAP[lower]) return CANONICAL_MAP[lower];
     return lower;
-  }).filter(tag => {
-    if (!tag) return false;
-    // Single-word tags are always kept
-    if (!tag.includes(' ')) return true;
-    // Multi-word: only keep known valid taxonomy tags
-    return VALID_MULTI_WORD_TAGS.has(tag);
-  }))];
+  }).filter(Boolean))]; // keep all non-empty tags — multi-word notes like 'birch tar', 'bitter orange' are valid
 }
 
 // Broad family/character words — valid as general tags but NOT as primary notes.
@@ -2682,8 +2676,15 @@ function buildTagsFromText(notes, family) {
   if (has('earthy','forest floor')) tags.add('earthy');
   if (has('bamboo')) tags.add('bamboo');
   if (has('seaweed','kelp')) tags.add('seaweed');
-  if (has('blood orange','bitter orange','bigarade','orange peel','orange zest') ||
-      (has('orange ','orange,','orange;',' orange') && !has('orange blossom'))) tags.add('orange');
+  // Granular orange: each subtype gets its own tag so users can distinguish character
+  if (has('blood orange','sang d orange','red orange')) tags.add('blood orange');
+  if (has('bitter orange','bigarade','chinotto','neroli bigarade')) tags.add('bitter orange');
+  if (has('orange peel','orange zest','orange rind','écorce d orange')) tags.add('orange peel');
+  // Plain citrus orange — only when not already captured by a specific subtype or orange blossom
+  if (has('orange ','orange,','orange;',' orange') &&
+      !has('orange blossom') && !has('blood orange') && !has('bitter orange') &&
+      !has('orange peel') && !has('orange zest'))
+    tags.add('orange');
   // Musk
   if (has('musk','musc','musky','ambrette','ambroxan')) tags.add('musk');
   if (has('ambrette','ambrette seed','musk mallow')) tags.add('ambrette');
@@ -2810,7 +2811,9 @@ function buildTagsFromText(notes, family) {
   if (hasF('green','vert','verdant')) tags.add('green');
   if (hasF('powder','powdery','poudré')) tags.add('powdery');
   if (hasF('aldehydic','aldehyde')) { tags.add('powdery'); tags.add('aldehydic'); }
-  if (tags.has('grapefruit') || (tags.has('bergamot') && has('dry','hesperidic','woody'))) tags.add('dry citrus');
+  // Dry / bitter citrus character: grapefruit, petitgrain, bitter orange, and bergamot in dry contexts
+  if (tags.has('grapefruit') || tags.has('petitgrain') || tags.has('bitter orange') ||
+      (tags.has('bergamot') && has('dry','hesperidic','woody'))) tags.add('dry citrus');
   // ── Additional woody notes ────────────────────────────────────────────────
   if (has('sycamore','maple wood','maplewood','hinoki','sequoia','okoumé')) tags.add('woody');
   // ── Additional florals ────────────────────────────────────────────────────
@@ -4291,7 +4294,7 @@ function ChartsView({ wearLog, perfumes, wearStats, onRefresh, onSelect }) {
     { label: "Purple Floral",      keys: ["lavender","lilac","wisteria","heliotrope"] },
     { label: "Floral",             keys: ["jasmine","peony","neroli","freesia","carnation","lily","floral"] },
     { label: "Green / Fresh",      keys: ["green","ivy","lierre","galbanum","grass","hay","moss","fern","leaf","leaves","green tea","white tea","aquatic","marine","sea","water","petrichor","herbal","aldehydic"] },
-    { label: "Citrus",             keys: ["bergamot","lemon","lime","grapefruit","orange","mandarin","yuzu","citrus","hesperidic","pomelo"] },
+    { label: "Citrus",             keys: ["bergamot","lemon","lime","grapefruit","orange","bitter orange","blood orange","orange peel","orange zest","mandarin","yuzu","citrus","hesperidic","pomelo"] },
     { label: "Fruity",             keys: ["peach","apricot","plum","fig","berry","blackcurrant","raspberry","strawberry","cherry","pear","apple","lychee","pineapple","melon","rhubarb","pomegranate","mango","passion fruit"] },
     { label: "Woody",              keys: ["sandalwood","cedar","vetiver","guaiac","gaiac","patchouli","woody","oud wood"] },
     { label: "Amber / Resin",      keys: ["amber","labdanum","benzoin","styrax","vanilla","tonka","resin","resinous","balsam","coumarin"] },
@@ -5258,7 +5261,7 @@ function App() {
     // normalizeHouseName handles spelling variants like "parfums" vs "perfumes"
     const normalizeHouseName = s => s.replace(/parfums/gi,'perfumes').replace(/\s+/g,' ').trim();
     const seedNamesNorm = new Set(PERFUMES_SEED.map(p => normalizeHouseName(p.fullName.toLowerCase())));
-    const allUserIds = new Set(userPerfumes.map(p => p.id || 0));
+    const allUserIds = new Set(userPerfumes.map(p => p.i || 0)); // p.i is the raw id field (compact format)
     let nextAvailId = Math.max(...seedIds, ...allUserIds) + 1;
     const seenUserNames = new Set();
     const filteredUser = userPerfumes.map(normalizePerfume)
