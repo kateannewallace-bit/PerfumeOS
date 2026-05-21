@@ -1980,6 +1980,8 @@ function normalizePerfume(p) {
     const mn = (p.mn || '').toLowerCase();
     const WEIRD_WORDS = ['weird','strange','odd','bizarre','unexpected','wild','peculiar','metallic','antiseptic','crazy','experimental','pie crust','pie','Play-Doh','playdoh','band-aid','bandaid','hospital'];
     if (WEIRD_WORDS.some(w => new RegExp('\\b' + w + '\\b').test(mn))) t.add('unusual');
+    // Lipstick iris: also catch perfumes with "lipstick" in the name
+    if ((p.n || '').toLowerCase().includes('lipstick') && t.has('iris')) t.add('lipstick iris');
     return [...t];
   })(),
     primary,
@@ -2543,10 +2545,7 @@ function buildTagsFromText(notes, family) {
   // Specific florals
   if (has('violet')) tags.add('violet');
   if (has('iris', 'orris', 'pallida')) tags.add('iris');
-  // Lipstick iris: requires iris + powdery + violet (all three signals)
-  // Rule tightened from previous version to avoid false positives
-  // Lipstick iris: iris + either powdery or violet — both contribute to the makeup character
-  if (tags.has('iris') && (tags.has('powdery') || tags.has('violet'))) tags.add('lipstick iris');
+  // Lipstick iris check deferred — runs after powdery tag is computed below
   if (has('rose ','rose,','rose;','rose:','rose.',' rose','centifolia','taif rose','damask rose','bulgarian rose')) tags.add('rose');
   if (has('jasmine','jasmin','sambac')) tags.add('jasmine');
   if (has('tuberose','tubereuse')) tags.add('tuberose');
@@ -2764,6 +2763,9 @@ function buildTagsFromText(notes, family) {
   if (has('moss')) tags.add('moss');
   if (has('powder','powdery','aldehyde','aldehydic','talc')) tags.add('powdery');
   if (has('aldehyde','aldehydic')) tags.add('aldehydic');
+  // Lipstick iris: iris + violet in notes, powder/powdery in tags — or explicit "lipstick" mention
+  if (tags.has('iris') && tags.has('violet') && tags.has('powdery')) tags.add('lipstick iris');
+  if (tags.has('iris') && has('lipstick')) tags.add('lipstick iris');
   if (has('chypre')) tags.add('chypre');
   // 'ink' tag: only when ink is a real standalone note, not embedded in pink/drink/think/etc.
   if (hasW('ink') && !INK_FALSE_POSITIVES.some(w => has(w))) tags.add('ink');
