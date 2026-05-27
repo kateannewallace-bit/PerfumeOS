@@ -3365,8 +3365,6 @@ function PickView({ onSelect, wearStats, perfumes }) {
   const [sort, setSort] = useState("smart");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [gender, setGender] = useState("All");
-  const [excludeNotes, setExcludeNotes] = useState([]);
-  const [excludeInput, setExcludeInput] = useState("");
 
   const enriched = useMemo(() => enrich(perfumes, wearStats), [wearStats, perfumes]);
 
@@ -3406,7 +3404,7 @@ function PickView({ onSelect, wearStats, perfumes }) {
       <label><span className="mini-lbl">Gender</span><select value={gender} onChange={e => setGender(e.target.value)}><option value="All">All</option><option value="feminine">Feminine</option><option value="masculine">Masculine</option><option value="unisex">Unisex</option></select></label>
       <label><span className="mini-lbl">Family</span><select value={family} onChange={e => setFamily(e.target.value)}>{FAMILY_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}</select></label>
       <label><span className="mini-lbl">Character</span><select value={character} onChange={e => setCharacter(e.target.value)}>{CHARACTER_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}</select></label>
-      <button onClick={() => { setGender("All"); setFamily("All"); setCharacter("All"); setLanes([]); setExcludeNotes([]); setExcludeInput(""); setPrimaryOnly(false); setTrev(false); }} style={{gridColumn:"1/-1",background:"none",border:"1px solid #ddd",borderRadius:8,padding:"8px",fontSize:12,color:"#999",cursor:"pointer",marginTop:4}}>Clear all filters</button>
+      <button onClick={() => { setGender("All"); setFamily("All"); setCharacter("All"); setLanes([]); setPrimaryOnly(false); setTrev(false); }} style={{gridColumn:"1/-1",background:"none",border:"1px solid #ddd",borderRadius:8,padding:"8px",fontSize:12,color:"#999",cursor:"pointer",marginTop:4}}>Clear all filters</button>
       <div className="lane-filter-wrap">
         <NoteFilter
           selected={lanes}
@@ -3416,33 +3414,6 @@ function PickView({ onSelect, wearStats, perfumes }) {
           laneMode={laneMode}
           onLaneModeChange={setLaneMode}
         />
-        {/* Exclude notes */}
-        <div style={{marginTop:10}}>
-          <span className="mini-lbl" style={{display:"block",marginBottom:4}}>Exclude notes</span>
-          <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
-            {excludeNotes.map(n => (
-              <span key={n} style={{display:"inline-flex",alignItems:"center",gap:4,padding:"3px 10px",borderRadius:999,background:"#f3e0e0",border:"1px solid #d9a0a0",fontSize:12,color:"#9b4040"}}>
-                {n}
-                <button onClick={() => setExcludeNotes(prev => prev.filter(x => x !== n))} style={{background:"none",border:"none",cursor:"pointer",padding:0,color:"#9b4040",fontWeight:600,lineHeight:1}}>×</button>
-              </span>
-            ))}
-            <input
-              className="note-picker-search"
-              style={{flex:1,minWidth:120,fontSize:12}}
-              placeholder="Type note to exclude, press Enter…"
-              value={excludeInput}
-              onChange={e => setExcludeInput(e.target.value)}
-              onKeyDown={e => {
-                if ((e.key === "Enter" || e.key === ",") && excludeInput.trim()) {
-                  e.preventDefault();
-                  const n = excludeInput.trim().toLowerCase().replace(/,$/, "");
-                  if (n && !excludeNotes.includes(n)) setExcludeNotes(prev => [...prev, n]);
-                  setExcludeInput("");
-                }
-              }}
-            />
-          </div>
-        </div>
       </div>
       <label><span className="mini-lbl">Sort</span><select value={sort} onChange={e => setSort(e.target.value)}>
         <option value="smart">Smart (recommended)</option>
@@ -3484,6 +3455,8 @@ function CollectionView({ onSelect, wearStats, perfumes }) {
   const [sort, setSort] = useState("balScore");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [gender, setGender] = useState("All");
+  const [excludeNotes, setExcludeNotes] = useState([]);
+  const [excludeInput, setExcludeInput] = useState("");
 
   const enriched = useMemo(() => enrich(perfumes, wearStats), [wearStats, perfumes]);
 
@@ -3509,7 +3482,7 @@ function CollectionView({ onSelect, wearStats, perfumes }) {
     <div className={`filter-panel ${filtersOpen ? "open" : ""}`}>
       <label><span className="mini-lbl">Gender</span><select value={gender} onChange={e => setGender(e.target.value)}><option value="All">All</option><option value="feminine">Feminine</option><option value="masculine">Masculine</option><option value="unisex">Unisex</option></select></label>
       <label><span className="mini-lbl">Preference</span><select value={pref} onChange={e => setPref(e.target.value)}>{PREFS.map(p => <option key={p}>{p}</option>)}</select></label>
-      <button onClick={() => { setGender("All"); setPref("All"); setFamily("All"); setCharacter("All"); setLanes([]); setPrimaryOnly(false); setTriedOnly(false); }} style={{gridColumn:"1/-1",background:"none",border:"1px solid #ddd",borderRadius:8,padding:"8px",fontSize:12,color:"#999",cursor:"pointer",marginTop:4}}>Clear all filters</button>
+      <button onClick={() => { setGender("All"); setPref("All"); setFamily("All"); setCharacter("All"); setLanes([]); setExcludeNotes([]); setExcludeInput(""); setPrimaryOnly(false); setTriedOnly(false); }} style={{gridColumn:"1/-1",background:"none",border:"1px solid #ddd",borderRadius:8,padding:"8px",fontSize:12,color:"#999",cursor:"pointer",marginTop:4}}>Clear all filters</button>
       <label><span className="mini-lbl">Family</span><select value={family} onChange={e => setFamily(e.target.value)}>{FAMILY_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}</select></label>
       <label><span className="mini-lbl">Character</span><select value={character} onChange={e => setCharacter(e.target.value)}>{CHARACTER_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}</select></label>
       <div className="lane-filter-wrap">
@@ -3521,6 +3494,33 @@ function CollectionView({ onSelect, wearStats, perfumes }) {
           laneMode={laneMode}
           onLaneModeChange={setLaneMode}
         />
+        {/* Exclude notes */}
+        <div style={{marginTop:10}}>
+          <span className="mini-lbl" style={{display:"block",marginBottom:4}}>Exclude notes</span>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
+            {excludeNotes.map(n => (
+              <span key={n} style={{display:"inline-flex",alignItems:"center",gap:4,padding:"3px 10px",borderRadius:999,background:"#f3e0e0",border:"1px solid #d9a0a0",fontSize:12,color:"#9b4040"}}>
+                {n}
+                <button onClick={() => setExcludeNotes(prev => prev.filter(x => x !== n))} style={{background:"none",border:"none",cursor:"pointer",padding:0,color:"#9b4040",fontWeight:600,lineHeight:1}}>×</button>
+              </span>
+            ))}
+            <input
+              className="note-picker-search"
+              style={{flex:1,minWidth:120,fontSize:12}}
+              placeholder="Type a note to exclude, press Enter…"
+              value={excludeInput}
+              onChange={e => setExcludeInput(e.target.value)}
+              onKeyDown={e => {
+                if ((e.key === "Enter" || e.key === ",") && excludeInput.trim()) {
+                  e.preventDefault();
+                  const n = excludeInput.trim().toLowerCase().replace(/,$/, "");
+                  if (n && !excludeNotes.includes(n)) setExcludeNotes(prev => [...prev, n]);
+                  setExcludeInput("");
+                }
+              }}
+            />
+          </div>
+        </div>
       </div>
       <label><span className="mini-lbl">Sort</span><select value={sort} onChange={e => setSort(e.target.value)}>
         <option value="balScore">By Appeal</option>
