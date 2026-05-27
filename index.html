@@ -3287,8 +3287,20 @@ function Modal({ p, onClose, onEdit, perfumes, onNavigate }) {
       {p.notes && <><div className="sec-lbl">Notes</div><p className="notes-body">{p.notes}</p></>}
       {p.smellsLike && p.smellsLike.length > 0 && (() => {
         const resolvedLinks = (p.smellsLike || []).map(name => {
-          const nl = name.toLowerCase();
-          const found = perfumes && perfumes.find(q => q.fullName.toLowerCase() === nl || q.name.toLowerCase() === nl || q.fullName.toLowerCase().includes(nl));
+          const nl = name.trim().toLowerCase();
+          const wordEnd = (str, sub) => {
+            const i = str.indexOf(sub);
+            if (i === -1) return false;
+            const after = str[i + sub.length];
+            return after === undefined || /[\s\-\'\(]/.test(after);
+          };
+          const found = perfumes && (
+            perfumes.find(q => q.fullName.toLowerCase() === nl) ||
+            perfumes.find(q => q.name.toLowerCase() === nl) ||
+            perfumes.find(q => q.fullName.toLowerCase().endsWith(nl)) ||
+            perfumes.find(q => wordEnd(q.fullName.toLowerCase(), nl)) ||
+            perfumes.find(q => wordEnd(q.name.toLowerCase(), nl))
+          );
           return { name, found };
         });
         return <div style={{marginBottom:12}}>
