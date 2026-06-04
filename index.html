@@ -578,7 +578,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   gap: 12px;
   margin-bottom: 16px;
 }
-@media (min-width: 480px) { .scores-grid { grid-template-columns: repeat(4, 1fr); } }
+@media (min-width: 400px) { .scores-grid { grid-template-columns: repeat(4, 1fr); gap: 8px; } }
 
 .meta-grid {
   display: grid;
@@ -3330,7 +3330,7 @@ function Modal({ p, onClose, onEdit, perfumes, onNavigate }) {
       })()}
       <hr className="divider" />
       <div className="scores-grid">
-        {[["Match", p.sigScore, "#c8a97e"],["Edge", p.intScore, "#8aaa80"],["Appeal", p.balScore, "#9b7db8"],["On me ♥", p.safeScore, "#d4899a"]].map(([l,v,c]) =>
+        {[["Match", p.sigScore, "#c8a97e"],["Edge", p.intScore, "#8aaa80"],["Appeal", p.balScore, "#9b7db8"],["On me", p.safeScore, "#d4899a"]].map(([l,v,c]) =>
           <div key={l}><div className="sec-lbl">{l}</div><Bar v={v} color={c} /></div>
         )}
       </div>
@@ -4290,13 +4290,13 @@ function ChartsView({ wearLog, perfumes, wearStats, onRefresh, onSelect }) {
   // 4. OLFACTORY FAMILIES — tag-based collection count
   const familyCollection = useMemo(() => {
     const c = {};
-    for (const p of enriched) {
+    for (const p of perfumes) {
       const cat = dominantCategory(p);
       c[cat] = (c[cat] || 0) + 1;
     }
     return Object.entries(c).sort(([,a],[,b])=>b-a)
       .map(([cat,n])=>({label:cat, fam:cat, value:n, color:CAT_COLORS[cat]||'var(--gold)'}));
-  }, [enriched]);
+  }, [perfumes]);
 
   // 5. OLFACTORY FAMILIES OVER TIME — monthly wear counts by family
   const famOverTime = useMemo(() => {
