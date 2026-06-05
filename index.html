@@ -4357,7 +4357,7 @@ function ChartsView({ wearLog, perfumes, wearStats, onRefresh, onSelect }) {
       if (!h[p.house]) h[p.house] = { sum: 0, n: 0 };
       h[p.house].sum += +p.rating; h[p.house].n++;
     }
-    return Object.entries(h).filter(([,{n}]) => n >= 2)
+    return Object.entries(h).filter(([,{n}]) => n >= 4)
       .map(([house,{sum,n}]) => ({ label: house, avg: +(sum/n).toFixed(1), n }))
       .sort((a,b) => b.avg - a.avg || b.n - a.n).slice(0, 12);
   }, [enriched]);
@@ -4442,10 +4442,14 @@ function ChartsView({ wearLog, perfumes, wearStats, onRefresh, onSelect }) {
 
   // ── Render helpers ─────────────────────────────────────────────────────────
 
-  const HBar = ({label, value, max, color, sub}) => (
+  const HBar = ({label, value, max, color, sub, onClick}) => (
     <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:9}}>
-      <div style={{width:120,textAlign:'right',fontSize:11,color:'var(--fg-soft)',flexShrink:0,
-        overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',fontFamily:'Georgia,serif'}}>{label}</div>
+      <div title={label} onClick={onClick||undefined}
+        style={{width:140,textAlign:'right',fontSize:11,flexShrink:0,
+          overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',fontFamily:'Georgia,serif',
+          color: onClick ? 'var(--gold)' : 'var(--fg-soft)',
+          cursor: onClick ? 'pointer' : 'default',
+          textDecoration: onClick ? 'underline dotted' : 'none'}}>{label}</div>
       <div style={{flex:1,height:10,background:'var(--bg-soft)',borderRadius:1,overflow:'hidden'}}>
         <div style={{width:`${Math.round((value/max)*100)}%`,height:'100%',
           background:color||'var(--gold)',opacity:0.7,transition:'width .3s'}}/>
@@ -4750,7 +4754,8 @@ const recentMostWorn = useMemo(() => {
             {mostWorn.map(p=>{
               const lastR=p.ratingHistory?.slice(-1)[0]?.rating;
               return <HBar key={p.id} label={`${p.house} — ${p.name}`} value={p.wearCount} max={maxWorn}
-                color="var(--lilac)" sub={lastR!=null?`${p.wearCount}× (${lastR})`:String(p.wearCount)}/>;
+                color="var(--lilac)" sub={lastR!=null?`${p.wearCount}× (${lastR})`:String(p.wearCount)}
+                onClick={()=>onSelect(p)}/>;
             })}
           </div>
         )}
