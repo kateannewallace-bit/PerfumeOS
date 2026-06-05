@@ -4250,6 +4250,7 @@ function dominantCategory(p) {
 
 function ChartsView({ wearLog, perfumes, wearStats, onRefresh, onSelect }) {
   const [refreshing, setRefreshing] = React.useState(false);
+  const [selectedFam, setSelectedFam] = React.useState(null);
   const handleRefresh = React.useCallback(async () => {
     if (!onRefresh || refreshing) return;
     setRefreshing(true);
@@ -4443,12 +4444,13 @@ function ChartsView({ wearLog, perfumes, wearStats, onRefresh, onSelect }) {
   // ── Render helpers ─────────────────────────────────────────────────────────
 
   const HBar = ({label, value, max, color, sub, onClick}) => (
-    <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:9}}>
-      <div title={label} onClick={onClick||undefined}
+    <div onClick={onClick||undefined}
+      style={{display:'flex',alignItems:'center',gap:10,marginBottom:9,
+        cursor: onClick ? 'pointer' : 'default'}}>
+      <div title={label}
         style={{width:140,textAlign:'right',fontSize:11,flexShrink:0,
           overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',fontFamily:'Georgia,serif',
           color: onClick ? 'var(--gold)' : 'var(--fg-soft)',
-          cursor: onClick ? 'pointer' : 'default',
           textDecoration: onClick ? 'underline dotted' : 'none'}}>{label}</div>
       <div style={{flex:1,height:10,background:'var(--bg-soft)',borderRadius:1,overflow:'hidden'}}>
         <div style={{width:`${Math.round((value/max)*100)}%`,height:'100%',
@@ -4781,8 +4783,32 @@ const recentMostWorn = useMemo(() => {
           </div>
           <div className="chart-card">
             <div className="chart-card-title">Olfactory Families</div>
-            <div className="chart-card-sub">How many pieces you own per family</div>
-            {familyCollection.map(d=><HBar key={d.label} label={d.label} value={d.value} max={maxFamColl} color={d.color}/>)}
+            <div className="chart-card-sub">How many pieces you own per family — click a bar to see the list</div>
+            {familyCollection.map(d=>{
+              const isOpen = selectedFam === d.label;
+              const INLINE_MAX = 12;
+              const famPerfumes = isOpen ? perfumes.filter(p => dominantCategory(p) === d.label)
+                .sort((a,b) => a.house.localeCompare(b.house)) : [];
+              const overflow = famPerfumes.length > INLINE_MAX;
+              const shown = overflow ? famPerfumes.slice(0, INLINE_MAX) : famPerfumes;
+              return <div key={d.label}>
+                <HBar label={d.label} value={d.value} max={maxFamColl} color={d.color}
+                  onClick={() => setSelectedFam(isOpen ? null : d.label)}/>
+                {isOpen && <div style={{margin:'4px 0 10px 0',paddingLeft:8,borderLeft:'2px solid var(--border-soft)'}}>
+                  {shown.map(p => (
+                    <div key={p.id} onClick={() => onSelect(p)}
+                      style={{fontSize:11,fontFamily:'Georgia,serif',color:'var(--gold)',
+                        cursor:'pointer',padding:'2px 0',lineHeight:1.5}}>
+                      {p.house} — {p.name}{p.concentration ? ' ' + p.concentration : ''}
+                    </div>
+                  ))}
+                  {overflow && <div style={{fontSize:11,fontFamily:'Georgia,serif',color:'var(--fg-mute)',
+                    fontStyle:'italic',marginTop:4}}>
+                    ...and {famPerfumes.length - INLINE_MAX} more
+                  </div>}
+                </div>}
+              </div>;
+            })}
           </div>
         </div>
 
