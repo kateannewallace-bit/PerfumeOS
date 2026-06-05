@@ -2458,10 +2458,14 @@ function attachPerfumeIdToEntry(entry, perfumes) {
     m = perfumes.find(p => _norm(p.house) === targetHouse && (_norm(p.name).includes(targetName) || targetName.includes(_norm(p.name))));
     if (m) return { ...entry, perfumeId: m.id, fuzzy: true, unmatched: false };
   }
-  // Last resort: substring across collection
+  // Last resort: diary entry name is an abbreviation of the seed name (e.g. "Coco" → "Coco Mademoiselle")
+  // Only allow n.includes(targetName) direction — NOT targetName.includes(n), which causes
+  // short seed names like "Flower" to falsely match longer diary entries like "Flower Glyph".
   m = perfumes.find(p => {
     const n = _norm(p.name);
-    return n.length > 2 && targetName.length > 2 && (n.includes(targetName) || targetName.includes(n));
+    // targetName must appear at the START of the seed name followed by a space
+    // (e.g. "Coco" matches "Coco Mademoiselle") — prevents "Luna" → "Lunamaris"
+    return n.length > 4 && targetName.length > 3 && n.startsWith(targetName + ' ');
   });
   if (m) return { ...entry, perfumeId: m.id, fuzzy: true, unmatched: false };
   return { ...entry, perfumeId: null, unmatched: true };
@@ -4343,18 +4347,20 @@ function ChartsView({ wearLog, perfumes, wearStats, onRefresh, onSelect }) {
 
   // 3. HOUSE BATTING AVERAGES — diary-based avg rating, 2+ rated wears
   const houseBatting = useMemo(() => {
+    // Use each perfume's computed rating (diary-derived or manually set)
+    // so that all rated perfumes count toward their house average,
+    // not just those with diary entries.
     const h = {};
-    for (const e of wearLog) {
-      if (e.rating==null||isNaN(+e.rating)) continue;
-      const p = perfMap.get(e.perfumeId);
-      if (!p?.house) continue;
-      if (!h[p.house]) h[p.house]={sum:0,n:0};
-      h[p.house].sum += +e.rating; h[p.house].n++;
+    for (const p of enriched) {
+      if (p.rating == null || isNaN(+p.rating)) continue;
+      if (!p.house) continue;
+      if (!h[p.house]) h[p.house] = { sum: 0, n: 0 };
+      h[p.house].sum += +p.rating; h[p.house].n++;
     }
-    return Object.entries(h).filter(([,{n}])=>n>=2)
-      .map(([house,{sum,n}])=>({label:house,avg:+(sum/n).toFixed(1),n}))
-      .sort((a,b)=>b.avg-a.avg||b.n-a.n).slice(0,12);
-  }, [wearLog, perfMap]);
+    return Object.entries(h).filter(([,{n}]) => n >= 2)
+      .map(([house,{sum,n}]) => ({ label: house, avg: +(sum/n).toFixed(1), n }))
+      .sort((a,b) => b.avg - a.avg || b.n - a.n).slice(0, 12);
+  }, [enriched]);
 
   // 4. OLFACTORY FAMILIES — tag-based collection count
   const familyCollection = useMemo(() => {
