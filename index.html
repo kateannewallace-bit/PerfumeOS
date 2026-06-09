@@ -2051,6 +2051,7 @@ const MOODS = ["All","Air","Resin","Bridge","Classic"];
 const LANE_GROUPS = [
   { label: "Broad families", lanes: ["Floral","Woody","Citrus","Amber","Ambergris","Musk","Resinous","Gourmand","Leather","Aromatic","Aquatic","Chypre","Fruity","Oriental"] },
   { label: "Character", lanes: ["Airy","Unusual","Skin Scent","Powdery","Resinous","Spicy","Green","Smoky","Dry Citrus","Herbal Fresh"] },
+  { label: "Curated", lanes: ["Old Lady","Borderline Old Lady","Young Fresh","Smells Cheap","Smells Expensive"] },
   { label: "Florals", lanes: ["White Floral","Yellow Floral","Purple Floral","Violet","Iris","Lipstick Iris","Rose","Jasmine","Tuberose","Ylang","Magnolia","Orange Blossom","Neroli","Osmanthus","Mimosa","Peony","Lily of the Valley","Narcissus","Heliotrope","Carnation"] },
   { label: "Woods", lanes: ["Sandalwood","Cedar","Vetiver","Patchouli","Oud","Gaiac","Cypress","Papyrus","Birch","Cashmeran","Palo Santo"] },
   { label: "Resinous / Smoky", lanes: ["Incense","Myrrh","Benzoin","Labdanum","Styrax","Tobacco","Oakmoss","Moss"] },
@@ -2069,10 +2070,10 @@ const LANES = ["All", ...LANE_GROUPS.flatMap(g => g.lanes)];
 // Broad families + character descriptors — shown as single-select dropdown
 // Two separate dropdowns:
 const FAMILY_OPTIONS = ["All","Floral","White Floral","Yellow Floral","Purple Floral","Woody","Citrus","Amber","Ambergris","Musk","Resinous","Gourmand","Leather","Aromatic","Aquatic","Chypre","Fruity","Green","Aldehydic","Oriental"];
-const CHARACTER_OPTIONS = ["All","Airy","Unusual","Skin Scent","Lipstick Iris","Powdery","Resinous","Spicy","Smoky","Dry Citrus","Herbal Fresh","Fruity"];
+const CHARACTER_OPTIONS = ["All","Airy","Unusual","Skin Scent","Lipstick Iris","Powdery","Resinous","Spicy","Smoky","Dry Citrus","Herbal Fresh","Fruity","Old Lady","Borderline Old Lady","Young Fresh","Smells Cheap","Smells Expensive"];
 
 const BROAD_FAMILIES_SET = new Set(["floral","woody","citrus","amber","musk","resinous","gourmand","leather","aromatic","aquatic","chypre","fruity","green","oriental"]);
-const CHARACTER_SET = new Set(["airy","unusual","skin scent","powdery","resinous","spicy","smoky","dry citrus","herbal fresh","lipstick iris","fruity","powder","aldehydes","aldehydic"]);
+const CHARACTER_SET = new Set(["airy","unusual","skin scent","powdery","resinous","spicy","smoky","dry citrus","herbal fresh","lipstick iris","fruity","powder","aldehydes","aldehydic","old lady","borderline old lady","young fresh","smells cheap","smells expensive"]);
 
 // Static curated note groups — canonical names only, no variants.
 // These must match exactly what buildTagsFromText + canonicalizeRawTags produce.
