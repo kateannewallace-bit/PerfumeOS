@@ -1937,6 +1937,27 @@ const PRIMARY_TAG_BLACKLIST = new Set([
   'natural','synthetic','accord','woody powdery floral','spicy woody',
 ]);
 
+// Extra filter just for the "notes" charts (Notes Over Time / Scent DNA), on top of
+// PRIMARY_TAG_BLACKLIST. These survive into p.primary because they're useful elsewhere
+// (collection tagging, similarity, search) but aren't actual ingredients — they're
+// character descriptors (powder, resin, mineral, aldehydes) or, in musk's case, a family
+// re-added to primary for tagging purposes that's far less granular than a single
+// ingredient like bergamot or jasmine. Keeping them out of these charts keeps every
+// bar/line at the same "specific ingredient" level.
+const NOTES_CHART_BLACKLIST = new Set(['musk','powder','resin','mineral','aldehydes','floral woody musk']);
+
+// Clusters used by the "Note Clusters Over Time" chart — groups of related raw tags so
+// the chart can track a consistent, meaningful granularity (broader than a single note,
+// narrower than a whole olfactory family) across months.
+const NOTE_CLUSTERS = [
+  { label: 'Citrus', keys: ['bergamot','lemon','grapefruit','neroli','petitgrain','mandarin','mandarin orange','orange','tangerine','yuzu','bitter orange'] },
+  { label: 'Powdery Florals', keys: ['iris','violet','lipstick iris','powder','powdery'] },
+  { label: 'White Florals', keys: ['jasmine','orange blossom','tuberose','ylang ylang','gardenia','lily','lily of the valley','freesia','osmanthus'] },
+  { label: 'Dark / Resinous', keys: ['incense','resin','resinous','labdanum','myrrh','amber','vanilla','tonka','benzoin','styrax'] },
+  { label: 'Musks & Skin', keys: ['musk','white musk','ambrette','ambroxan','musky','skin scent'] },
+  { label: 'Woody / Earthy', keys: ['vetiver','cedar','patchouli','sandalwood','oakmoss','cypress','oud'] },
+];
+
 // ─── TREVOR SCORING ──────────────────────────────────────────────────────────
 // Two separate scores computed from tags — no manual ts values needed.
 // computeTrevorOnMe  = would Trevor like this *on Kate*?
@@ -4313,18 +4334,14 @@ function ChartsView({ wearLog, perfumes, wearStats, onRefresh, onSelect }) {
   const NOTE_PALETTE = ['var(--gold)','var(--sage)','var(--dusty-rose)','var(--lilac)',
     '#6a9ab0','#a07855','#c8b560'];
 
+  // Chart-ready note list per perfume: p.primary already strips broad families via
+  // PRIMARY_TAG_BLACKLIST, but a few descriptors (powder, resin, musk, mineral...) still
+  // survive because they're useful elsewhere. Strip those too so every note shown in
+  // these charts is an actual specific ingredient at the same granularity.
+  const chartNotes = p => (Array.isArray(p.primary) ? p.primary : []).filter(n => !NOTES_CHART_BLACKLIST.has(n));
+
   // 1. NOTES OVER TIME — top notes by total wear frequency, tracked month-by-month
   const notesOverTime = useMemo(() => {
-    // Build a "chart-ready" note list per perfume:
-    // Start from p.primary (strips generic base-note musk, cedar, amber, etc. via PRIMARY_TAG_BLACKLIST)
-    // then re-add 'musk' only when the family field explicitly flags it — so primary musk
-    // perfumes (Another 13, Fleur de Peau, etc.) count, but incidental base-note musk doesn't.
-    const chartNotes = p => {
-      const base = Array.isArray(p.primary) ? [...p.primary] : [];
-      const famTokens = (p.family||'').toLowerCase().split(/[\s,\/\-]+/);
-      if (famTokens.includes('musk') && !base.includes('musk')) base.push('musk');
-      return base;
-    };
     const totalByNote = {};
     for (const e of wearLog) {
       const p = perfMap.get(e.perfumeId); if (!p) continue;
@@ -4350,6 +4367,47 @@ function ChartsView({ wearLog, perfumes, wearStats, onRefresh, onSelect }) {
     const data = months.map(key=>({key,label:fmtMk(key),
       ...Object.fromEntries(topNotes.map(n=>[n,(byMkNote[key]||{})[n]||0]))}));
     return {topNotes, data};
+  }, [wearLog, perfMap]);
+
+  // 1b. SCENT DNA — top 10 specific notes by total wear count, no time axis.
+  // Snapshot of what your nose actually reaches for, at the same ingredient-level
+  // granularity as Notes Over Time, but easier to read since it's not split into months.
+  const scentDNA = useMemo(() => {
+    const totalByNote = {};
+    for (const e of wearLog) {
+      const p = perfMap.get(e.perfumeId); if (!p) continue;
+      for (const note of chartNotes(p)) if (note) totalByNote[note]=(totalByNote[note]||0)+1;
+    }
+    return Object.entries(totalByNote).sort(([,a],[,b])=>b-a).slice(0,10)
+      .map(([note,n])=>({label:note.charAt(0).toUpperCase()+note.slice(1), value:n}));
+  }, [wearLog, perfMap]);
+
+  // 1c. NOTE CLUSTERS OVER TIME — like Notes Over Time, but grouped into broader,
+  // consistent-granularity clusters (NOTE_CLUSTERS) so it reads at a different zoom
+  // level than both the single-note chart and the whole-family chart.
+  const clusterOverTime = useMemo(() => {
+    const clusterOf = p => {
+      const allTags = new Set([...(p.tags||[]), ...(p.primary||[])]);
+      return NOTE_CLUSTERS.filter(c => c.keys.some(k => allTags.has(k))).map(c => c.label);
+    };
+    const allMks = new Set(), byMkCluster = {}, totals = {};
+    for (const e of wearLog) {
+      const key = mk(e.date); if (!key) continue;
+      const p = perfMap.get(e.perfumeId); if (!p) continue;
+      const clusters = clusterOf(p);
+      allMks.add(key);
+      if (!byMkCluster[key]) byMkCluster[key] = {};
+      for (const c of clusters) {
+        byMkCluster[key][c] = (byMkCluster[key][c]||0)+1;
+        totals[c] = (totals[c]||0)+1;
+      }
+    }
+    const topClusters = NOTE_CLUSTERS.map(c=>c.label).filter(l=>totals[l]>0)
+      .sort((a,b)=>totals[b]-totals[a]);
+    const months = [...allMks].sort();
+    const data = months.map(key=>({key,label:fmtMk(key),
+      ...Object.fromEntries(topClusters.map(c=>[c,(byMkCluster[key]||{})[c]||0]))}));
+    return {topNotes: topClusters, data};
   }, [wearLog, perfMap]);
 
   // 2. EXPLORER → CURATOR — new tries vs rewears per month
@@ -4613,6 +4671,7 @@ function ChartsView({ wearLog, perfumes, wearStats, onRefresh, onSelect }) {
   const maxBatting = houseBatting[0]?.avg||10;
   const maxFamColl = familyCollection[0]?.value||1;
   const maxWorn = mostWorn[0]?.wearCount||1;
+  const maxScentDNA = scentDNA[0]?.value||1;
 
   // Seasonal family mini-bars
   const SeasonPanel = ({label, color, top, total}) => {
@@ -4761,6 +4820,32 @@ const recentMostWorn = useMemo(() => {
             ))}
           </div>
         </div>
+
+        {/* Scent DNA */}
+        {scentDNA.length>0 && (
+        <div className="chart-card">
+          <div className="chart-card-title">Scent DNA</div>
+          <div className="chart-card-sub">Your top notes by total wear count — a snapshot of what your collection is fundamentally made of</div>
+          {scentDNA.map(d=><HBar key={d.label} label={d.label} value={d.value} max={maxScentDNA} color="var(--gold)"/>)}
+        </div>
+        )}
+
+        {/* Note Clusters Over Time */}
+        {clusterOverTime.data.length>1 && (
+        <div className="chart-card">
+          <div className="chart-card-title">Note Clusters Over Time</div>
+          <div className="chart-card-sub">Grouped note families tracked month by month — a middle zoom between single notes and broad families</div>
+          <NotesTimeChart {...clusterOverTime}/>
+          <div style={{display:'flex',flexWrap:'wrap',gap:'5px 16px',marginTop:12}}>
+            {clusterOverTime.topNotes.map((c,i)=>(
+              <div key={c} style={{display:'flex',alignItems:'center',gap:5,fontSize:11,fontFamily:'Georgia,serif',color:'var(--fg-soft)'}}>
+                <div style={{width:9,height:9,borderRadius:'50%',background:NOTE_PALETTE[i%NOTE_PALETTE.length],flexShrink:0,opacity:0.85}}/>
+                {c}
+              </div>
+            ))}
+          </div>
+        </div>
+        )}
 
         {/* Explorer → Curator */}
         <div className="chart-card">
