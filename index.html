@@ -4528,8 +4528,8 @@ function ChartsView({ wearLog, perfumes, wearStats, onRefresh, onSelect }) {
       style={{display:'flex',alignItems:'center',gap:10,marginBottom:9,
         cursor: onClick ? 'pointer' : 'default'}}>
       <div title={label}
-        style={{width:140,textAlign:'right',fontSize:11,flexShrink:0,
-          overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',fontFamily:'Georgia,serif',
+        style={{width:150,textAlign:'right',fontSize:11,flexShrink:0,
+          whiteSpace:'normal',wordBreak:'break-word',lineHeight:1.25,fontFamily:'Georgia,serif',
           color: onClick ? 'var(--gold)' : 'var(--fg-soft)',
           textDecoration: onClick ? 'underline dotted' : 'none'}}>{label}</div>
       <div style={{flex:1,height:10,background:'var(--bg-soft)',borderRadius:1,overflow:'hidden'}}>
@@ -5811,7 +5811,21 @@ function App() {
   }, []);
 
   const resolvedWearLog = useMemo(
-    () => wearLog.map(e => attachPerfumeIdToEntry(normalizeWearEntry(e), perfumes)),
+    () => {
+      const mapped = wearLog.map(e => attachPerfumeIdToEntry(normalizeWearEntry(e), perfumes));
+      // Dedup guard: the bundled diary (WEAR_LOG_SEED) and the cloud diary can hold
+      // the same wears. Collapse identical (date + perfume + rating) entries so counts
+      // never double when both sources are present. Unmatched entries (no perfumeId)
+      // are kept as-is since they don't contribute to stats.
+      const seen = new Set();
+      return mapped.filter(e => {
+        if (e.perfumeId == null) return true;
+        const k = e.date + '|' + e.perfumeId + '|' + (e.rating ?? '');
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      });
+    },
     [wearLog, perfumes]
   );
   const wearStats = useMemo(() => computeWearStats(resolvedWearLog), [resolvedWearLog]);
