@@ -1945,7 +1945,7 @@ const PRIMARY_TAG_BLACKLIST = new Set([
 // re-added to primary for tagging purposes that's far less granular than a single
 // ingredient like bergamot or jasmine. Keeping them out of these charts keeps every
 // bar/line at the same "specific ingredient" level.
-const NOTES_CHART_BLACKLIST = new Set(['musk','powder','resin','mineral','aldehydes','floral woody musk']);
+const NOTES_CHART_BLACKLIST = new Set(['musk','musky','powder','powdery','resin','resinous','mineral','aldehydes','aldehydic','floral woody musk','floral','woody','wood','woods','citrus','fresh','green','amber','gourmand','oriental','chypre','aromatic','fruity','sweet','hesperidic','marine','aquatic','herbal','herbal fresh','balsamic','solar','tropical','dry citrus','white floral','yellow floral','purple floral','animalic','spicy','warm spicy','fresh spicy','skin scent','airy','clean','soft','warm','smoky']);
 
 // Clusters used by the "Note Clusters Over Time" chart — groups of related raw tags so
 // the chart can track a consistent, meaningful granularity (broader than a single note,
@@ -1954,7 +1954,8 @@ const NOTE_CLUSTERS = [
   { label: 'Citrus', keys: ['bergamot','lemon','grapefruit','neroli','petitgrain','mandarin','mandarin orange','orange','tangerine','yuzu','bitter orange'] },
   { label: 'Powdery Florals', keys: ['iris','violet','lipstick iris','powder','powdery'] },
   { label: 'White Florals', keys: ['jasmine','orange blossom','tuberose','ylang ylang','gardenia','lily','lily of the valley','freesia','osmanthus'] },
-  { label: 'Dark / Resinous', keys: ['incense','resin','resinous','labdanum','myrrh','amber','vanilla','tonka','benzoin','styrax'] },
+  { label: 'Dark / Resinous', keys: ['incense','resin','resinous','labdanum','myrrh','amber','benzoin','styrax'] },
+  { label: 'Sweet / Gourmand', keys: ['vanilla','tonka','caramel','honey','chocolate','cocoa','praline','almond','coffee','marshmallow','cream','gourmand'] },
   { label: 'Musks & Skin', keys: ['musk','white musk','ambrette','ambroxan','musky','skin scent'] },
   { label: 'Woody / Earthy', keys: ['vetiver','cedar','patchouli','sandalwood','oakmoss','cypress','oud'] },
 ];
@@ -4333,13 +4334,13 @@ function ChartsView({ wearLog, perfumes, wearStats, onRefresh, onSelect }) {
 
   // NOTE palette — 7 distinct colours cycling through the app's accent set
   const NOTE_PALETTE = ['var(--gold)','var(--sage)','var(--dusty-rose)','var(--lilac)',
-    '#6a9ab0','#a07855','#c8b560'];
+    '#6a9ab0','#a07855','#c8b560','#9a6a8a','#7faa85','#b58a6a','#6a7a9a'];
 
   // Chart-ready note list per perfume: p.primary already strips broad families via
   // PRIMARY_TAG_BLACKLIST, but a few descriptors (powder, resin, musk, mineral...) still
   // survive because they're useful elsewhere. Strip those too so every note shown in
   // these charts is an actual specific ingredient at the same granularity.
-  const chartNotes = p => (Array.isArray(p.primary) ? p.primary : []).filter(n => !NOTES_CHART_BLACKLIST.has(n));
+  const chartNotes = p => (Array.isArray(p.tags) ? p.tags : []).filter(n => !NOTES_CHART_BLACKLIST.has(n));
   // Format a {perfumeName: count} map into a newline list for chart hover tooltips
   const fmtNodePerf = m => m ? Object.entries(m).sort((a,b)=>b[1]-a[1]).map(([n,c])=>c>1?`${n} ×${c}`:n).join('\n') : '';
 
@@ -4353,7 +4354,7 @@ function ChartsView({ wearLog, perfumes, wearStats, onRefresh, onSelect }) {
     }
     // top 7 characterful notes across all diary entries
     const topNotes = Object.entries(totalByNote)
-      .sort(([,a],[,b])=>b-a).slice(0,7).map(([n])=>n);
+      .sort(([,a],[,b])=>b-a).slice(0,10).map(([n])=>n);
     // build per-month counts
     const allMks = new Set(), byMkNote = {}, byMkNotePerf = {};
     for (const e of wearLog) {
