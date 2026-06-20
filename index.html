@@ -2512,10 +2512,30 @@ function _localStateBlob() {
   return { wearLog, wishlist, userPerfumes, perfumeEdits, _updatedAt: new Date().toISOString() };
 }
 
+// Diary "high-water mark": the largest wearLog count we've ever loaded or pushed.
+// Used by the shrink guard so a stale/empty local state can never clobber a full cloud diary.
+function _diaryHighWater() { try { return +localStorage.getItem("perfume_diary_highwater") || 0; } catch (e) { return 0; } }
+function _raiseDiaryHighWater(n) { try { if (n > _diaryHighWater()) localStorage.setItem("perfume_diary_highwater", String(n)); } catch (e) {} }
+function _setDiaryHighWater(n) { try { localStorage.setItem("perfume_diary_highwater", String(n)); } catch (e) {} }
+
 async function jsonbinPush(blob) {
   const binId = localStorage.getItem("cloud_bin_id");
   const apiKey = localStorage.getItem("cloud_api_key");
   if (!binId || !apiKey) return { ok: false, reason: "not-configured" };
+  const outgoing = blob || _localStateBlob();
+  // Allow intentional shrinks (e.g. a faithful round-trip) to bypass the guard.
+  const allowShrink = !!(outgoing && outgoing._allowShrink);
+  if (outgoing && "_allowShrink" in outgoing) delete outgoing._allowShrink;
+  // SHRINK GUARD: refuse to overwrite a substantially larger cloud diary with a tiny/empty one.
+  // This is what makes wipes impossible — stale local state or a structure-less push (the old
+  // {_test} write) can no longer clobber the diary. Restores use a separate path and bypass this.
+  if (!allowShrink) {
+    const hw = _diaryHighWater();
+    const n = Array.isArray(outgoing && outgoing.wearLog) ? outgoing.wearLog.length : 0;
+    if (hw >= 30 && n < Math.floor(hw * 0.5)) {
+      return { ok: false, reason: "shrink-guard", blocked: true, outgoing: n, highwater: hw };
+    }
+  }
   try {
     const res = await fetch(`${JSONBIN_BASE}/${binId}`, {
       method: "PUT",
@@ -2524,12 +2544,13 @@ async function jsonbinPush(blob) {
         "X-Master-Key": apiKey,
         "X-Bin-Versioning": "false",
       },
-      body: JSON.stringify(blob || _localStateBlob()),
+      body: JSON.stringify(outgoing),
     });
     if (!res.ok) {
       const txt = await res.text().catch(() => "");
       return { ok: false, status: res.status, body: txt };
     }
+    if (Array.isArray(outgoing && outgoing.wearLog)) _raiseDiaryHighWater(outgoing.wearLog.length);
     return { ok: true };
   } catch (e) { return { ok: false, error: String(e) }; }
 }
@@ -2549,6 +2570,7 @@ async function jsonbinLoad() {
         const data = (json && json.record && typeof json.record === "object") ? json.record : json;
         // Only return if it looks like app data (has at least one known key)
         if (data && (Array.isArray(data.wearLog) || Array.isArray(data.wishlist) || Array.isArray(data.userPerfumes) || data.perfumeEdits)) {
+          if (Array.isArray(data.wearLog)) _raiseDiaryHighWater(data.wearLog.length);
           return data;
         }
       }
@@ -2565,6 +2587,7 @@ async function jsonbinLoad() {
         const json = await res.json();
         const data = (json && json.record && typeof json.record === "object") ? json.record : json;
         if (data && (Array.isArray(data.wearLog) || Array.isArray(data.wishlist) || Array.isArray(data.userPerfumes) || data.perfumeEdits)) {
+          if (Array.isArray(data.wearLog)) _raiseDiaryHighWater(data.wearLog.length);
           return data;
         }
       }
@@ -5286,6 +5309,7 @@ function RestoreCloudBackup({ onRestored, binId, apiKey }) {
           if (data.userPerfumes) localStorage.setItem("perfume_user_perfumes", JSON.stringify(data.userPerfumes));
           if (data.perfumeEdits) localStorage.setItem("perfume_edits", JSON.stringify(data.perfumeEdits));
         } catch(_) {}
+        _setDiaryHighWater((data.wearLog || []).length);
         setStatus(`✓ Restored ${(data.wearLog||[]).length} wear entries and ${(data.userPerfumes||[]).length} perfumes. Reloading data…`);
         if (onRestored) onRestored();
       } catch(err) {
@@ -5390,8 +5414,13 @@ function SettingsView({ syncStatus, onSyncChange }) {
     // Save credentials first so the helpers can read them
     localStorage.setItem("cloud_bin_id", binId.trim());
     localStorage.setItem("cloud_api_key", apiKey.trim());
-    // Write round-trip
-    const writeRes = await jsonbinPush({ _test: true, _ts: Date.now() });
+    // Non-destructive round-trip: read existing cloud and write the SAME data back, proving
+    // write access without erasing anything. (The old {_test} write REPLACED the whole bin.)
+    const existing = await jsonbinLoad();
+    const blob = (existing && (Array.isArray(existing.wearLog) || Array.isArray(existing.userPerfumes)))
+      ? { ...existing, _allowShrink: true, _updatedAt: new Date().toISOString() }
+      : { ..._localStateBlob(), _allowShrink: true };
+    const writeRes = await jsonbinPush(blob);
     if (!writeRes.ok) { setBinTesting(false); setBinResult(`✗ Write failed — ${writeRes.reason || writeRes.status || writeRes.error || "unknown error"}`); return; }
     const readData = await jsonbinLoad();
     setBinTesting(false);
