@@ -4340,6 +4340,8 @@ function ChartsView({ wearLog, perfumes, wearStats, onRefresh, onSelect }) {
   // survive because they're useful elsewhere. Strip those too so every note shown in
   // these charts is an actual specific ingredient at the same granularity.
   const chartNotes = p => (Array.isArray(p.primary) ? p.primary : []).filter(n => !NOTES_CHART_BLACKLIST.has(n));
+  // Format a {perfumeName: count} map into a newline list for chart hover tooltips
+  const fmtNodePerf = m => m ? Object.entries(m).sort((a,b)=>b[1]-a[1]).map(([n,c])=>c>1?`${n} ×${c}`:n).join('\n') : '';
 
   // 1. NOTES OVER TIME — top notes by total wear frequency, tracked month-by-month
   const notesOverTime = useMemo(() => {
@@ -4353,20 +4355,26 @@ function ChartsView({ wearLog, perfumes, wearStats, onRefresh, onSelect }) {
     const topNotes = Object.entries(totalByNote)
       .sort(([,a],[,b])=>b-a).slice(0,7).map(([n])=>n);
     // build per-month counts
-    const allMks = new Set(), byMkNote = {};
+    const allMks = new Set(), byMkNote = {}, byMkNotePerf = {};
     for (const e of wearLog) {
       const key = mk(e.date); if (!key) continue;
       const p = perfMap.get(e.perfumeId); if (!p) continue;
       const notes = chartNotes(p);
       allMks.add(key);
-      if (!byMkNote[key]) byMkNote[key]={};
+      if (!byMkNote[key]) { byMkNote[key]={}; byMkNotePerf[key]={}; }
       for (const note of topNotes) {
-        if (notes.includes(note)) byMkNote[key][note]=(byMkNote[key][note]||0)+1;
+        if (notes.includes(note)) {
+          byMkNote[key][note]=(byMkNote[key][note]||0)+1;
+          const pm = byMkNotePerf[key][note] = byMkNotePerf[key][note]||{};
+          const nm = p.house+" — "+p.name;
+          pm[nm]=(pm[nm]||0)+1;
+        }
       }
     }
     const months = [...allMks].sort();
     const data = months.map(key=>({key,label:fmtMk(key),
-      ...Object.fromEntries(topNotes.map(n=>[n,(byMkNote[key]||{})[n]||0]))}));
+      ...Object.fromEntries(topNotes.map(n=>[n,(byMkNote[key]||{})[n]||0])),
+      _perf:Object.fromEntries(topNotes.map(n=>[n,fmtNodePerf((byMkNotePerf[key]||{})[n])]))}));
     return {topNotes, data};
   }, [wearLog, perfMap]);
 
@@ -4391,23 +4399,27 @@ function ChartsView({ wearLog, perfumes, wearStats, onRefresh, onSelect }) {
       const allTags = new Set([...(p.tags||[]), ...(p.primary||[])]);
       return NOTE_CLUSTERS.filter(c => c.keys.some(k => allTags.has(k))).map(c => c.label);
     };
-    const allMks = new Set(), byMkCluster = {}, totals = {};
+    const allMks = new Set(), byMkCluster = {}, totals = {}, byMkClusterPerf = {};
     for (const e of wearLog) {
       const key = mk(e.date); if (!key) continue;
       const p = perfMap.get(e.perfumeId); if (!p) continue;
       const clusters = clusterOf(p);
       allMks.add(key);
-      if (!byMkCluster[key]) byMkCluster[key] = {};
+      if (!byMkCluster[key]) { byMkCluster[key] = {}; byMkClusterPerf[key] = {}; }
       for (const c of clusters) {
         byMkCluster[key][c] = (byMkCluster[key][c]||0)+1;
         totals[c] = (totals[c]||0)+1;
+        const pm = byMkClusterPerf[key][c] = byMkClusterPerf[key][c]||{};
+        const nm = p.house+" — "+p.name;
+        pm[nm]=(pm[nm]||0)+1;
       }
     }
     const topClusters = NOTE_CLUSTERS.map(c=>c.label).filter(l=>totals[l]>0)
       .sort((a,b)=>totals[b]-totals[a]);
     const months = [...allMks].sort();
     const data = months.map(key=>({key,label:fmtMk(key),
-      ...Object.fromEntries(topClusters.map(c=>[c,(byMkCluster[key]||{})[c]||0]))}));
+      ...Object.fromEntries(topClusters.map(c=>[c,(byMkCluster[key]||{})[c]||0])),
+      _perf:Object.fromEntries(topClusters.map(c=>[c,fmtNodePerf((byMkClusterPerf[key]||{})[c])]))}));
     return {topNotes: topClusters, data};
   }, [wearLog, perfMap]);
 
@@ -4456,14 +4468,17 @@ function ChartsView({ wearLog, perfumes, wearStats, onRefresh, onSelect }) {
 
   // 5. OLFACTORY FAMILIES OVER TIME — monthly wear counts by family
   const famOverTime = useMemo(() => {
-    const allMks = new Set(), byMkFam = {};
+    const allMks = new Set(), byMkFam = {}, byMkFamPerf = {};
     for (const e of wearLog) {
       const key = mk(e.date); if (!key) continue;
       const p = perfMap.get(e.perfumeId); if (!p) continue;
       allMks.add(key);
-      if (!byMkFam[key]) byMkFam[key] = {};
+      if (!byMkFam[key]) { byMkFam[key] = {}; byMkFamPerf[key] = {}; }
       const cat = dominantCategory(p);
       byMkFam[key][cat] = (byMkFam[key][cat] || 0) + 1;
+      const pm = byMkFamPerf[key][cat] = byMkFamPerf[key][cat]||{};
+      const nm = p.house+" — "+p.name;
+      pm[nm]=(pm[nm]||0)+1;
     }
     const months = [...allMks].sort();
     const totals = {};
@@ -4471,7 +4486,8 @@ function ChartsView({ wearLog, perfumes, wearStats, onRefresh, onSelect }) {
       for (const [f,n] of Object.entries(fc)) totals[f]=(totals[f]||0)+n;
     const topFams = Object.entries(totals).sort(([,a],[,b])=>b-a).slice(0,6).map(([f])=>f);
     const data = months.map(key=>({key,label:fmtMk(key),
-      ...Object.fromEntries(topFams.map(f=>[f,(byMkFam[key]||{})[f]||0]))}));
+      ...Object.fromEntries(topFams.map(f=>[f,(byMkFam[key]||{})[f]||0])),
+      _perf:Object.fromEntries(topFams.map(f=>[f,fmtNodePerf((byMkFamPerf[key]||{})[f])]))}));
     return {months, topFams, data};
   }, [wearLog, perfMap]);
 
@@ -4565,7 +4581,7 @@ function ChartsView({ wearLog, perfumes, wearStats, onRefresh, onSelect }) {
               <path d={d} fill="none" stroke={col} strokeWidth={1.6} strokeLinejoin="round" strokeLinecap="round" opacity={0.82}/>
               {ps.map(([x,y],i)=>(
                 <circle key={i} cx={x} cy={y} r={2.2} fill={col} opacity={0.9}>
-                  <title>{data[i].label} · {note}: {data[i][note]||0} wears</title>
+                  <title>{`${data[i].label} · ${note}: ${data[i][note]||0} wears${data[i]._perf&&data[i]._perf[note]?'\n'+data[i]._perf[note]:''}`}</title>
                 </circle>
               ))}
             </g>
@@ -4635,7 +4651,7 @@ function ChartsView({ wearLog, perfumes, wearStats, onRefresh, onSelect }) {
               <path d={d} fill="none" stroke={col} strokeWidth={1.6} strokeLinejoin="round" strokeLinecap="round" opacity={0.82}/>
               {ps.map(([x,y],i)=>(
                 <circle key={i} cx={x} cy={y} r={2.2} fill={col} opacity={0.9}>
-                  <title>{data[i].label} · {fam}: {data[i][fam]||0} wears</title>
+                  <title>{`${data[i].label} · ${fam}: ${data[i][fam]||0} wears${data[i]._perf&&data[i]._perf[fam]?'\n'+data[i]._perf[fam]:''}`}</title>
                 </circle>
               ))}
             </g>
