@@ -2467,32 +2467,73 @@ function normalizeWearEntry(entry) {
   return isNaN(num) ? { ...entry, rating: null } : { ...entry, rating: num };
 }
 
+// Canonical concentration key so EDT / EDP / Extrait etc. can disambiguate
+// two otherwise-identical fragrances (same house + name, e.g. Diptyque
+// Fleur de Peau EDP vs EDT).
+function _concKey(s) {
+  const t = _norm(s);
+  if (!t) return "";
+  if (/\b(edp|eau de parfum)\b/.test(t)) return "edp";
+  if (/\b(edt|eau de toilette)\b/.test(t)) return "edt";
+  if (/\b(edc|eau de cologne|cologne)\b/.test(t)) return "edc";
+  if (/\b(extrait|elixir)\b/.test(t)) return "parfum";
+  if (/\bparfum\b/.test(t)) return "parfum";
+  if (/\boil\b/.test(t)) return "oil";
+  return "";
+}
+// Remove a TRAILING concentration token from an already-normalized name
+// ("fleur de peau edt" → "fleur de peau"). Only strips at the end, so names
+// that legitimately contain such a word elsewhere are left intact. "Intense"
+// is deliberately excluded (it's part of many fragrance names).
+function _stripTrailingConc(normName) {
+  return normName.replace(/\s+(eau de parfum|eau de toilette|eau de cologne|extrait de parfum|edp|edt|edc|extrait|parfum|cologne|elixir|oil)$/, "").trim();
+}
+
 function attachPerfumeIdToEntry(entry, perfumes) {
   if (!entry || entry.perfumeId != null) return entry;
   if (!entry.perfume) return { ...entry, unmatched: true };
-  const targetName = _norm(entry.perfume);
   const targetHouse = _norm(entry.house);
+  const fullName = _norm(entry.perfume);
+  // Concentration can live in its own field OR be typed into the name
+  // (e.g. "Fleur de Peau EDT"). Capture it either way.
+  const strippedName = _stripTrailingConc(fullName);
+  const hadConcInName = strippedName !== fullName;
+  const targetConc = _concKey(entry.concentration) || (hadConcInName ? _concKey(fullName) : "");
+  // Among several same-name candidates, prefer the one whose concentration
+  // matches; otherwise keep the first (previous behaviour).
+  const pick = (cands) => {
+    if (cands.length > 1 && targetConc) {
+      const cm = cands.find(p => _concKey(p.c) === targetConc);
+      if (cm) return cm;
+    }
+    return cands[0];
+  };
+  // Try the full typed name first (preserves all existing matches), then the
+  // concentration-stripped name as a fallback.
+  const tryNames = hadConcInName ? [fullName, strippedName] : [fullName];
+
   // Strict: exact house + name
-  let m = perfumes.find(p => _norm(p.name) === targetName && _norm(p.house) === targetHouse);
-  if (m) return { ...entry, perfumeId: m.id, fuzzy: false, unmatched: false };
+  for (const nm of tryNames) {
+    const cands = perfumes.filter(p => _norm(p.name) === nm && _norm(p.house) === targetHouse);
+    if (cands.length) { const m = pick(cands); return { ...entry, perfumeId: m.id, fuzzy: false, unmatched: false }; }
+  }
   // Loose: same name, any house
-  m = perfumes.find(p => _norm(p.name) === targetName);
-  if (m) return { ...entry, perfumeId: m.id, fuzzy: !!targetHouse && _norm(m.house) !== targetHouse, unmatched: false };
-  // Fuzzy: substring match within same house
+  for (const nm of tryNames) {
+    const cands = perfumes.filter(p => _norm(p.name) === nm);
+    if (cands.length) { const m = pick(cands); return { ...entry, perfumeId: m.id, fuzzy: !!targetHouse && _norm(m.house) !== targetHouse, unmatched: false }; }
+  }
+  // Fuzzy: substring match within same house (concentration-aware)
   if (targetHouse) {
-    m = perfumes.find(p => _norm(p.house) === targetHouse && (_norm(p.name).includes(targetName) || targetName.includes(_norm(p.name))));
-    if (m) return { ...entry, perfumeId: m.id, fuzzy: true, unmatched: false };
+    const cands = perfumes.filter(p => _norm(p.house) === targetHouse && (_norm(p.name).includes(strippedName) || strippedName.includes(_norm(p.name))));
+    if (cands.length) { const m = pick(cands); return { ...entry, perfumeId: m.id, fuzzy: true, unmatched: false }; }
   }
   // Last resort: diary entry name is an abbreviation of the seed name (e.g. "Coco" → "Coco Mademoiselle")
-  // Only allow n.includes(targetName) direction — NOT targetName.includes(n), which causes
-  // short seed names like "Flower" to falsely match longer diary entries like "Flower Glyph".
-  m = perfumes.find(p => {
+  // Only allow start-anchored matches (prevents "Luna" → "Lunamaris").
+  const abbr = perfumes.filter(p => {
     const n = _norm(p.name);
-    // targetName must appear at the START of the seed name followed by a space
-    // (e.g. "Coco" matches "Coco Mademoiselle") — prevents "Luna" → "Lunamaris"
-    return n.length > 4 && targetName.length > 3 && n.startsWith(targetName + ' ');
+    return n.length > 4 && strippedName.length > 3 && n.startsWith(strippedName + ' ');
   });
-  if (m) return { ...entry, perfumeId: m.id, fuzzy: true, unmatched: false };
+  if (abbr.length) { const m = pick(abbr); return { ...entry, perfumeId: m.id, fuzzy: true, unmatched: false }; }
   return { ...entry, perfumeId: null, unmatched: true };
 }
 
@@ -4124,7 +4165,8 @@ function DiaryEntryForm({ initial, onSave, onCancel, title }) {
     <div className="form-grid">
       <label><span className="mini-lbl">Date</span><input type="date" value={form.date} onChange={e => f("date", e.target.value)} /></label>
       <label><span className="mini-lbl">House</span><input value={form.house||""} onChange={e => f("house", e.target.value)} placeholder="e.g. Diptyque" /></label>
-      <label><span className="mini-lbl">Perfume *</span><input value={form.perfume||""} onChange={e => f("perfume", e.target.value)} placeholder="e.g. Orphéon EDT" /></label>
+      <label><span className="mini-lbl">Perfume *</span><input value={form.perfume||""} onChange={e => f("perfume", e.target.value)} placeholder="e.g. Fleur de Peau" /></label>
+      <label><span className="mini-lbl">Concentration</span><input value={form.concentration||""} onChange={e => f("concentration", e.target.value)} placeholder="EDP / EDT / Extrait" /></label>
       <label><span className="mini-lbl">Rating</span><input type="number" min="0" max="10" step="0.5" value={form.rating ?? ""} onChange={e => f("rating", e.target.value)} placeholder="x/10" /></label>
       <label className="full-span"><span className="mini-lbl">{(CONFIG.partnerName || "Partner") + "'s Reaction"}</span><input value={form.safeReaction||""} onChange={e => f("safeReaction", e.target.value)} placeholder="positive / negative / —" /></label>
       <label className="full-span"><span className="mini-lbl">Notes</span><textarea value={form.notes||""} onChange={e => f("notes", e.target.value)} placeholder="Opening, drydown, longevity…" /></label>
@@ -4164,7 +4206,7 @@ function DiaryView({ wearLog, onAdd, onEdit, onDelete, syncStatus }) {
 
     {showForm && <DiaryEntryForm
       title="New Entry"
-      initial={{ date: new Date().toISOString().slice(0,10), perfume: "", house: "", rating: "", notes: "", safeReaction: "" }}
+      initial={{ date: new Date().toISOString().slice(0,10), perfume: "", house: "", concentration: "", rating: "", notes: "", safeReaction: "" }}
       onSave={handleAdd}
       onCancel={() => setShowForm(false)}
     />}
@@ -5796,17 +5838,21 @@ function App() {
   }, [perfumes]);
 
   const editWearEntry = useCallback((oldEntry, newEntry) => {
+    // Re-resolve the collection match on every edit so a corrected concentration
+    // (e.g. an EDT that was logged onto the EDP) actually re-points the entry.
+    const { perfumeId, fuzzy, unmatched, ...rest } = newEntry;
+    const rematched = attachPerfumeIdToEntry(rest, perfumes);
     setWearLog(prev => {
       const idx = prev.indexOf(oldEntry);
       if (idx === -1) return prev;
       const next = [...prev];
-      next[idx] = newEntry;
+      next[idx] = rematched;
       const user = next.filter(e => !WEAR_LOG_SEED.includes(e));
       try { localStorage.setItem("perfume_diary", JSON.stringify(user)); } catch (e) {}
-      cloudSync("edit_wear", newEntry);
+      cloudSync("edit_wear", rematched);
       return next;
     });
-  }, []);
+  }, [perfumes]);
 
   const deleteWearEntry = useCallback((entry) => {
     setWearLog(prev => {
