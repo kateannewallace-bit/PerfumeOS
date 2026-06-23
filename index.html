@@ -3361,6 +3361,7 @@ function Modal({ p, onClose, onEdit, perfumes, onNavigate }) {
       myNotes: p.myNotes || "",
       rawNotes: p.rawNotes || "",
       family: p.family || "",
+      categoryOverride: p.categoryOverride || "",
       primaryTags: (p.primary || []).join(", "),
       smellsLike: (p.smellsLike || []).join(", "),
       curated: (p.tags || []).filter(t => CURATED_TAGS.includes(t)),
@@ -3374,6 +3375,7 @@ function Modal({ p, onClose, onEdit, perfumes, onNavigate }) {
       preference: editForm.status, // keep preference in sync with status
       gender: editForm.gender || null,
       myNotes: editForm.myNotes,
+      categoryOverride: editForm.categoryOverride || null,
     };
     if (editForm.rawNotes !== (p.rawNotes || "") ||
         editForm.family !== (p.family || "") ||
@@ -3512,6 +3514,13 @@ function Modal({ p, onClose, onEdit, perfumes, onNavigate }) {
             </label>
             <label><span className="mini-lbl">Family / accord</span>
               <input type="text" value={editForm.family} onChange={e => ef("family", e.target.value)} placeholder="e.g. floral woody" />
+            </label>
+            <label><span className="mini-lbl">Chart category {editForm.categoryOverride ? "(override)" : "(auto)"}</span>
+              <select value={editForm.categoryOverride || ""} onChange={e => ef("categoryOverride", e.target.value)} style={{border:"1px solid #ddd",background:"#fff",padding:"10px 12px",fontSize:14,outline:"none",minHeight:44,width:"100%"}}>
+                <option value="">Auto (from notes)</option>
+                {CATEGORY_MAP.map(c => <option key={c.label} value={c.label}>{c.label}</option>)}
+                <option value="Other">Other</option>
+              </select>
             </label>
             <label><span className="mini-lbl">Primary notes (comma separated)</span>
               <input type="text" value={editForm.primaryTags} onChange={e => ef("primaryTags", e.target.value)} placeholder="e.g. rose, sandalwood" />
@@ -4297,7 +4306,8 @@ const CATEGORY_MAP = [
   { label: "Yellow Floral",      keys: ["mimosa","narcissus","jonquil","honeysuckle","osmanthus","daffodil"] },
   { label: "Purple Floral",      keys: ["lavender","lilac","wisteria","heliotrope"] },
   { label: "Floral",             keys: ["jasmine","peony","neroli","freesia","carnation","lily","floral"] },
-  { label: "Green / Fresh",      keys: ["green","ivy","lierre","galbanum","grass","hay","moss","fern","leaf","leaves","green tea","white tea","aquatic","marine","sea","water","petrichor","aldehydic"] },
+  { label: "Tea",                keys: ["tea","black tea","green tea","white tea","oolong","oolong tea","matcha","matcha tea","rooibos","mate","maté","yerba mate","chai","masala chai","earl grey","lapsang","lapsang souchong","darjeeling","ceylon tea","smoked tea","tea leaf","tea leaves","jasmine tea"] },
+  { label: "Green / Fresh",      keys: ["green","ivy","lierre","galbanum","grass","hay","moss","fern","leaf","leaves","aquatic","marine","sea","water","petrichor","aldehydic"] },
   { label: "Aromatic",          keys: ["basil","sage","rosemary","thyme","mint","eucalyptus","fougere","lemon verbena","vervain","chamomile","marjoram","tarragon","hyssop","palmarosa","amyris"] },
   { label: "Citrus",             keys: ["bergamot","lemon","lime","grapefruit","orange","bitter orange","blood orange","orange peel","orange zest","mandarin","yuzu","citrus","hesperidic","pomelo"] },
   { label: "Fruity",             keys: ["peach","apricot","plum","fig","berry","blackcurrant","raspberry","strawberry","cherry","pear","apple","lychee","pineapple","melon","rhubarb","pomegranate","mango","passion fruit"] },
@@ -4321,8 +4331,26 @@ function wordKeyMatch(note, k) {
   return prevOk && nextOk;
 }
 
+// Curated tea fragrances where tea is the defining theme but the note-based
+// detector can't infer it (the tea note is outnumbered by woody/citrus/iris,
+// or the name doesn't say "tea" — e.g. Thé Noir 29). Kate-confirmed.
+// A per-perfume categoryOverride (edit form) still takes precedence over this.
+const TEA_IDS = new Set([
+  14,   // Arquiste — Indigo Smoke (lapsang souchong + maté)
+  17,   // BDK — Gris Charnel (black tea)
+  244,  // Gucci — A Floral Verse (black tea leaves)
+  297,  // Imaginary Authors — O, Unknown! (black tea + lapsang)
+  342,  // Le Labo — Thé Noir 29 (black tea)
+  508,  // Regime des Fleurs — Cacti (black tea + maté)
+  563,  // Vilhelm — Dear Polly (ceylon black tea)
+]);
+
 function dominantCategory(p) {
   if (!p) return "Other";
+  // Manual override set via the edit form always wins.
+  if (p.categoryOverride) return p.categoryOverride;
+  // Curated tea fragrances the auto-detector can't infer.
+  if (TEA_IDS.has(p.id)) return "Tea";
   const primarySet = new Set(p.primary || []);
   const allNotes = new Set([...(p.tags || []), ...(p.primary || [])]);
   let bestLabel = null, bestScore = 0;
@@ -4334,6 +4362,21 @@ function dominantCategory(p) {
       // in another category — Musk wins the tie since it's #2 in the map.
       // Score 0 for everything else: musk as a mere base note is too universal.
       score = primarySet.has('musk') ? 6 : 0;
+    } else if (label === "Tea") {
+      // Tea is a "theme" note: a fragrance can be defined by it even when woody
+      // or citrus support notes outnumber it. Weight tea signals heavily — a tea
+      // word in the name (+5) or accord family (+4) is a strong authorial cue,
+      // and each tea note counts 3 (primary) / 2 (tag) vs the usual 3 / 1.
+      const nm = _norm(p.name || p.fullName || "");
+      const fam = (p.family || "").toLowerCase();
+      let s = 0;
+      if (keys.some(k => wordKeyMatch(nm, k))) s += 5;
+      if (keys.some(k => wordKeyMatch(fam, k))) s += 4;
+      for (const note of allNotes) {
+        if (!primarySet.has(note) && PRIMARY_TAG_BLACKLIST.has(note)) continue;
+        if (keys.some(k => wordKeyMatch(note, k))) s += primarySet.has(note) ? 3 : 2;
+      }
+      score = s;
     } else {
       for (const note of allNotes) {
         // Broad descriptor tags (powdery, floral, woody…) are blocked from voting
@@ -4378,7 +4421,7 @@ function ChartsView({ wearLog, perfumes, wearStats, onRefresh, onSelect }) {
     'Rose':'var(--dusty-rose)', 'Musk':'#b0a8a0', 'Iris / Powdery':'#c4b8d4',
     'Incense / Oud':'#8a6545', 'White Floral':'#e8ddd0', 'Yellow Floral':'#c8b560',
     'Purple Floral':'var(--lilac)', 'Floral':'#d4a0b0', 'Green / Fresh':'#7aaa6a', 'Aromatic':'#8aaa70',
-    'Citrus':'#c8b040', 'Fruity':'#c87060', 'Woody':'#a07855',
+    'Citrus':'#c8b040', 'Fruity':'#c87060', 'Woody':'#a07855', 'Tea':'#8aa86a',
     'Amber / Resin':'var(--gold)', 'Powder':'#d4c4b8', 'Leather / Animalic':'#7a5a3a',
     'Gourmand':'#c87a9a', 'Spice':'#b06040', 'Synthetic':'#8c9aa6', 'Other':'#aaa'
   };
@@ -4560,7 +4603,7 @@ function ChartsView({ wearLog, perfumes, wearStats, onRefresh, onSelect }) {
   // 6. RATING JOURNEYS — sparklines for big taste shifts (needs enriched for ratingHistory)
   const journeys = useMemo(() =>
     enriched.filter(p=>p.ratingHistory?.length>=2&&p.ratingDelta!=null&&p.ratingDelta!==0)
-      .sort((a,b)=>Math.abs(b.ratingDelta)-Math.abs(a.ratingDelta)).slice(0,8)
+      .sort((a,b)=>Math.abs(b.ratingDelta)-Math.abs(a.ratingDelta)).slice(0,14)
   , [enriched]);
 
   // 7. MOST WORN — top fragrances by diary count
@@ -4646,13 +4689,27 @@ function ChartsView({ wearLog, perfumes, wearStats, onRefresh, onSelect }) {
             <g key={note}>
               <path d={d} fill="none" stroke={col} strokeWidth={1.6} strokeLinejoin="round" strokeLinecap="round" opacity={0.82}/>
               {ps.map(([x,y],i)=>(
-                <circle key={i} cx={x} cy={y} r={2.2} fill={col} opacity={0.9}>
-                  <title>{`${data[i].label} · ${note}: ${data[i][note]||0} wears${data[i]._perf&&data[i]._perf[note]?'\n'+data[i]._perf[note]:''}`}</title>
-                </circle>
+                <circle key={i} cx={x} cy={y} r={2.2} fill={col} opacity={0.9}/>
               ))}
             </g>
           );
         })}
+        {/* Merged hover layer: coincident nodes share one tooltip so overlapping
+            points all surface, not just the topmost circle. */}
+        {(() => {
+          const groups = {};
+          topNotes.forEach((note)=>pts(note).forEach(([x,y],i)=>{
+            const k=i+'|'+Math.round(y);
+            (groups[k]=groups[k]||{x,y,i,items:[]}).items.push(
+              `${note}: ${data[i][note]||0} wears${data[i]._perf&&data[i]._perf[note]?' ('+data[i]._perf[note].replace(/\n/g,', ')+')':''}`
+            );
+          }));
+          return Object.values(groups).map((g,gi)=>(
+            <circle key={'h'+gi} cx={g.x} cy={g.y} r={5} fill="transparent" style={{pointerEvents:'all'}}>
+              <title>{`${data[g.i].label}\n${g.items.join('\n')}`}</title>
+            </circle>
+          ));
+        })()}
         {data.map((d,i)=>i%skip===0&&(
           <text key={d.key} x={PL+(data.length===1?iW/2:i*xS)} y={H+PT+PB-2}
             textAnchor="middle" fontSize={8} fill="var(--fg-very-soft)" fontFamily="Georgia,serif"
@@ -4716,13 +4773,27 @@ function ChartsView({ wearLog, perfumes, wearStats, onRefresh, onSelect }) {
             <g key={fam}>
               <path d={d} fill="none" stroke={col} strokeWidth={1.6} strokeLinejoin="round" strokeLinecap="round" opacity={0.82}/>
               {ps.map(([x,y],i)=>(
-                <circle key={i} cx={x} cy={y} r={2.2} fill={col} opacity={0.9}>
-                  <title>{`${data[i].label} · ${fam}: ${data[i][fam]||0} wears${data[i]._perf&&data[i]._perf[fam]?'\n'+data[i]._perf[fam]:''}`}</title>
-                </circle>
+                <circle key={i} cx={x} cy={y} r={2.2} fill={col} opacity={0.9}/>
               ))}
             </g>
           );
         })}
+        {/* Merged hover layer: coincident nodes share one tooltip so overlapping
+            points all surface, not just the topmost circle. */}
+        {(() => {
+          const groups = {};
+          topFams.forEach((fam)=>pts(fam).forEach(([x,y],i)=>{
+            const k=i+'|'+Math.round(y);
+            (groups[k]=groups[k]||{x,y,i,items:[]}).items.push(
+              `${fam}: ${data[i][fam]||0} wears${data[i]._perf&&data[i]._perf[fam]?' ('+data[i]._perf[fam].replace(/\n/g,', ')+')':''}`
+            );
+          }));
+          return Object.values(groups).map((g,gi)=>(
+            <circle key={'h'+gi} cx={g.x} cy={g.y} r={5} fill="transparent" style={{pointerEvents:'all'}}>
+              <title>{`${data[g.i].label}\n${g.items.join('\n')}`}</title>
+            </circle>
+          ));
+        })()}
         {data.map((d,i)=>i%skip===0&&(
           <text key={d.key} x={PL+(data.length===1?iW/2:i*xS)} y={H+PT+PB-2}
             textAnchor="middle" fontSize={8} fill="var(--fg-very-soft)" fontFamily="Georgia,serif"
@@ -5904,7 +5975,15 @@ function App() {
 
   const resolvedWearLog = useMemo(
     () => {
-      const mapped = wearLog.map(e => attachPerfumeIdToEntry(normalizeWearEntry(e), perfumes));
+      const mapped = wearLog.map(e => {
+        const norm = normalizeWearEntry(e);
+        // Seed entries carry authoritative IDs baked into the bundled file.
+        // Re-resolve user/cloud entries from scratch (clear any stored perfumeId)
+        // so concentration-aware matching applies to them — this fixes entries
+        // like "Fleur de Peau EDT" that were previously folded onto the EDP.
+        const toMatch = WEAR_LOG_SEED.includes(e) ? norm : { ...norm, perfumeId: null };
+        return attachPerfumeIdToEntry(toMatch, perfumes);
+      });
       // Dedup guard: the bundled diary (WEAR_LOG_SEED) and the cloud diary can hold
       // the same wears. Collapse identical (date + perfume + rating) entries so counts
       // never double when both sources are present. Unmatched entries (no perfumeId)
