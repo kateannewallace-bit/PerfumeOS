@@ -4444,11 +4444,14 @@ function ChartsView({ wearLog, perfumes, wearStats, onRefresh, onSelect }) {
   const NOTE_PALETTE = ['var(--gold)','var(--sage)','var(--dusty-rose)','var(--lilac)',
     '#6a9ab0','#a07855','#c8b560','#9a6a8a','#7faa85','#b58a6a','#6a7a9a'];
 
-  // Chart-ready note list per perfume: p.primary already strips broad families via
-  // PRIMARY_TAG_BLACKLIST, but a few descriptors (powder, resin, musk, mineral...) still
-  // survive because they're useful elsewhere. Strip those too so every note shown in
-  // these charts is an actual specific ingredient at the same granularity.
-  const chartNotes = p => (Array.isArray(p.tags) ? p.tags : []).filter(n => !NOTES_CHART_BLACKLIST.has(n));
+  // Chart-ready note list per perfume: use ONLY each perfume's defining primary notes
+  // (3–7 signature ingredients), not the full tag pyramid. Counting every pyramid note
+  // made one wear contribute to ~15–21 notes at once, so the same bottles reappeared
+  // under nearly every note. p.primary already strips broad families via
+  // PRIMARY_TAG_BLACKLIST; we additionally drop the few surviving descriptors (powder,
+  // resin, musk, mineral...) via NOTES_CHART_BLACKLIST so every note shown is a
+  // specific ingredient at the same granularity.
+  const chartNotes = p => (Array.isArray(p.primary) ? p.primary : []).filter(n => !NOTES_CHART_BLACKLIST.has(n));
   // Format a {perfumeName: count} map into a newline list for chart hover tooltips
   const fmtNodePerf = m => m ? Object.entries(m).sort((a,b)=>b[1]-a[1]).map(([n,c])=>c>1?`${n} ×${c}`:n).join('\n') : '';
 
@@ -4505,8 +4508,10 @@ function ChartsView({ wearLog, perfumes, wearStats, onRefresh, onSelect }) {
   // level than both the single-note chart and the whole-family chart.
   const clusterOverTime = useMemo(() => {
     const clusterOf = p => {
-      const allTags = new Set([...(p.tags||[]), ...(p.primary||[])]);
-      return NOTE_CLUSTERS.filter(c => c.keys.some(k => allTags.has(k))).map(c => c.label);
+      // Primary notes only — keeps each perfume in just its defining clusters rather
+      // than every cluster its full pyramid happens to touch.
+      const prims = new Set(p.primary||[]);
+      return NOTE_CLUSTERS.filter(c => c.keys.some(k => prims.has(k))).map(c => c.label);
     };
     const allMks = new Set(), byMkCluster = {}, totals = {}, byMkClusterPerf = {};
     for (const e of wearLog) {
