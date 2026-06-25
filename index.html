@@ -2650,46 +2650,19 @@ async function jsonbinLoad() {
   return null;
 }
 
-// Legacy Google Sheets sync — kept for users who set this up earlier.
-async function sheetsSync(action, data) {
-  const url = localStorage.getItem("sheets_webhook_url");
-  if (!url) return { ok: false };
-  try {
-    await fetch(url, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ action, data }) });
-    return { ok: true };
-  } catch (e) { return { ok: false }; }
-}
-
-async function sheetsLoad() {
-  const url = localStorage.getItem("sheets_webhook_url");
-  if (!url) return null;
-  try {
-    const res = await fetch(url + "?action=load");
-    if (!res.ok) return null;
-    return await res.json();
-  } catch (e) { return null; }
-}
-
-// Unified dispatchers used by the app.
+// Cloud sync — JSONBin.io only.
 async function cloudSync(action, data) {
-  if (localStorage.getItem("cloud_bin_id") && localStorage.getItem("cloud_api_key")) {
-    return jsonbinPush();
-  }
-  return sheetsSync(action, data);
+  return jsonbinPush();
 }
 
 async function cloudLoad() {
-  // Always try jsonbinLoad first — it handles both authenticated reads
-  // (when credentials are in localStorage) and public bin reads (CONFIG.publicBinId).
-  // Only fall back to sheets if jsonbinLoad returns null.
-  const binData = await jsonbinLoad();
-  if (binData) return binData;
-  return sheetsLoad();
+  // jsonbinLoad handles both authenticated reads (credentials in localStorage)
+  // and public bin reads (CONFIG.publicBinId).
+  return await jsonbinLoad();
 }
 
 function cloudConfigured() {
   return !!(localStorage.getItem("cloud_bin_id") && localStorage.getItem("cloud_api_key"))
-      || !!localStorage.getItem("sheets_webhook_url")
       || !!(CONFIG.publicBinId && CONFIG.publicBinId.trim());
 }
 
@@ -3571,94 +3544,6 @@ function Modal({ p, onClose, onEdit, perfumes, onNavigate }) {
 }
 
 // ─── VIEWS ────────────────────────────────────────────────────────────────────
-function PickView({ onSelect, wearStats, perfumes }) {
-  const [family, setFamily] = useState("All");
-  const [character, setCharacter] = useState("All");
-  const [lanes, setLanes] = useState([]);
-  const [laneMode, setLaneMode] = useState("all");
-  const [trev, setTrev] = useState(false);
-  const [primaryOnly, setPrimaryOnly] = useState(false);
-  const [sort, setSort] = useState("smart");
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const [gender, setGender] = useState("All");
-
-  const enriched = useMemo(() => enrich(perfumes, wearStats), [wearStats, perfumes]);
-
-  const res = useMemo(() => {
-    const filtered = enriched.filter(p => matches(p, { family, character, lanes, safeOnly: trev, excludeAvoid: true, triedOnly: false, search: "", pref: "All", primaryOnly, laneMode, gender }));
-    if (sort === "smart") {
-      return filtered.map(p => {
-        let s = p.balScore;
-        if (p.isForgottenLove) s += 4;
-        if (p.isOverworn) s -= 6;
-        if (p.preference === "Love") s += 2;
-        if (p.daysAgo != null && p.daysAgo > 60 && p.rating >= 8) s += 2;
-        return { ...p, smartScore: s };
-      }).sort((a,b) => b.smartScore - a.smartScore).slice(0, 30);
-    }
-    return [...filtered].sort((a,b) => b[sort] - a[sort]).slice(0, 30);
-  }, [enriched, family, character, lanes, trev, sort, primaryOnly, laneMode]);
-
-  const forgottenCount = enriched.filter(p => p.isForgottenLove).length;
-
-  return <div>
-    <h1 className="page-title">Pick For Me</h1>
-    <p className="page-sub">Smart rotation: forgotten loves boosted, recently worn downranked.</p>
-
-    {forgottenCount > 0 && sort === "smart" && (
-      <div className="banner">
-        <strong>{forgottenCount} forgotten love{forgottenCount === 1 ? "" : "s"}</strong> — fragrances rated 9+ you haven't worn in 30+ days are boosted below.
-      </div>
-    )}
-
-    <button className="filter-toggle" onClick={() => setFiltersOpen(f => !f)}>
-      {filtersOpen ? "Hide" : "Show"} Filters
-      <span className="filter-summary">{gender !== "All" && gender} {family !== "All" && family} {character !== "All" && character} {lanes.length > 0 && (lanes.length === 1 ? lanes[0] : `${lanes.length} notes`)} {primaryOnly && "· primary"} {trev && ((CONFIG.partnerName || "Partner") + " ✓")}</span>
-    </button>
-
-    <div className={`filter-panel ${filtersOpen ? "open" : ""}`}>
-      <label><span className="mini-lbl">Gender</span><select value={gender} onChange={e => setGender(e.target.value)}><option value="All">All</option><option value="feminine">Feminine</option><option value="masculine">Masculine</option><option value="unisex">Unisex</option></select></label>
-      <label><span className="mini-lbl">Family</span><select value={family} onChange={e => setFamily(e.target.value)}>{FAMILY_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}</select></label>
-      <label><span className="mini-lbl">Character</span><select value={character} onChange={e => setCharacter(e.target.value)}>{CHARACTER_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}</select></label>
-      <button onClick={() => { setGender("All"); setFamily("All"); setCharacter("All"); setLanes([]); setPrimaryOnly(false); setTrev(false); }} style={{gridColumn:"1/-1",background:"none",border:"1px solid #ddd",borderRadius:8,padding:"8px",fontSize:12,color:"#999",cursor:"pointer",marginTop:4}}>Clear all filters</button>
-      <div className="lane-filter-wrap">
-        <NoteFilter
-          selected={lanes}
-          onChange={setLanes}
-          primaryOnly={primaryOnly}
-          onPrimaryToggle={setPrimaryOnly}
-          laneMode={laneMode}
-          onLaneModeChange={setLaneMode}
-        />
-      </div>
-      <label><span className="mini-lbl">Sort</span><select value={sort} onChange={e => setSort(e.target.value)}>
-        <option value="smart">Smart (recommended)</option>
-        <option value="balScore">Appeal</option>
-        <option value="sigScore">Match</option>
-        <option value="intScore">Edge</option>
-        <option value="safeScore">{CONFIG.partnerName || "Partner"}</option>
-        <option value="rating">My Rating</option>
-      </select></label>
-      <button className={`toggle ${trev ? "active" : ""}`} onClick={() => setTrev(t => !t)}>{(CONFIG.partnerName || "Partner") + " ✓"}</button>
-    </div>
-
-    <div className="result-count">
-      {res.length} result{res.length !== 1 ? "s" : ""}
-      {res.length === 0 && <span className="warn"> — broaden filters</span>}
-    </div>
-
-    <div className="grid">
-      {res.map((p, i) => {
-        let annotation = null;
-        if (p.isForgottenLove) annotation = "↩ Forgotten Love";
-        else if (p.isOverworn) annotation = "Recently worn";
-        else if (i === 0) annotation = "Top Pick";
-        return <Card key={p.id} p={p} onClick={onSelect} annotation={annotation} />;
-      })}
-    </div>
-  </div>;
-}
-
 function CollectionView({ onSelect, wearStats, perfumes }) {
   const [search, setSearch] = useState("");
   const [pref, setPref] = useState("All");
@@ -3751,47 +3636,6 @@ function CollectionView({ onSelect, wearStats, perfumes }) {
 
     <div className="result-count">{res.length} fragrance{res.length !== 1 ? "s" : ""}</div>
     <div className="grid">{res.map(p => <Card key={p.id} p={p} onClick={onSelect} />)}</div>
-  </div>;
-}
-
-function SurpriseView({ onSelect, perfumes }) {
-  const [pick, setPick] = useState(null);
-  const [mode, setMode] = useState("loves");
-
-  const pool = useMemo(() => {
-    if (mode === "loves") return perfumes.filter(p => p.preference === "Love");
-    if (mode === "tried") return perfumes.filter(p => p.tried && p.status !== "Avoid" && p.status !== "Dislike");
-    return perfumes.filter(p => p.status !== "Avoid");
-  }, [mode, perfumes]);
-
-  const surprise = () => setPick(pool[Math.floor(Math.random() * pool.length)]);
-  useEffect(() => { surprise(); }, [mode]);
-
-  return <div>
-    <h1 className="page-title">Surprise Me</h1>
-    <p className="page-sub">Can't decide. One tap, out the door.</p>
-
-    <div className="chip-row mode-row">
-      {[["loves","From my loves"],["tried","Anything tried"],["all","Wildcard"]].map(([k,l]) =>
-        <button key={k} className={`chip ${mode === k ? "active" : ""}`} onClick={() => setMode(k)}>{l}</button>
-      )}
-    </div>
-
-    {pick && (
-      <div className="surprise-card">
-        <div className="surprise-label">Today's Pick</div>
-        <div className="surprise-house">{pick.house}</div>
-        <h2 className="surprise-name">{pick.name}</h2>
-        {pick.concentration && <div className="surprise-conc">{pick.concentration}</div>}
-        <div className="tag-row centered">{pick.tags.map(t => <Tag key={t} tag={t} />)}</div>
-        {pick.myNotes && <p className="surprise-quote">"{pick.myNotes}"</p>}
-        {pick.rating != null && <div className="surprise-rating" style={{ color: pick.rating >= 9 ? "#c8a97e" : pick.rating >= 8 ? "#8aaa80" : "#999" }}>{pick.rating}<span className="rating-of">/10</span></div>}
-        <div className="surprise-actions">
-          <button className="btn-primary" onClick={surprise}>↻ Again</button>
-          <button className="btn-ghost" onClick={() => onSelect(pick)}>Details</button>
-        </div>
-      </div>
-    )}
   </div>;
 }
 
@@ -5346,67 +5190,6 @@ function AddPerfumeView({ onAdd, perfumes }) {
 //        **Rating:** 8.5
 //        **Notes:** free text...
 //        **Partner:** positive/negative/—
-function parseDiaryMarkdown(text) {
-  // Try JSON first
-  const trimmed = text.trim();
-  if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
-    try {
-      const parsed = JSON.parse(trimmed);
-      // {diary:[...]} shape
-      if (parsed.diary && Array.isArray(parsed.diary)) return parsed.diary;
-      // plain array of entries
-      if (Array.isArray(parsed)) return parsed;
-    } catch (e) {}
-  }
-
-  // Parse markdown
-  const entries = [];
-  const lines = text.split(/\r?\n/);
-  let current = null;
-  const flush = () => { if (current && current.perfume && current.date) entries.push(current); };
-
-  for (let raw of lines) {
-    const line = raw.trim();
-
-    // New entry: ## YYYY-MM-DD or ## YYYY-MM-DD – House – Perfume
-    const headingMatch = line.match(/^##\s+(\d{4}-\d{2}-\d{2})(.*)?$/);
-    if (headingMatch) {
-      flush();
-      const date = headingMatch[1];
-      const rest = (headingMatch[2] || "").replace(/^[\s–—-]+/, "").trim();
-      // rest might be "House – Perfume" or just "Perfume" or empty
-      const parts = rest.split(/\s*[–—]\s*/);
-      current = { date };
-      if (parts.length >= 2) { current.house = parts[0]; current.perfume = parts.slice(1).join(" — "); }
-      else if (parts.length === 1 && parts[0]) { current.perfume = parts[0]; }
-      continue;
-    }
-    if (!current) continue;
-
-    // Field lines: **Field:** value or *Field:* value
-    const fieldMatch = line.match(/^\*{1,2}([^*:]+?)\*{0,2}:\*{0,2}\s*(.*)$/);
-    if (fieldMatch) {
-      const key = fieldMatch[1].trim().toLowerCase();
-      const val = fieldMatch[2].trim();
-      if (key === "perfume" || key === "name") current.perfume = val;
-      else if (key === "house") current.house = val;
-      else if (key === "concentration" || key === "conc") current.concentration = val;
-      else if (key === "rating") {
-        const n = parseFloat(val.replace(/\/\d+/, ""));
-        if (!isNaN(n)) current.rating = n;
-      }
-      else if (key === "notes" || key === "note") current.notes = val;
-      else if (key === "partner" || key === "reaction" || key === "safe" || key === "trev") current.safeReaction = val;
-    }
-    // Append continuation lines to notes (non-empty, non-heading, non-field)
-    else if (line && !line.startsWith("#") && current.notes !== undefined) {
-      current.notes += " " + line;
-    }
-  }
-  flush();
-  return entries;
-}
-
 function RestoreCloudBackup({ onRestored, binId, apiKey }) {
   const [status, setStatus] = React.useState("");
   const [restoring, setRestoring] = React.useState(false);
@@ -5461,77 +5244,13 @@ function RestoreCloudBackup({ onRestored, binId, apiKey }) {
   </div>;
 }
 
-function MarkdownImport({ onImported }) {
-  const [status, setStatus] = useState("");
-  const [importing, setImporting] = useState(false);
-
-  const handleFile = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    setImporting(true); setStatus("");
-    const reader = new FileReader();
-    reader.onload = async (ev) => {
-      try {
-        const entries = parseDiaryMarkdown(ev.target.result);
-        if (!entries.length) { setStatus("✗ No diary entries found. Check the file format."); setImporting(false); return; }
-        // Merge into localStorage wear log (dedup by date+perfume)
-        let existing = [];
-        try { existing = JSON.parse(localStorage.getItem("perfume_diary") || "[]"); } catch (_) {}
-        const existingKeys = new Set(existing.map(e => `${e.date}|${(e.perfume||"").toLowerCase()}`));
-        const newEntries = entries.filter(e => !existingKeys.has(`${e.date}|${(e.perfume||"").toLowerCase()}`));
-        const merged = [...existing, ...newEntries];
-        localStorage.setItem("perfume_diary", JSON.stringify(merged));
-        // Push to cloud so other browsers/devices see the import immediately
-        const cloudOk = await jsonbinPush();
-        const cloudNote = cloudOk?.ok ? " Pushed to cloud." : "";
-        setStatus(`✓ Imported ${newEntries.length} new entries (${entries.length - newEntries.length} duplicates skipped).${cloudNote}`);
-        if (onImported) onImported();
-      } catch (err) {
-        setStatus(`✗ Parse error: ${err.message}`);
-      }
-      setImporting(false);
-      e.target.value = "";
-    };
-    reader.readAsText(file);
-  };
-
-  return <div>
-    <div className="mini-lbl" style={{marginBottom:8}}>Import Diary (Markdown or JSON backup)</div>
-    <p style={{fontSize:12,color:"var(--fg-soft)",marginBottom:10,fontStyle:"italic"}}>Accepts the JSON backup file, or a Markdown diary with <code style={{background:"var(--bg-soft)",padding:"1px 4px"}}>## YYYY-MM-DD</code> headings and <code style={{background:"var(--bg-soft)",padding:"1px 4px"}}>**Field:** value</code> fields. Duplicates are skipped.</p>
-    <label style={{display:"inline-block",cursor:"pointer"}}>
-      <span className="btn-ghost" style={{display:"inline-block",pointerEvents:"none"}}>{importing ? "Importing…" : "Choose File"}</span>
-      <input type="file" accept=".md,.txt,.json" onChange={handleFile} style={{display:"none"}} />
-    </label>
-    {status && <div className={`test-result ${status.startsWith("✓") ? "ok" : status.startsWith("✗") ? "fail" : ""}`} style={{marginTop:10}}>{status}</div>}
-  </div>;
-}
-
 function SettingsView({ syncStatus, onSyncChange }) {
-  const [url, setUrl] = useState(localStorage.getItem("sheets_webhook_url") || "");
-  const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState("");
-
   // JSONBin state
   const [binId, setBinId] = useState(localStorage.getItem("cloud_bin_id") || "");
   const [apiKey, setApiKey] = useState(localStorage.getItem("cloud_api_key") || "");
   const [binTesting, setBinTesting] = useState(false);
   const [binResult, setBinResult] = useState("");
   const [binPushing, setBinPushing] = useState(false);
-
-  const saveSheets = () => {
-    localStorage.setItem("sheets_webhook_url", url);
-    onSyncChange();
-    setTestResult("Saved. Refresh to load from Sheets.");
-  };
-  const testSheets = async () => {
-    if (!url) { setTestResult("Enter a URL first."); return; }
-    setTesting(true); setTestResult("");
-    localStorage.setItem("sheets_webhook_url", url);
-    const data = await sheetsLoad();
-    setTesting(false);
-    if (data) setTestResult(`✓ Connected — ${(data.wearLog||[]).length} entries, ${(data.wishlist||[]).length} wishlist items.`);
-    else setTestResult("✗ Failed. Check URL and deployment settings.");
-  };
 
   const saveBin = () => {
     localStorage.setItem("cloud_bin_id", binId.trim());
@@ -5612,36 +5331,12 @@ function SettingsView({ syncStatus, onSyncChange }) {
       </details>
     </div>
 
-    {/* ── Google Sheets (legacy) ── */}
     <div className="settings-card">
-      <h2 className="settings-h">Google Sheets Sync <span style={{fontSize:11,fontWeight:400,color:"var(--fg-soft)",letterSpacing:"0.08em",marginLeft:8}}>LEGACY</span></h2>
-      <label className="full-label"><span className="mini-lbl">Webhook URL</span>
-        <input className="mono-input" value={url} onChange={e => setUrl(e.target.value)} placeholder="https://script.google.com/macros/s/…/exec" />
-      </label>
+      <h2 className="settings-h">Backup</h2>
+      <p>Download your diary and wishlist as a JSON file.</p>
       <div className="form-actions">
-        <button className="btn-primary" onClick={saveSheets}>Save</button>
-        <button className="btn-ghost" onClick={testSheets} disabled={testing}>{testing ? "…" : "Test Connection"}</button>
-      </div>
-      {testResult && <div className={`test-result ${testResult.startsWith("✓") ? "ok" : testResult.startsWith("✗") ? "fail" : ""}`}>{testResult}</div>}
-      <details className="setup-details">
-        <summary>Setup Instructions</summary>
-        <ol>
-          <li>New Google Sheet → <b>Extensions → Apps Script</b></li>
-          <li>Paste contents of <code>apps_script.gs</code>, save</li>
-          <li><b>Deploy → New deployment → Web app</b></li>
-          <li>Execute as <b>Me</b>, access <b>Anyone</b>, Deploy, authorize</li>
-          <li>Copy the Web App URL, paste above, Save, then Test Connection</li>
-        </ol>
-      </details>
-    </div>
-
-    <div className="settings-card">
-      <h2 className="settings-h">Backup &amp; Import</h2>
-      <p>Download your diary and wishlist as JSON, or import a diary from a Markdown file.</p>
-      <div className="form-actions" style={{marginBottom:20}}>
         <button className="btn-ghost" onClick={exportData}>Download Backup</button>
       </div>
-      <MarkdownImport onImported={onSyncChange} />
     </div>
 
     <div className="settings-card">
@@ -5741,8 +5436,13 @@ function WearTodayView({ onSelect, wearStats, perfumes }) {
   });
   const [occasion, setOccasion] = useState("Casual");
   const [vibe, setVibe] = useState("Fresh");
+  // Smart rotation (folded in from the old "Pick" view): boosts forgotten loves and
+  // long-neglected favourites so you cycle through the collection instead of repeating.
+  const [rotate, setRotate] = useState(true);
 
   const enriched = useMemo(() => enrich(perfumes, wearStats), [wearStats, perfumes]);
+
+  const forgottenCount = useMemo(() => enriched.filter(p => p.isForgottenLove).length, [enriched]);
 
   const [ranked, setRanked] = useState([]);
   useEffect(() => {
@@ -5752,24 +5452,33 @@ function WearTodayView({ onSelect, wearStats, perfumes }) {
       .map(p => {
         // Context is the primary signal — multiply it so the right-for-right-now perfume wins.
         // balScore is a tiebreaker. Love gives a small nudge. Overworn gets a gentle penalty.
-        // forgottenBonus is deliberately excluded here (belongs in smart rotation, not context picks).
+        // Rotation (optional) boosts forgotten loves + long-neglected high-raters.
         const ctxBonus = contextScore(p, ctx);
         const base = (p.balScore || 0) * 0.4;
         const overwornPenalty = p.isOverworn ? -3 : 0;
         const lovePref = p.preference === "Love" ? 1 : 0;
-        const total = ctxBonus * 2 + base + overwornPenalty + lovePref;
+        const rotationBonus = rotate
+          ? ((p.isForgottenLove ? 4 : 0) + (p.daysAgo != null && p.daysAgo > 60 && p.rating >= 8 ? 2 : 0))
+          : 0;
+        const total = ctxBonus * 2 + base + overwornPenalty + lovePref + rotationBonus;
         return { ...p, todayScore: total, ctxBonus };
       })
       .sort((a, b) => b.todayScore - a.todayScore)
       .slice(0, 12);
     setRanked(result);
-  }, [enriched, season, occasion, vibe]);
+  }, [enriched, season, occasion, vibe, rotate]);
 
   const top = ranked[0];
 
   return <div>
     <h1 className="page-title">What to Wear Today</h1>
     <p className="page-sub">Tell me the context — I'll rank your collection for right now.</p>
+
+    {rotate && forgottenCount > 0 && (
+      <div className="banner">
+        <strong>{forgottenCount} forgotten love{forgottenCount === 1 ? "" : "s"}</strong> — favourites rated 9+ you haven't worn in 30+ days are boosted below.
+      </div>
+    )}
 
     <div className="context-group">
       <div className="context-group-label">Season</div>
@@ -5785,10 +5494,17 @@ function WearTodayView({ onSelect, wearStats, perfumes }) {
       </div>
     </div>
 
-    <div className="context-group" style={{marginBottom: 28}}>
+    <div className="context-group">
       <div className="context-group-label">Vibe</div>
       <div className="context-chips">
         {VIBES.map(v => <button key={v} className={`ctx-chip ${vibe === v ? "active" : ""}`} onClick={() => setVibe(v)}>{v}</button>)}
+      </div>
+    </div>
+
+    <div className="context-group" style={{marginBottom: 28}}>
+      <div className="context-group-label">Rotation</div>
+      <div className="context-chips">
+        <button className={`ctx-chip ${rotate ? "active" : ""}`} onClick={() => setRotate(r => !r)}>↩ Favor neglected &amp; forgotten loves</button>
       </div>
     </div>
 
@@ -5831,7 +5547,7 @@ function WearTodayView({ onSelect, wearStats, perfumes }) {
 // marks it "tried" — BOTH go through perfumeEdits (onEditPerfume), which syncs to the
 // cloud bin, so everything persists across devices with no localStorage. Anything
 // logged in the diary (wearCount > 0) also auto-drops from the queue.
-function SampleQueueItem({ p, rank, onSelect, onSaveNote, onMarkSampled }) {
+function SampleQueueItem({ p, rank, onSelect, onSaveNote, onSetRating, onMarkSampled }) {
   const [text, setText] = useState(p.myNotes || "");
   const [saved, setSaved] = useState(false);
   const dirty = text !== (p.myNotes || "");
@@ -5848,7 +5564,18 @@ function SampleQueueItem({ p, rank, onSelect, onSaveNote, onMarkSampled }) {
         rows={2}
         style={{ width: "100%", marginTop: 6, padding: "8px 10px", borderRadius: 8, border: "1px solid var(--border-soft, #ddd)", fontFamily: "inherit", fontSize: 13, resize: "vertical", boxSizing: "border-box", background: "var(--bg, #fff)", color: "inherit" }}
       />
-      <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 6 }}>
+      <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 6, flexWrap: "wrap" }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--fg-mute, #888)" }}>
+          Rating
+          <input
+            type="number" min="0" max="10" step="0.5"
+            value={p.rating != null ? p.rating : ""}
+            onChange={e => onSetRating(p.id, e.target.value === "" ? null : parseFloat(e.target.value))}
+            placeholder="–"
+            style={{ width: 56, padding: "5px 8px", borderRadius: 8, border: "1px solid var(--border-soft, #ddd)", fontFamily: "inherit", fontSize: 13, background: "var(--bg, #fff)", color: "inherit" }}
+          />
+          <span style={{ color: "var(--fg-soft, #aaa)" }}>/10</span>
+        </label>
         <button className="btn-ghost" style={{ fontSize: 12, padding: "6px 14px" }} onClick={() => { if (dirty) onSaveNote(p.id, text); onMarkSampled(p.id); }}>✓ Mark sampled</button>
         {dirty && <button className="btn-ghost" style={{ fontSize: 12, padding: "6px 14px" }} onClick={save}>Save note</button>}
         {saved && <span style={{ fontSize: 12, color: "var(--sage)" }}>Saved ✓</span>}
@@ -5874,6 +5601,9 @@ function SampleQueueView({ onSelect, perfumes, onEditPerfume }) {
   }, [untried, salt]);
 
   const saveNote = (id, text) => onEditPerfume(id, { myNotes: text });
+  const setRating = (id, n) => onEditPerfume(id, n == null
+    ? { rating: null }
+    : { rating: n, preference: prefFromRating(n), status: prefFromRating(n) });
   const markSampled = (id) => onEditPerfume(id, { tried: true });
   const reshuffle = () => { setSalt(s => s + 1); setLimit(25); };
 
@@ -5892,7 +5622,7 @@ function SampleQueueView({ onSelect, perfumes, onEditPerfume }) {
 
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       {visible.map((p, i) => (
-        <SampleQueueItem key={p.id} p={p} rank={i + 1} onSelect={onSelect} onSaveNote={saveNote} onMarkSampled={markSampled} />
+        <SampleQueueItem key={p.id} p={p} rank={i + 1} onSelect={onSelect} onSaveNote={saveNote} onSetRating={setRating} onMarkSampled={markSampled} />
       ))}
     </div>
 
@@ -5908,7 +5638,7 @@ function App() {
     if (CONFIG.accentColor) document.documentElement.style.setProperty("--gold", CONFIG.accentColor);
     if (CONFIG.appTitle) document.title = CONFIG.appTitle;
   }, []);
-  const [view, setView] = useState("pick");
+  const [view, setView] = useState("today");
   const [selected, setSelected] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [wearLog, setWearLog] = useState(WEAR_LOG_SEED);
@@ -6116,8 +5846,6 @@ function App() {
 
   const NAV = [
     { k: "today", l: "Wear Today" },
-    { k: "pick", l: "Pick" },
-    { k: "surprise", l: "Surprise" },
     { k: "sample", l: "Sample Queue" },
     { k: "collection", l: "Collection" },
     { k: "taxonomy", l: "Taxonomy" },
@@ -6136,7 +5864,7 @@ function App() {
   return <div className="app">
     <nav className="nav">
       <div className="nav-inner">
-        <div className="logo" onClick={() => go("pick")}>{CONFIG.appTitle}</div>
+        <div className="logo" onClick={() => go("today")}>{CONFIG.appTitle}</div>
         <button className="menu-btn" onClick={() => setMenuOpen(m => !m)} aria-label="Menu">
           {menuOpen ? "×" : "☰"}
         </button>
@@ -6151,8 +5879,6 @@ function App() {
     <main className="main">
       {!loaded && <div className="loading">Loading…</div>}
       {loaded && view === "today" && <WearTodayView onSelect={setSelected} wearStats={wearStats} perfumes={perfumes} />}
-      {loaded && view === "pick" && <PickView onSelect={setSelected} wearStats={wearStats} perfumes={perfumes} />}
-      {loaded && view === "surprise" && <SurpriseView onSelect={setSelected} perfumes={perfumes} />}
       {loaded && view === "sample" && <SampleQueueView onSelect={setSelected} perfumes={perfumes} onEditPerfume={editPerfume} />}
       {loaded && view === "collection" && <CollectionView onSelect={setSelected} wearStats={wearStats} perfumes={perfumes} />}
       {loaded && view === "compare" && <CompareView perfumes={perfumes} />}
