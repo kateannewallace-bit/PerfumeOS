@@ -2067,6 +2067,18 @@ function normalizePerfume(p) {
 const PERFUMES_SEED = RAW_DATA.perfumes.map(normalizePerfume);
 const WEAR_LOG_SEED = RAW_DATA.wearLog || [];
 const WISHLIST_SEED = RAW_DATA.wishlist || [];
+// Stable identity key for a wishlist item, so removed built-in (seed) items can be
+// "tombstoned" and stay gone. The tombstone list lives in the synced cloud blob
+// (mirrored to localStorage only as push-staging), so removals persist across devices.
+const _wlKey = w => `${(w.house||"").toLowerCase().trim()}|${(w.name||"").toLowerCase().trim()}|${(w.concentration||"").toLowerCase().trim()}`;
+function _loadWishlistRemoved() {
+  try { const v = JSON.parse(localStorage.getItem("perfume_wishlist_removed") || "[]"); return Array.isArray(v) ? v : []; } catch (e) { return []; }
+}
+// The seed wishlist minus any tombstoned items.
+function activeWishlistSeed() {
+  const removed = new Set(_loadWishlistRemoved());
+  return WISHLIST_SEED.filter(s => !removed.has(_wlKey(s)));
+}
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 const MOODS = ["All","Air","Resin","Bridge","Classic"];
@@ -2074,7 +2086,7 @@ const MOODS = ["All","Air","Resin","Bridge","Classic"];
 const LANE_GROUPS = [
   { label: "Broad families", lanes: ["Floral","Woody","Citrus","Amber","Ambergris","Musk","Resinous","Gourmand","Leather","Aromatic","Aquatic","Chypre","Fruity","Oriental"] },
   { label: "Character", lanes: ["Airy","Unusual","Skin Scent","Powdery","Resinous","Spicy","Green","Smoky","Dry Citrus","Herbal Fresh"] },
-  { label: "Curated", lanes: ["Old Lady","Borderline Old Lady","Young Fresh","Smells Cheap","Smells Expensive"] },
+  { label: "Curated", lanes: ["Old Lady","Borderline Old Lady","Young Fresh","Smells Cheap","Smells Expensive","Tart Fruit"] },
   { label: "Florals", lanes: ["White Floral","Yellow Floral","Purple Floral","Violet","Iris","Lipstick Iris","Rose","Jasmine","Tuberose","Ylang","Magnolia","Orange Blossom","Neroli","Osmanthus","Mimosa","Peony","Lily of the Valley","Narcissus","Heliotrope","Carnation"] },
   { label: "Woods", lanes: ["Sandalwood","Cedar","Vetiver","Patchouli","Oud","Gaiac","Cypress","Papyrus","Birch","Cashmeran","Palo Santo"] },
   { label: "Resinous / Smoky", lanes: ["Incense","Myrrh","Benzoin","Labdanum","Styrax","Tobacco","Oakmoss","Moss"] },
@@ -2093,11 +2105,11 @@ const LANES = ["All", ...LANE_GROUPS.flatMap(g => g.lanes)];
 // Broad families + character descriptors — shown as single-select dropdown
 // Two separate dropdowns:
 const FAMILY_OPTIONS = ["All","Floral","White Floral","Yellow Floral","Purple Floral","Woody","Citrus","Amber","Ambergris","Musk","Resinous","Gourmand","Leather","Aromatic","Aquatic","Chypre","Fruity","Green","Aldehydic","Oriental"];
-const CHARACTER_OPTIONS = ["All","Airy","Unusual","Skin Scent","Lipstick Iris","Powdery","Resinous","Spicy","Smoky","Dry Citrus","Herbal Fresh","Fruity","Old Lady","Borderline Old Lady","Young Fresh","Smells Cheap","Smells Expensive"];
+const CHARACTER_OPTIONS = ["All","Airy","Unusual","Skin Scent","Lipstick Iris","Powdery","Resinous","Spicy","Smoky","Dry Citrus","Herbal Fresh","Fruity","Tart Fruit","Old Lady","Borderline Old Lady","Young Fresh","Smells Cheap","Smells Expensive"];
 
 const BROAD_FAMILIES_SET = new Set(["floral","woody","citrus","amber","musk","resinous","gourmand","leather","aromatic","aquatic","chypre","fruity","green","oriental"]);
-const CHARACTER_SET = new Set(["airy","unusual","skin scent","powdery","resinous","spicy","smoky","dry citrus","herbal fresh","lipstick iris","fruity","powder","aldehydes","aldehydic","old lady","borderline old lady","young fresh","smells cheap","smells expensive"]);
-const CURATED_TAGS = ["old lady","borderline old lady","young fresh","smells cheap","smells expensive"];
+const CHARACTER_SET = new Set(["airy","unusual","skin scent","powdery","resinous","spicy","smoky","dry citrus","herbal fresh","lipstick iris","fruity","powder","aldehydes","aldehydic","tart fruit","old lady","borderline old lady","young fresh","smells cheap","smells expensive"]);
+const CURATED_TAGS = ["old lady","borderline old lady","young fresh","smells cheap","smells expensive","tart fruit"];
 
 // Static curated note groups — canonical names only, no variants.
 // These must match exactly what buildTagsFromText + canonicalizeRawTags produce.
@@ -2180,7 +2192,7 @@ const TAG_COLOR = {
   fruity: "#d89060",
   // Character
   powdery: "#b8a0b0", spicy: "#c87050", green: "#78a868", smoky: "#7a7475",
-  "herbal fresh": "#80a870", "skin scent": "#c8b8a8",
+  "herbal fresh": "#80a870", "skin scent": "#c8b8a8", "tart fruit": "#c25b6e",
   // Specific florals
   jasmine: "#f0c4a0", tuberose: "#e8a8b8", ylang: "#e8c088", magnolia: "#e8c4d0",
   lily: "#e8d4d8", gardenia: "#f0e0d8", "orange blossom": "#f0d098", neroli: "#e8b878",
@@ -2550,7 +2562,8 @@ function _localStateBlob() {
   try { wishlist = JSON.parse(localStorage.getItem("perfume_wishlist") || "[]"); } catch (e) {}
   try { userPerfumes = JSON.parse(localStorage.getItem("perfume_user_perfumes") || "[]"); } catch (e) {}
   try { perfumeEdits = JSON.parse(localStorage.getItem("perfume_edits") || "{}"); } catch (e) {}
-  return { wearLog, wishlist, userPerfumes, perfumeEdits, _updatedAt: new Date().toISOString() };
+  const wishlistRemoved = _loadWishlistRemoved();
+  return { wearLog, wishlist, userPerfumes, perfumeEdits, wishlistRemoved, _updatedAt: new Date().toISOString() };
 }
 
 // Diary "high-water mark": the largest wearLog count we've ever loaded or pushed.
@@ -5812,6 +5825,83 @@ function WearTodayView({ onSelect, wearStats, perfumes }) {
   </div>;
 }
 
+// ─── SAMPLE QUEUE ─────────────────────────────────────────────────────────────
+// A shuffled run through every untried perfume so nothing gets skipped in favour of
+// comfort picks. Impressions save to each perfume's permanent notes and the check-off
+// marks it "tried" — BOTH go through perfumeEdits (onEditPerfume), which syncs to the
+// cloud bin, so everything persists across devices with no localStorage. Anything
+// logged in the diary (wearCount > 0) also auto-drops from the queue.
+function SampleQueueItem({ p, rank, onSelect, onSaveNote, onMarkSampled }) {
+  const [text, setText] = useState(p.myNotes || "");
+  const [saved, setSaved] = useState(false);
+  const dirty = text !== (p.myNotes || "");
+  const save = () => { if (dirty) { onSaveNote(p.id, text); setSaved(true); setTimeout(() => setSaved(false), 1500); } };
+  return <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+    <div style={{ flexShrink: 0, width: 26, height: 26, borderRadius: 13, background: "var(--gold)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, marginTop: 6 }}>{rank}</div>
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <Card p={p} onClick={onSelect} />
+      <textarea
+        value={text}
+        onChange={e => setText(e.target.value)}
+        onBlur={save}
+        placeholder="Quick impressions… (saved to this perfume's notes — tart? too sweet? washed it off?)"
+        rows={2}
+        style={{ width: "100%", marginTop: 6, padding: "8px 10px", borderRadius: 8, border: "1px solid var(--border-soft, #ddd)", fontFamily: "inherit", fontSize: 13, resize: "vertical", boxSizing: "border-box", background: "var(--bg, #fff)", color: "inherit" }}
+      />
+      <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 6 }}>
+        <button className="btn-ghost" style={{ fontSize: 12, padding: "6px 14px" }} onClick={() => { if (dirty) onSaveNote(p.id, text); onMarkSampled(p.id); }}>✓ Mark sampled</button>
+        {dirty && <button className="btn-ghost" style={{ fontSize: 12, padding: "6px 14px" }} onClick={save}>Save note</button>}
+        {saved && <span style={{ fontSize: 12, color: "var(--sage)" }}>Saved ✓</span>}
+      </div>
+    </div>
+  </div>;
+}
+
+function SampleQueueView({ onSelect, perfumes, onEditPerfume }) {
+  const [salt, setSalt] = useState(1);
+  const [limit, setLimit] = useState(25);
+
+  const untried = useMemo(
+    () => perfumes.filter(p => !p.tried && !(p.wearCount > 0) && p.status !== "Avoid"),
+    [perfumes]
+  );
+
+  // Deterministic pseudo-random order from a hash of (id, salt): stable within a
+  // session and identical across devices for the same salt — no storage needed.
+  const queue = useMemo(() => {
+    const h = id => { const x = Math.sin((id + 1) * 9301 + salt * 49297) * 233280; return x - Math.floor(x); };
+    return [...untried].sort((a, b) => h(a.id) - h(b.id));
+  }, [untried, salt]);
+
+  const saveNote = (id, text) => onEditPerfume(id, { myNotes: text });
+  const markSampled = (id) => onEditPerfume(id, { tried: true });
+  const reshuffle = () => { setSalt(s => s + 1); setLimit(25); };
+
+  const visible = queue.slice(0, limit);
+
+  return <div>
+    <h1 className="page-title">Sample Queue</h1>
+    <p className="page-sub">A shuffled run through everything you haven't tried. Jot an impression (saved to the perfume's notes) and check it off — all synced across your devices.</p>
+
+    <div className="inline-row" style={{ justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+      <span className="filter-summary">{queue.length} left to sample</span>
+      <button className="btn-ghost" onClick={reshuffle}>↻ Reshuffle</button>
+    </div>
+
+    {queue.length === 0 && <p className="empty">Nothing left to sample — you've tried everything (or logged it in your diary). 🎉</p>}
+
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      {visible.map((p, i) => (
+        <SampleQueueItem key={p.id} p={p} rank={i + 1} onSelect={onSelect} onSaveNote={saveNote} onMarkSampled={markSampled} />
+      ))}
+    </div>
+
+    {queue.length > visible.length && (
+      <button className="btn-ghost" style={{ marginTop: 16 }} onClick={() => setLimit(l => l + 25)}>Show 25 more ({queue.length - visible.length} left)</button>
+    )}
+  </div>;
+}
+
 // ─── APP SHELL ────────────────────────────────────────────────────────────────
 function App() {
   useEffect(() => {
@@ -5822,7 +5912,7 @@ function App() {
   const [selected, setSelected] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [wearLog, setWearLog] = useState(WEAR_LOG_SEED);
-  const [wishlist, setWishlist] = useState(WISHLIST_SEED);
+  const [wishlist, setWishlist] = useState(activeWishlistSeed);
   const [userPerfumes, setUserPerfumes] = useState([]);
   const [perfumeEdits, setPerfumeEdits] = useState({});
   const perfumes = useMemo(() => {
@@ -5868,8 +5958,12 @@ function App() {
         const resolvedWishlist = data.wishlist || localWishlist;
         const resolvedUserPerfumes = data.userPerfumes && data.userPerfumes.length ? data.userPerfumes : localPerfumes;
         const resolvedEdits = data.perfumeEdits && Object.keys(data.perfumeEdits).length ? data.perfumeEdits : localEdits;
+        // Wishlist tombstones from the cloud — mirror locally BEFORE building the
+        // seed so removed built-in items stay removed on this device too.
+        const resolvedWishlistRemoved = Array.isArray(data.wishlistRemoved) ? data.wishlistRemoved : _loadWishlistRemoved();
+        try { localStorage.setItem("perfume_wishlist_removed", JSON.stringify(resolvedWishlistRemoved)); } catch(e) {}
         setWearLog([...WEAR_LOG_SEED, ...resolvedWear.map(normalizeWearEntry)]);
-        setWishlist([...WISHLIST_SEED, ...resolvedWishlist]);
+        setWishlist([...activeWishlistSeed(), ...resolvedWishlist]);
         setUserPerfumes(resolvedUserPerfumes);
         setPerfumeEdits(resolvedEdits);
         // Mirror cloud data back into localStorage so "Push Now" never overwrites
@@ -5893,7 +5987,7 @@ function App() {
       const p = JSON.parse(localStorage.getItem("perfume_user_perfumes") || "[]");
       const ed = JSON.parse(localStorage.getItem("perfume_edits") || "{}");
       setWearLog([...WEAR_LOG_SEED, ...d.map(normalizeWearEntry)]);
-      setWishlist([...WISHLIST_SEED, ...w]);
+      setWishlist([...activeWishlistSeed(), ...w]);
       setUserPerfumes(p);
       setPerfumeEdits(ed);
     } catch (e) {}
@@ -5970,9 +6064,23 @@ function App() {
 
   const removeWishlistItem = useCallback((idx) => {
     setWishlist(prev => {
+      const removedItem = prev[idx];
       const next = prev.filter((_, i) => i !== idx);
       const user = next.filter(w => !WISHLIST_SEED.includes(w));
       try { localStorage.setItem("perfume_wishlist", JSON.stringify(user)); } catch (e) {}
+      // If a built-in (seed) item was removed, tombstone it so it doesn't come back
+      // on the next load. The tombstone list is included in the cloud push blob, so
+      // the removal persists across devices.
+      if (removedItem && WISHLIST_SEED.includes(removedItem)) {
+        try {
+          const removed = _loadWishlistRemoved();
+          const k = _wlKey(removedItem);
+          if (!removed.includes(k)) {
+            removed.push(k);
+            localStorage.setItem("perfume_wishlist_removed", JSON.stringify(removed));
+          }
+        } catch (e) {}
+      }
       cloudSync("set_wishlist", user);
       return next;
     });
@@ -6010,6 +6118,7 @@ function App() {
     { k: "today", l: "Wear Today" },
     { k: "pick", l: "Pick" },
     { k: "surprise", l: "Surprise" },
+    { k: "sample", l: "Sample Queue" },
     { k: "collection", l: "Collection" },
     { k: "taxonomy", l: "Taxonomy" },
     { k: "similar", l: "Similar" },
@@ -6044,6 +6153,7 @@ function App() {
       {loaded && view === "today" && <WearTodayView onSelect={setSelected} wearStats={wearStats} perfumes={perfumes} />}
       {loaded && view === "pick" && <PickView onSelect={setSelected} wearStats={wearStats} perfumes={perfumes} />}
       {loaded && view === "surprise" && <SurpriseView onSelect={setSelected} perfumes={perfumes} />}
+      {loaded && view === "sample" && <SampleQueueView onSelect={setSelected} perfumes={perfumes} onEditPerfume={editPerfume} />}
       {loaded && view === "collection" && <CollectionView onSelect={setSelected} wearStats={wearStats} perfumes={perfumes} />}
       {loaded && view === "compare" && <CompareView perfumes={perfumes} />}
       {loaded && view === "taxonomy" && <TaxonomyView onSelect={setSelected} perfumes={perfumes} />}
