@@ -3552,6 +3552,7 @@ function CollectionView({ onSelect, wearStats, perfumes }) {
   const [lanes, setLanes] = useState([]);
   const [laneMode, setLaneMode] = useState("all");
   const [triedOnly, setTriedOnly] = useState(false);
+  const [trevorOnly, setTrevorOnly] = useState(false);
   const [primaryOnly, setPrimaryOnly] = useState(false);
   const [sort, setSort] = useState("balScore");
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -3563,9 +3564,9 @@ function CollectionView({ onSelect, wearStats, perfumes }) {
 
   const res = useMemo(() => {
     return enriched
-      .filter(p => matches(p, { family, character, lanes, safeOnly: false, excludeAvoid: false, triedOnly, search, pref, primaryOnly, laneMode, gender, excludeNotes }))
+      .filter(p => matches(p, { family, character, lanes, safeOnly: trevorOnly, excludeAvoid: false, triedOnly, search, pref, primaryOnly, laneMode, gender, excludeNotes }))
       .sort((a,b) => sort === "house" ? a.house.localeCompare(b.house) : sort === "name" ? a.name.localeCompare(b.name) : sort === "rating" ? (b.rating||0)-(a.rating||0) : b[sort]-a[sort]);
-  }, [enriched, search, pref, family, character, lanes, triedOnly, sort, primaryOnly, laneMode, excludeNotes]);
+  }, [enriched, search, pref, family, character, lanes, triedOnly, trevorOnly, sort, primaryOnly, laneMode, gender, excludeNotes]);
 
   return <div>
     <h1 className="page-title">The Collection</h1>
@@ -3576,7 +3577,7 @@ function CollectionView({ onSelect, wearStats, perfumes }) {
     <button className="filter-toggle" onClick={() => setFiltersOpen(f => !f)}>
       {filtersOpen ? "Hide" : "Show"} Filters
       <span className="filter-summary">
-        {gender !== "All" && gender} {pref !== "All" && pref} {family !== "All" && family} {character !== "All" && character} {lanes.length > 0 && (lanes.length === 1 ? lanes[0] : `${lanes.length} notes`)} {excludeNotes.length > 0 && `−${excludeNotes.length} excluded`} {triedOnly && "Tried"} {primaryOnly && "· primary"}
+        {gender !== "All" && gender} {pref !== "All" && pref} {family !== "All" && family} {character !== "All" && character} {lanes.length > 0 && (lanes.length === 1 ? lanes[0] : `${lanes.length} notes`)} {excludeNotes.length > 0 && `−${excludeNotes.length} excluded`} {triedOnly && "Tried"} {trevorOnly && `· ${CONFIG.partnerName || "Partner"} ✓`} {primaryOnly && "· primary"}
       </span>
     </button>
 
@@ -3626,12 +3627,13 @@ function CollectionView({ onSelect, wearStats, perfumes }) {
       <label><span className="mini-lbl">Sort</span><select value={sort} onChange={e => setSort(e.target.value)}>
         <option value="balScore">By Appeal</option>
         <option value="sigScore">By Match</option>
+        {CONFIG.partnerName && <option value="safeScore">By {CONFIG.partnerName} Score</option>}
         <option value="rating">By Rating</option>
         <option value="house">By House</option>
         <option value="name">By Name</option>
       </select></label>
       <button className={`toggle ${triedOnly ? "active" : ""}`} onClick={() => setTriedOnly(t => !t)}>Tried Only</button>
-      
+      {CONFIG.partnerName && <button className={`toggle ${trevorOnly ? "active" : ""}`} onClick={() => setTrevorOnly(t => !t)}>{CONFIG.partnerName}-friendly ✓</button>}
     </div>
 
     <div className="result-count">{res.length} fragrance{res.length !== 1 ? "s" : ""}</div>
