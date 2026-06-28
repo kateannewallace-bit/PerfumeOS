@@ -1968,25 +1968,42 @@ const NOTE_CLUSTERS = [
 function computeTrevorOnMe(tags, primary) {
   const all = new Set([...(tags || []), ...(primary || [])]);
   let score = 5;
-  // Strong positives — vegetal/green rose is his #1 (Corail Oscuro)
-  const hasRose = all.has('rose');
+  // Dense spicy/resinous compositions aren't the clean florals he likes.
+  // Gate the big "fresh" bonuses when these dominate (e.g. 34 Blvd St Germain).
+  const heavySpice = ['clove','cinnamon','cardamom','nutmeg'].filter(t => all.has(t)).length;
+  const isDense = all.has('resin') || all.has('resinous') || all.has('balsamic') || heavySpice >= 2;
+  const animalic = all.has('animalic') || all.has('civet') || all.has('castoreum');
+  // Rose (any variant except tuberose) + green is his #1 — Corail Oscuro is "rose bourbon"
+  const hasRose = [...all].some(t => t.includes('rose') && !t.includes('tuberose'));
   const hasGreen = all.has('green') || all.has('ivy') || all.has('violet leaf') || all.has('shiso') || all.has('aquatic') || all.has('marine');
-  if (hasRose && hasGreen) score += 2.5;
+  if (hasRose && hasGreen && !isDense) score += 2.5;
   else if (hasRose) score += 1;
   // Fresh florals
   if (all.has('orange blossom') || all.has('neroli')) score += 1;
-  if (all.has('tuberose') && hasGreen) score += 2.5; // Carnal Flower type — clean bold white floral
-  if (all.has('jasmine') && !all.has('powdery')) score += 0.5;
+  if (all.has('tuberose') && hasGreen && !isDense) score += 2.5; // Carnal Flower type — clean bold white floral
+  if (all.has('jasmine')) score += 0.5;
   if (all.has('lily of the valley')) score += 0.5;
+  // Clean skin-musk signature — his grails Fleur de Peau & Musc Outreblanc
+  const skinMusk = !animalic && (all.has('skin scent') || all.has('ambrette') ||
+      all.has('ambrette seed') || all.has('white musk'));
+  if (skinMusk) score += 3;
+  else if (!animalic && (all.has('musk') || all.has('musks'))) score += 1;
+  if (all.has('iris')) score += 0.5;
+  if (all.has('iris') && skinMusk) score += 1.5; // powdery-iris skin musk = peak him
+  // Bright mineral / ambergris — Corail Oscuro
+  if (all.has('ambergris') || all.has('mineral') || all.has('salty mineral') || all.has('salty')) score += 1.5;
+  // Dry woody-aromatic juniper — Orphéon
+  if (all.has('juniper')) score += 1.5;
+  if (all.has('juniper') && (all.has('cedar') || all.has('vetiver') || all.has('woody') || all.has('woody notes'))) score += 2.5;
+  if (all.has('aromatic')) score += 0.5;
   // Citrus/fresh
-  if (all.has('citrus') || all.has('bergamot') || all.has('grapefruit') || all.has('lemon')) score += 0.5;
+  if (all.has('citrus') || all.has('bergamot') || all.has('grapefruit') || all.has('lemon') || all.has('yuzu')) score += 0.5;
   if (all.has('pink pepper')) score += 0.5;
-  if (all.has('juniper')) score += 0.5;
   if (hasGreen) score += 0.5;
   if (all.has('ivy') || all.has('violet leaf')) score += 1; // green-leaf notes = very him
-  // Strong negatives — old lady register, animalic
-  if (all.has('powdery') || all.has('aldehydes')) score -= 3;
-  if (all.has('animalic') || all.has('civet') || all.has('castoreum')) score -= 4;
+  // Strong negatives — animalic, dense, smoke/resin register (NOT powder — he likes clean powdery musks)
+  if (animalic) score -= 4;
+  if (isDense) score -= 1.5;
   if (all.has('incense') || all.has('oud')) score -= 1.5;
   if (all.has('smoky') || all.has('tobacco')) score -= 1;
   if (all.has('leather')) score -= 0.5;
