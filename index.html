@@ -2013,27 +2013,37 @@ function computeTrevorOnMe(tags, primary) {
 function computeTrevorSelf(tags, primary) {
   const all = new Set([...(tags || []), ...(primary || [])]);
   let score = 5;
-  // Strong positives — bitter/dry citrus first, sweet citrus also fine
+  // Bright/dry citrus first — grapefruit is his personal 10 (Jo Malone Grapefruit)
   if (all.has('grapefruit')) score += 2.5;
   if (all.has('bitter orange') || all.has('petitgrain')) score += 1.5;
-  if (all.has('bergamot') || all.has('lemon') || all.has('yuzu')) score += 1;
-  if (all.has('orange') || all.has('mandarin')) score += 0.5; // sweet citrus OK
-  // Fresh/aquatic/green/herbal
+  if (all.has('bergamot') || all.has('lemon') || all.has('amalfi lemon') || all.has('italian lemon') ||
+      all.has('sicilian lemon') || all.has('lime') || all.has('yuzu')) score += 1;
+  if (all.has('orange') || all.has('mandarin') || all.has('mandarin orange') ||
+      all.has('tangerine') || all.has('blood orange')) score += 0.5; // sweet citrus OK
+  if (all.has('dry citrus') || all.has('hesperidic')) score += 0.5;
+  // Fresh/aquatic/green/herbal/aromatic — CK One register (his nostalgic barometer)
   if (all.has('marine') || all.has('aquatic')) score += 1;
   if (all.has('green') || all.has('citrus')) score += 0.5;
-  if (all.has('basil') || all.has('sage') || all.has('rosemary') || all.has('thyme')) score += 0.5;
+  if (all.has('aromatic') || all.has('herbal fresh')) score += 0.5;
+  if (all.has('basil') || all.has('sage') || all.has('rosemary') || all.has('thyme') ||
+      all.has('mint') || all.has('peppermint') || all.has('eucalyptus') || all.has('angelica root')) score += 0.5;
   if (all.has('juniper')) score += 1; // Orphéon EDT = intoxicating to him
   if (all.has('neroli') || all.has('orange blossom')) score += 0.5;
+  // Light dry-woody drydown under fresh citrus — Jo Malone Grapefruit, Sweet Leaf
+  const dryWood = all.has('cedar') || all.has('cypress') || all.has('vetiver') ||
+      all.has('patchouli') || all.has('sandalwood') || all.has('woody') ||
+      all.has('woody notes') || all.has('moss') || all.has('oakmoss');
+  if (dryWood) score += 1;
+  // NOTE: Bowmakers (violin varnish/rosin) is a sentimental pick — he's a luthier —
+  // NOT representative of his nose, so we don't reward resinous woods generally.
   // Light sweet is fine (Orange Marmalade territory) — no penalty
-  // Strong negatives — old lady register
+  // Strong negatives — not his register
   if (all.has('powdery') || all.has('aldehydes')) score -= 3;
   if (all.has('animalic') || all.has('civet') || all.has('castoreum')) score -= 4;
   if (all.has('incense') || all.has('oud')) score -= 2;
   if (all.has('smoky') || all.has('tobacco')) score -= 1.5;
   if (all.has('leather')) score -= 1;
-  // Rich resinous orientals — not his world
   if (all.has('labdanum') || all.has('myrrh')) score -= 0.5;
-  if (all.has('oakmoss') || all.has('vetiver')) score -= 0.5; // a bit serious/adult
   return Math.max(0, Math.min(10, Math.round(score * 2) / 2));
 }
 
@@ -2277,12 +2287,13 @@ const TAG_COLOR = {
 };
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
-function matches(p, { family, character, lanes, safeOnly, excludeAvoid, triedOnly, search, pref, primaryOnly, laneMode, gender, excludeNotes }) {
+function matches(p, { family, character, lanes, safeOnly, wearOnly, excludeAvoid, triedOnly, search, pref, primaryOnly, laneMode, gender, excludeNotes }) {
   if (excludeAvoid && (p.status === "Avoid" || p.status === "Dislike")) return false;
   if (gender && gender !== "All" && p.gender !== gender) return false;
   if (triedOnly && !p.tried) return false;
   if (pref !== "All" && p.preference !== pref) return false;
   if (safeOnly && p.safeScore < 7) return false;
+  if (wearOnly && p.trevorSelfScore < 7) return false;
   // Exclude notes
   if (excludeNotes && excludeNotes.length > 0) {
     const allT = [...new Set([...(p.tags || []), ...(p.primary || [])])];
@@ -3570,6 +3581,7 @@ function CollectionView({ onSelect, wearStats, perfumes }) {
   const [laneMode, setLaneMode] = useState("all");
   const [triedOnly, setTriedOnly] = useState(false);
   const [trevorOnly, setTrevorOnly] = useState(false);
+  const [trevorWearOnly, setTrevorWearOnly] = useState(false);
   const [primaryOnly, setPrimaryOnly] = useState(false);
   const [sort, setSort] = useState("balScore");
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -3581,9 +3593,9 @@ function CollectionView({ onSelect, wearStats, perfumes }) {
 
   const res = useMemo(() => {
     return enriched
-      .filter(p => matches(p, { family, character, lanes, safeOnly: trevorOnly, excludeAvoid: false, triedOnly, search, pref, primaryOnly, laneMode, gender, excludeNotes }))
+      .filter(p => matches(p, { family, character, lanes, safeOnly: trevorOnly, wearOnly: trevorWearOnly, excludeAvoid: false, triedOnly, search, pref, primaryOnly, laneMode, gender, excludeNotes }))
       .sort((a,b) => sort === "house" ? a.house.localeCompare(b.house) : sort === "name" ? a.name.localeCompare(b.name) : sort === "rating" ? (b.rating||0)-(a.rating||0) : b[sort]-a[sort]);
-  }, [enriched, search, pref, family, character, lanes, triedOnly, trevorOnly, sort, primaryOnly, laneMode, gender, excludeNotes]);
+  }, [enriched, search, pref, family, character, lanes, triedOnly, trevorOnly, trevorWearOnly, sort, primaryOnly, laneMode, gender, excludeNotes]);
 
   return <div>
     <h1 className="page-title">The Collection</h1>
@@ -3594,7 +3606,7 @@ function CollectionView({ onSelect, wearStats, perfumes }) {
     <button className="filter-toggle" onClick={() => setFiltersOpen(f => !f)}>
       {filtersOpen ? "Hide" : "Show"} Filters
       <span className="filter-summary">
-        {gender !== "All" && gender} {pref !== "All" && pref} {family !== "All" && family} {character !== "All" && character} {lanes.length > 0 && (lanes.length === 1 ? lanes[0] : `${lanes.length} notes`)} {excludeNotes.length > 0 && `−${excludeNotes.length} excluded`} {triedOnly && "Tried"} {trevorOnly && `· ${CONFIG.partnerName || "Partner"} ✓`} {primaryOnly && "· primary"}
+        {gender !== "All" && gender} {pref !== "All" && pref} {family !== "All" && family} {character !== "All" && character} {lanes.length > 0 && (lanes.length === 1 ? lanes[0] : `${lanes.length} notes`)} {excludeNotes.length > 0 && `−${excludeNotes.length} excluded`} {triedOnly && "Tried"} {trevorOnly && `· ${CONFIG.partnerName || "Partner"} on you`} {trevorWearOnly && `· ${CONFIG.partnerName || "Partner"} wears`} {primaryOnly && "· primary"}
       </span>
     </button>
 
@@ -3644,13 +3656,15 @@ function CollectionView({ onSelect, wearStats, perfumes }) {
       <label><span className="mini-lbl">Sort</span><select value={sort} onChange={e => setSort(e.target.value)}>
         <option value="balScore">By Appeal</option>
         <option value="sigScore">By Match</option>
-        {CONFIG.partnerName && <option value="safeScore">By {CONFIG.partnerName} Score</option>}
+        {CONFIG.partnerName && <option value="safeScore">By {CONFIG.partnerName} (on you)</option>}
+        {CONFIG.partnerName && <option value="trevorSelfScore">By {CONFIG.partnerName} (wears)</option>}
         <option value="rating">By Rating</option>
         <option value="house">By House</option>
         <option value="name">By Name</option>
       </select></label>
       <button className={`toggle ${triedOnly ? "active" : ""}`} onClick={() => setTriedOnly(t => !t)}>Tried Only</button>
-      {CONFIG.partnerName && <button className={`toggle ${trevorOnly ? "active" : ""}`} onClick={() => setTrevorOnly(t => !t)}>{CONFIG.partnerName}-friendly ✓</button>}
+      {CONFIG.partnerName && <button className={`toggle ${trevorOnly ? "active" : ""}`} onClick={() => setTrevorOnly(t => !t)}>{CONFIG.partnerName} on you ✓</button>}
+      {CONFIG.partnerName && <button className={`toggle ${trevorWearOnly ? "active" : ""}`} onClick={() => setTrevorWearOnly(t => !t)}>{CONFIG.partnerName} wears ✓</button>}
     </div>
 
     <div className="result-count">{res.length} fragrance{res.length !== 1 ? "s" : ""}</div>
