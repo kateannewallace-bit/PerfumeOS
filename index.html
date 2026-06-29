@@ -3611,7 +3611,7 @@ function CollectionView({ onSelect, wearStats, perfumes }) {
     </button>
 
     <div className={`filter-panel ${filtersOpen ? "open" : ""}`}>
-      <label><span className="mini-lbl">Gender</span><div style={{display:"flex",gap:4}}>{[["feminine","Fem"],["masculine","Masc"],["unisex","Uni"]].map(([g,lbl]) => <button key={g} type="button" className={`toggle ${genders.includes(g) ? "active" : ""}`} style={{flex:1}} onClick={() => setGenders(gs => gs.includes(g) ? gs.filter(x => x!==g) : [...gs, g])}>{lbl}</button>)}</div></label>
+      <label><span className="mini-lbl">Gender</span><div style={{display:"flex",gap:4,width:"100%"}}>{[["feminine","Fem"],["masculine","Masc"],["unisex","Uni"]].map(([g,lbl]) => <button key={g} type="button" className={`toggle ${genders.includes(g) ? "active" : ""}`} style={{flex:1,minWidth:0,padding:"8px 4px",letterSpacing:"0.03em"}} onClick={() => setGenders(gs => gs.includes(g) ? gs.filter(x => x!==g) : [...gs, g])}>{lbl}</button>)}</div></label>
       <label><span className="mini-lbl">Preference</span><select value={pref} onChange={e => setPref(e.target.value)}>{PREFS.map(p => <option key={p}>{p}</option>)}</select></label>
       <button onClick={() => { setGenders([]); setPref("All"); setFamily("All"); setCharacter("All"); setLanes([]); setExcludeNotes([]); setExcludeInput(""); setPrimaryOnly(false); setTriedOnly(false); }} style={{gridColumn:"1/-1",background:"none",border:"1px solid #ddd",borderRadius:8,padding:"8px",fontSize:12,color:"#999",cursor:"pointer",marginTop:4}}>Clear all filters</button>
       <label><span className="mini-lbl">Family</span><select value={family} onChange={e => setFamily(e.target.value)}>{FAMILY_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}</select></label>
