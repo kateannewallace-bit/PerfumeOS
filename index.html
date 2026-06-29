@@ -2498,7 +2498,9 @@ function enrich(perfumes, stats) {
 // New diary entries arrive with just `house` and `perfume` strings. Match them
 // to a perfume in the collection so that count + rating updates work.
 function _norm(s) {
-  return (s || "").toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+  return (s || "")
+    .normalize("NFD").replace(/[̀-ͯ]/g, "")   // strip accents: é→e, so "Orphéon" === "Orpheon"
+    .toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
 }
 // Strip trailing "/10" from ratings stored as strings (e.g. "8/10" → 8)
 function normalizeWearEntry(entry) {
@@ -2533,8 +2535,11 @@ function _stripTrailingConc(normName) {
 }
 
 function attachPerfumeIdToEntry(entry, perfumes) {
-  if (!entry || entry.perfumeId != null) return entry;
-  if (!entry.perfume) return { ...entry, unmatched: true };
+  if (!entry) return entry;
+  // Trust confidently-matched entries; re-resolve nulls AND old fuzzy matches so the
+  // accent fix can correct an "Orpheon EDT" that previously went fuzzy → EDP.
+  if (entry.perfumeId != null && entry.fuzzy !== true) return entry;
+  if (!entry.perfume) return entry.perfumeId != null ? entry : { ...entry, unmatched: true };
   const targetHouse = _norm(entry.house);
   const fullName = _norm(entry.perfume);
   // Concentration can live in its own field OR be typed into the name
@@ -2577,7 +2582,8 @@ function attachPerfumeIdToEntry(entry, perfumes) {
     return n.length > 4 && strippedName.length > 3 && n.startsWith(strippedName + ' ');
   });
   if (abbr.length) { const m = pick(abbr); return { ...entry, perfumeId: m.id, fuzzy: true, unmatched: false }; }
-  return { ...entry, perfumeId: null, unmatched: true };
+  // Re-resolution failed — keep any existing id rather than dropping the match.
+  return entry.perfumeId != null ? entry : { ...entry, perfumeId: null, unmatched: true };
 }
 
 // ─── CLOUD SYNC ───────────────────────────────────────────────────────────────
