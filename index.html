@@ -3584,6 +3584,7 @@ function CollectionView({ onSelect, wearStats, perfumes }) {
   const [trevorWearOnly, setTrevorWearOnly] = useState(false);
   const [primaryOnly, setPrimaryOnly] = useState(false);
   const [sort, setSort] = useState("balScore");
+  const [sortDir, setSortDir] = useState("desc"); // desc = best/high first, asc = worst/low first
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [genders, setGenders] = useState([]); // [] = all; multi-select
   const [excludeNotes, setExcludeNotes] = useState([]);
@@ -3594,8 +3595,14 @@ function CollectionView({ onSelect, wearStats, perfumes }) {
   const res = useMemo(() => {
     return enriched
       .filter(p => matches(p, { family, character, lanes, safeOnly: trevorOnly, wearOnly: trevorWearOnly, excludeAvoid: false, triedOnly, search, pref, primaryOnly, laneMode, gender: genders, excludeNotes }))
-      .sort((a,b) => sort === "house" ? a.house.localeCompare(b.house) : sort === "name" ? a.name.localeCompare(b.name) : sort === "rating" ? (b.rating||0)-(a.rating||0) : b[sort]-a[sort]);
-  }, [enriched, search, pref, family, character, lanes, triedOnly, trevorOnly, trevorWearOnly, sort, primaryOnly, laneMode, genders, excludeNotes]);
+      .sort((a,b) => {
+        const dir = sortDir === "asc" ? -1 : 1;
+        if (sort === "house") return a.house.localeCompare(b.house) * dir;
+        if (sort === "name") return a.name.localeCompare(b.name) * dir;
+        if (sort === "rating") return ((b.rating||0)-(a.rating||0)) * dir;
+        return (b[sort]-a[sort]) * dir;
+      });
+  }, [enriched, search, pref, family, character, lanes, triedOnly, trevorOnly, trevorWearOnly, sort, sortDir, primaryOnly, laneMode, genders, excludeNotes]);
 
   return <div>
     <h1 className="page-title">The Collection</h1>
@@ -3661,7 +3668,7 @@ function CollectionView({ onSelect, wearStats, perfumes }) {
         <option value="rating">By Rating</option>
         <option value="house">By House</option>
         <option value="name">By Name</option>
-      </select></label>
+      </select><button type="button" className={`toggle ${sortDir === "asc" ? "active" : ""}`} style={{marginTop:4,padding:"6px 4px",fontSize:11}} onClick={() => setSortDir(d => d === "desc" ? "asc" : "desc")}>{sortDir === "desc" ? "↓ Best / High first" : "↑ Worst / Low first"}</button></label>
       <button className={`toggle ${triedOnly ? "active" : ""}`} onClick={() => setTriedOnly(t => !t)}>Tried Only</button>
       {CONFIG.partnerName && <button className={`toggle ${trevorOnly ? "active" : ""}`} onClick={() => setTrevorOnly(t => !t)}>{CONFIG.partnerName} on you ✓</button>}
       {CONFIG.partnerName && <button className={`toggle ${trevorWearOnly ? "active" : ""}`} onClick={() => setTrevorWearOnly(t => !t)}>{CONFIG.partnerName} wears ✓</button>}
