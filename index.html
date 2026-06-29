@@ -5751,7 +5751,17 @@ function App() {
           localStorage.setItem("perfume_user_perfumes", JSON.stringify(resolvedUserPerfumes));
           localStorage.setItem("perfume_edits", JSON.stringify(resolvedEdits));
         } catch(e) {}
-        setSyncStatus("✓ Synced");
+        // Self-heal: if we recovered local-only entries the cloud didn't have, push them
+        // up now so the diary reconciles itself once you're on a network that allows the
+        // keyed request — no manual push needed.
+        if (_localOnly.length > 0) {
+          setSyncStatus("Syncing recovered entries…");
+          jsonbinPush()
+            .then(r => setSyncStatus(r && r.ok ? "✓ Synced" : "⚠ Saved locally · not synced"))
+            .catch(() => setSyncStatus("⚠ Saved locally · not synced"));
+        } else {
+          setSyncStatus("✓ Synced");
+        }
         setLoaded(true); return;
       }
       setSyncStatus("⚠ Cloud unreachable · loading local backup");
