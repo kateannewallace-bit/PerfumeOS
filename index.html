@@ -1452,7 +1452,10 @@ const CONFIG = {
   partnerName: "Trevor",                     // or "" to hide partner features
   tagline: "Your collection, your way",
   accentColor: "#c8a97e",                     // gold (default). Try "#9b7db8" (lilac), "#8aaa80" (sage)
-  publicBinId: "69ed6bc1aaba8821973a433d",    // JSONBin bin ID — public read, no login required
+  publicBinId: "69ed6bc1aaba8821973a433d",    // JSONBin bin ID — legacy, used once to migrate into Supabase
+  // Supabase backend (primary). The anon key is public by design (safe to ship in the client).
+  supabaseUrl: "https://oxmcgryusgchdodbarhn.supabase.co",
+  supabaseKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im94bWNncnl1c2djaGRvZGJhcmhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2ODg2NDksImV4cCI6MjA5ODI2NDY0OX0.4hK_nBi0nXhs0sKb_O12jfc2V5fdYFCJI48D6PHszzw",
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -2678,19 +2681,84 @@ async function jsonbinLoad() {
   return null;
 }
 
-// Cloud sync — JSONBin.io only.
+// ─── SUPABASE BACKEND (primary) ──────────────────────────────────────────────
+// Single-row store: table perfume_state(id text pk, data jsonb). We upsert id='main'.
+// No 100kb cap (unlike JSONBin free), proper CORS, syncs across devices.
+function supabaseConfigured() {
+  return !!(CONFIG.supabaseUrl && CONFIG.supabaseKey);
+}
+function _sbHeaders() {
+  return {
+    "apikey": CONFIG.supabaseKey,
+    "Authorization": `Bearer ${CONFIG.supabaseKey}`,
+    "Content-Type": "application/json",
+  };
+}
+async function supabasePush(blob) {
+  const outgoing = blob || _localStateBlob();
+  const allowShrink = !!(outgoing && outgoing._allowShrink);
+  if (outgoing && "_allowShrink" in outgoing) delete outgoing._allowShrink;
+  // Same shrink guard: never overwrite a large cloud diary with a tiny/empty one.
+  if (!allowShrink) {
+    const hw = _diaryHighWater();
+    const n = Array.isArray(outgoing && outgoing.wearLog) ? outgoing.wearLog.length : 0;
+    if (hw >= 30 && n < Math.floor(hw * 0.5)) {
+      return { ok: false, reason: "shrink-guard", blocked: true, outgoing: n, highwater: hw };
+    }
+  }
+  try {
+    const res = await fetch(`${CONFIG.supabaseUrl}/rest/v1/perfume_state?on_conflict=id`, {
+      method: "POST",
+      headers: { ..._sbHeaders(), "Prefer": "resolution=merge-duplicates,return=minimal" },
+      body: JSON.stringify([{ id: "main", data: outgoing, updated_at: new Date().toISOString() }]),
+    });
+    if (!res.ok) { const txt = await res.text().catch(() => ""); return { ok: false, status: res.status, body: txt }; }
+    if (Array.isArray(outgoing && outgoing.wearLog)) _raiseDiaryHighWater(outgoing.wearLog.length);
+    return { ok: true };
+  } catch (e) { return { ok: false, error: String(e) }; }
+}
+async function supabaseLoad() {
+  try {
+    const res = await fetch(`${CONFIG.supabaseUrl}/rest/v1/perfume_state?id=eq.main&select=data`, {
+      headers: _sbHeaders(),
+    });
+    if (!res.ok) return null;
+    const rows = await res.json();
+    if (Array.isArray(rows) && rows.length && rows[0] && rows[0].data) {
+      const data = rows[0].data;
+      if (data && (Array.isArray(data.wearLog) || Array.isArray(data.wishlist) || Array.isArray(data.userPerfumes) || data.perfumeEdits)) {
+        if (Array.isArray(data.wearLog)) _raiseDiaryHighWater(data.wearLog.length);
+        return data;
+      }
+    }
+    return null;
+  } catch (e) { return null; }
+}
+
+// Cloud sync — Supabase primary, JSONBin used once to migrate existing data over.
 async function cloudSync(action, data) {
-  return jsonbinPush();
+  return supabaseConfigured() ? supabasePush() : jsonbinPush();
 }
 
 async function cloudLoad() {
-  // jsonbinLoad handles both authenticated reads (credentials in localStorage)
-  // and public bin reads (CONFIG.publicBinId).
+  if (supabaseConfigured()) {
+    const d = await supabaseLoad();
+    if (d) return d;
+    // First load after the switch: Supabase row is empty → pull the legacy JSONBin
+    // bin (reads still work under its 100kb cap) and seed Supabase with it.
+    const legacy = await jsonbinLoad();
+    if (legacy) {
+      try { await supabasePush({ ...legacy, _allowShrink: true }); } catch (e) {}
+      return legacy;
+    }
+    return null;
+  }
   return await jsonbinLoad();
 }
 
 function cloudConfigured() {
-  return !!(localStorage.getItem("cloud_bin_id") && localStorage.getItem("cloud_api_key"))
+  return supabaseConfigured()
+      || !!(localStorage.getItem("cloud_bin_id") && localStorage.getItem("cloud_api_key"))
       || !!(CONFIG.publicBinId && CONFIG.publicBinId.trim());
 }
 
@@ -5322,9 +5390,9 @@ function SettingsView({ syncStatus, onSyncChange }) {
     setBinPushing(true); setBinResult("");
     localStorage.setItem("cloud_bin_id", binId.trim());
     localStorage.setItem("cloud_api_key", apiKey.trim());
-    const res = await jsonbinPush();
+    const res = await cloudSync();
     setBinPushing(false);
-    if (res.ok) setBinResult("✓ Pushed local data to JSONBin.");
+    if (res.ok) setBinResult("✓ Pushed local data to the cloud.");
     else setBinResult(`✗ Push failed — ${res.reason || res.status || res.error || "unknown"}`);
   };
 
@@ -5345,30 +5413,19 @@ function SettingsView({ syncStatus, onSyncChange }) {
     <h1 className="page-title">Settings</h1>
     <p className="page-sub">{syncStatus}</p>
 
-    {/* ── JSONBin.io ── */}
+    {/* ── Supabase ── */}
     <div className="settings-card">
-      <h2 className="settings-h">JSONBin.io Sync <span style={{fontSize:11,fontWeight:400,color:"var(--gold)",letterSpacing:"0.08em",marginLeft:8}}>RECOMMENDED</span></h2>
-      <p style={{fontSize:13,color:"var(--fg-mute)",marginBottom:16,lineHeight:1.6}}>Free, reliable, no server needed. Create a free bin at <a href="https://jsonbin.io" target="_blank" rel="noopener" style={{color:"var(--gold)"}}>jsonbin.io</a>, then paste your Bin ID and Master Key below.</p>
-      <div className="form-grid" style={{marginBottom:14}}>
-        <label><span className="mini-lbl">Bin ID</span><input className="mono-input" value={binId} onChange={e => setBinId(e.target.value)} placeholder="e.g. 64a1f2…" /></label>
-        <label><span className="mini-lbl">Master Key</span><input className="mono-input" type="password" value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder="$2a$10$…" /></label>
+      <h2 className="settings-h">Cloud Sync <span style={{fontSize:11,fontWeight:400,color:"var(--gold)",letterSpacing:"0.08em",marginLeft:8}}>SUPABASE</span></h2>
+      <p style={{fontSize:13,color:"var(--fg-mute)",marginBottom:12,lineHeight:1.6}}>Your diary syncs automatically to a Supabase database on every change — no keys or setup to enter. It also self-heals: anything saved locally while offline pushes up next time the app loads.</p>
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+        <span style={{fontSize:13,fontWeight:600}}>Status:</span>
+        <span style={{fontSize:13,color:"var(--fg)"}}>{syncStatus}</span>
       </div>
+      <div style={{fontSize:12,color:"var(--fg-very-soft)",marginBottom:14,wordBreak:"break-all"}}>Backend: {supabaseConfigured() ? CONFIG.supabaseUrl.replace("https://","") : "not configured"}</div>
       <div className="form-actions">
-        <button className="btn-primary" onClick={saveBin}>Save</button>
-        <button className="btn-ghost" onClick={testBin} disabled={binTesting}>{binTesting ? "Testing…" : "Test (round-trip)"}</button>
-        <button className="btn-ghost" onClick={pushNow} disabled={binPushing}>{binPushing ? "Pushing…" : "Push Now"}</button>
+        <button className="btn-ghost" onClick={pushNow} disabled={binPushing}>{binPushing ? "Syncing…" : "Sync now"}</button>
       </div>
       {binResult && <div className={`test-result ${binResult.startsWith("✓") ? "ok" : binResult.startsWith("✗") ? "fail" : ""}`}>{binResult}</div>}
-      <details className="setup-details">
-        <summary>Setup Instructions</summary>
-        <ol>
-          <li>Sign up free at <b>jsonbin.io</b></li>
-          <li>Dashboard → <b>+ Create Bin</b> → paste <code>{"{ \"wearLog\": [], \"wishlist\": [], \"userPerfumes\": [] }"}</code> → Create</li>
-          <li>Copy the Bin ID from the URL bar</li>
-          <li>Account → <b>API Keys</b> → copy your Master Key</li>
-          <li>Paste both above, Save, then Test to verify</li>
-        </ol>
-      </details>
     </div>
 
     <div className="settings-card">
@@ -5756,7 +5813,7 @@ function App() {
         // keyed request — no manual push needed.
         if (_localOnly.length > 0) {
           setSyncStatus("Syncing recovered entries…");
-          jsonbinPush()
+          cloudSync()
             .then(r => setSyncStatus(r && r.ok ? "✓ Synced" : "⚠ Saved locally · not synced"))
             .catch(() => setSyncStatus("⚠ Saved locally · not synced"));
         } else {
@@ -5789,7 +5846,7 @@ function App() {
     if (!cloudConfigured()) return;
     setSyncStatus("Saving…");
     try {
-      const res = await jsonbinPush();
+      const res = await cloudSync();
       setSyncStatus(res && res.ok ? "✓ Synced" : "⚠ Saved locally · not synced");
     } catch (e) { setSyncStatus("⚠ Saved locally · not synced"); }
   }, []);
