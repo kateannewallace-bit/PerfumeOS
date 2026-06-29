@@ -5724,7 +5724,14 @@ function App() {
         const localEdits = (() => { try { return JSON.parse(localStorage.getItem("perfume_edits") || "{}"); } catch(e) { return {}; } })();
         const localPerfumes = (() => { try { return JSON.parse(localStorage.getItem("perfume_user_perfumes") || "[]"); } catch(e) { return []; } })();
         const localWishlist = (() => { try { return JSON.parse(localStorage.getItem("perfume_wishlist") || "[]"); } catch(e) { return []; } })();
-        const resolvedWear = data.wearLog || [];
+        // Merge: keep any LOCAL diary entries that never reached the cloud (e.g. a wear
+        // logged while the push was failing) so a stale cloud copy can't clobber them.
+        const localDiary = (() => { try { return JSON.parse(localStorage.getItem("perfume_diary") || "[]"); } catch(e) { return []; } })();
+        const cloudWear = data.wearLog || [];
+        const _wkey = e => `${e.date}|${(e.house||"").toLowerCase().trim()}|${(e.perfume||"").toLowerCase().trim()}`;
+        const _cloudKeys = new Set(cloudWear.map(_wkey));
+        const _localOnly = localDiary.filter(e => !_cloudKeys.has(_wkey(e)));
+        const resolvedWear = [...cloudWear, ..._localOnly];
         const resolvedWishlist = data.wishlist || localWishlist;
         const resolvedUserPerfumes = data.userPerfumes && data.userPerfumes.length ? data.userPerfumes : localPerfumes;
         const resolvedEdits = data.perfumeEdits && Object.keys(data.perfumeEdits).length ? data.perfumeEdits : localEdits;
@@ -5766,13 +5773,24 @@ function App() {
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
+  // Auto-push helper: pushes the full local state to the cloud and reflects the
+  // outcome in the sync status, so a manual "Push Now" is never needed.
+  const pushWithStatus = useCallback(async () => {
+    if (!cloudConfigured()) return;
+    setSyncStatus("Saving…");
+    try {
+      const res = await jsonbinPush();
+      setSyncStatus(res && res.ok ? "✓ Synced" : "⚠ Saved locally · not synced");
+    } catch (e) { setSyncStatus("⚠ Saved locally · not synced"); }
+  }, []);
+
   const addWearEntry = useCallback((entry) => {
     const matched = attachPerfumeIdToEntry(entry, perfumes);
     setWearLog(prev => {
       const next = [...prev, matched];
       const user = next.filter(e => !WEAR_LOG_SEED.includes(e));
       try { localStorage.setItem("perfume_diary", JSON.stringify(user)); } catch (e) {}
-      cloudSync("add_wear", matched);
+      pushWithStatus();
       return next;
     });
   }, [perfumes]);
@@ -5789,7 +5807,7 @@ function App() {
       next[idx] = rematched;
       const user = next.filter(e => !WEAR_LOG_SEED.includes(e));
       try { localStorage.setItem("perfume_diary", JSON.stringify(user)); } catch (e) {}
-      cloudSync("edit_wear", rematched);
+      pushWithStatus();
       return next;
     });
   }, [perfumes]);
@@ -5799,7 +5817,7 @@ function App() {
       const next = prev.filter(e => e !== entry);
       const user = next.filter(e => !WEAR_LOG_SEED.includes(e));
       try { localStorage.setItem("perfume_diary", JSON.stringify(user)); } catch (e) {}
-      cloudSync("delete_wear", null);
+      pushWithStatus();
       return next;
     });
   }, []);
