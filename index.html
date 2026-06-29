@@ -1453,6 +1453,7 @@ const CONFIG = {
   tagline: "Your collection, your way",
   accentColor: "#c8a97e",                     // gold (default). Try "#9b7db8" (lilac), "#8aaa80" (sage)
   publicBinId: "69ed6bc1aaba8821973a433d",    // JSONBin bin ID — legacy, used once to migrate into Supabase
+  buildVersion: "2026-06-28 · accent+conc match fix",   // bump on each deploy to confirm the live build
   // Supabase backend (primary). The anon key is public by design (safe to ship in the client).
   supabaseUrl: "https://oxmcgryusgchdodbarhn.supabase.co",
   supabaseKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im94bWNncnl1c2djaGRvZGJhcmhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2ODg2NDksImV4cCI6MjA5ODI2NDY0OX0.4hK_nBi0nXhs0sKb_O12jfc2V5fdYFCJI48D6PHszzw",
@@ -5418,6 +5419,7 @@ function SettingsView({ syncStatus, onSyncChange }) {
   return <div>
     <h1 className="page-title">Settings</h1>
     <p className="page-sub">{syncStatus}</p>
+    <p style={{fontSize:11,color:"var(--fg-very-soft)",marginTop:-8,marginBottom:16}}>Build: {CONFIG.buildVersion}</p>
 
     {/* ── Supabase ── */}
     <div className="settings-card">
