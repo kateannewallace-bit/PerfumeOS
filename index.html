@@ -2289,7 +2289,7 @@ const TAG_COLOR = {
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 function matches(p, { family, character, lanes, safeOnly, wearOnly, excludeAvoid, triedOnly, search, pref, primaryOnly, laneMode, gender, excludeNotes }) {
   if (excludeAvoid && (p.status === "Avoid" || p.status === "Dislike")) return false;
-  if (gender && gender !== "All" && p.gender !== gender) return false;
+  if (gender && gender.length && !gender.includes(p.gender)) return false;
   if (triedOnly && !p.tried) return false;
   if (pref !== "All" && p.preference !== pref) return false;
   if (safeOnly && p.safeScore < 7) return false;
@@ -3585,7 +3585,7 @@ function CollectionView({ onSelect, wearStats, perfumes }) {
   const [primaryOnly, setPrimaryOnly] = useState(false);
   const [sort, setSort] = useState("balScore");
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [gender, setGender] = useState("All");
+  const [genders, setGenders] = useState([]); // [] = all; multi-select
   const [excludeNotes, setExcludeNotes] = useState([]);
   const [excludeInput, setExcludeInput] = useState("");
 
@@ -3593,9 +3593,9 @@ function CollectionView({ onSelect, wearStats, perfumes }) {
 
   const res = useMemo(() => {
     return enriched
-      .filter(p => matches(p, { family, character, lanes, safeOnly: trevorOnly, wearOnly: trevorWearOnly, excludeAvoid: false, triedOnly, search, pref, primaryOnly, laneMode, gender, excludeNotes }))
+      .filter(p => matches(p, { family, character, lanes, safeOnly: trevorOnly, wearOnly: trevorWearOnly, excludeAvoid: false, triedOnly, search, pref, primaryOnly, laneMode, gender: genders, excludeNotes }))
       .sort((a,b) => sort === "house" ? a.house.localeCompare(b.house) : sort === "name" ? a.name.localeCompare(b.name) : sort === "rating" ? (b.rating||0)-(a.rating||0) : b[sort]-a[sort]);
-  }, [enriched, search, pref, family, character, lanes, triedOnly, trevorOnly, trevorWearOnly, sort, primaryOnly, laneMode, gender, excludeNotes]);
+  }, [enriched, search, pref, family, character, lanes, triedOnly, trevorOnly, trevorWearOnly, sort, primaryOnly, laneMode, genders, excludeNotes]);
 
   return <div>
     <h1 className="page-title">The Collection</h1>
@@ -3606,14 +3606,14 @@ function CollectionView({ onSelect, wearStats, perfumes }) {
     <button className="filter-toggle" onClick={() => setFiltersOpen(f => !f)}>
       {filtersOpen ? "Hide" : "Show"} Filters
       <span className="filter-summary">
-        {gender !== "All" && gender} {pref !== "All" && pref} {family !== "All" && family} {character !== "All" && character} {lanes.length > 0 && (lanes.length === 1 ? lanes[0] : `${lanes.length} notes`)} {excludeNotes.length > 0 && `−${excludeNotes.length} excluded`} {triedOnly && "Tried"} {trevorOnly && `· ${CONFIG.partnerName || "Partner"} on you`} {trevorWearOnly && `· ${CONFIG.partnerName || "Partner"} wears`} {primaryOnly && "· primary"}
+        {genders.length > 0 && genders.map(g => g==="feminine"?"Fem":g==="masculine"?"Masc":"Uni").join("/")} {pref !== "All" && pref} {family !== "All" && family} {character !== "All" && character} {lanes.length > 0 && (lanes.length === 1 ? lanes[0] : `${lanes.length} notes`)} {excludeNotes.length > 0 && `−${excludeNotes.length} excluded`} {triedOnly && "Tried"} {trevorOnly && `· ${CONFIG.partnerName || "Partner"} on you`} {trevorWearOnly && `· ${CONFIG.partnerName || "Partner"} wears`} {primaryOnly && "· primary"}
       </span>
     </button>
 
     <div className={`filter-panel ${filtersOpen ? "open" : ""}`}>
-      <label><span className="mini-lbl">Gender</span><select value={gender} onChange={e => setGender(e.target.value)}><option value="All">All</option><option value="feminine">Feminine</option><option value="masculine">Masculine</option><option value="unisex">Unisex</option></select></label>
+      <label><span className="mini-lbl">Gender</span><div style={{display:"flex",gap:4}}>{[["feminine","Fem"],["masculine","Masc"],["unisex","Uni"]].map(([g,lbl]) => <button key={g} type="button" className={`toggle ${genders.includes(g) ? "active" : ""}`} style={{flex:1}} onClick={() => setGenders(gs => gs.includes(g) ? gs.filter(x => x!==g) : [...gs, g])}>{lbl}</button>)}</div></label>
       <label><span className="mini-lbl">Preference</span><select value={pref} onChange={e => setPref(e.target.value)}>{PREFS.map(p => <option key={p}>{p}</option>)}</select></label>
-      <button onClick={() => { setGender("All"); setPref("All"); setFamily("All"); setCharacter("All"); setLanes([]); setExcludeNotes([]); setExcludeInput(""); setPrimaryOnly(false); setTriedOnly(false); }} style={{gridColumn:"1/-1",background:"none",border:"1px solid #ddd",borderRadius:8,padding:"8px",fontSize:12,color:"#999",cursor:"pointer",marginTop:4}}>Clear all filters</button>
+      <button onClick={() => { setGenders([]); setPref("All"); setFamily("All"); setCharacter("All"); setLanes([]); setExcludeNotes([]); setExcludeInput(""); setPrimaryOnly(false); setTriedOnly(false); }} style={{gridColumn:"1/-1",background:"none",border:"1px solid #ddd",borderRadius:8,padding:"8px",fontSize:12,color:"#999",cursor:"pointer",marginTop:4}}>Clear all filters</button>
       <label><span className="mini-lbl">Family</span><select value={family} onChange={e => setFamily(e.target.value)}>{FAMILY_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}</select></label>
       <label><span className="mini-lbl">Character</span><select value={character} onChange={e => setCharacter(e.target.value)}>{CHARACTER_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}</select></label>
       <div className="lane-filter-wrap">
