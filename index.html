@@ -2551,7 +2551,7 @@ function attachPerfumeIdToEntry(entry, perfumes) {
   // matches; otherwise keep the first (previous behaviour).
   const pick = (cands) => {
     if (cands.length > 1 && targetConc) {
-      const cm = cands.find(p => _concKey(p.c) === targetConc);
+      const cm = cands.find(p => _concKey(p.c || p.concentration) === targetConc);
       if (cm) return cm;
     }
     return cands[0];
