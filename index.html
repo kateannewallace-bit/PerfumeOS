@@ -1453,7 +1453,7 @@ const CONFIG = {
   tagline: "Your collection, your way",
   accentColor: "#c8a97e",                     // gold (default). Try "#9b7db8" (lilac), "#8aaa80" (sage)
   publicBinId: "69ed6bc1aaba8821973a433d",    // JSONBin bin ID — legacy, used once to migrate into Supabase
-  buildVersion: "2026-06-28 · accent+conc match fix",   // bump on each deploy to confirm the live build
+  buildVersion: "2026-06-28b · merge dedup + smart conc",   // bump on each deploy to confirm the live build
   // Supabase backend (primary). The anon key is public by design (safe to ship in the client).
   supabaseUrl: "https://oxmcgryusgchdodbarhn.supabase.co",
   supabaseKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im94bWNncnl1c2djaGRvZGJhcmhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2ODg2NDksImV4cCI6MjA5ODI2NDY0OX0.4hK_nBi0nXhs0sKb_O12jfc2V5fdYFCJI48D6PHszzw",
@@ -2554,6 +2554,12 @@ function attachPerfumeIdToEntry(entry, perfumes) {
     if (cands.length > 1 && targetConc) {
       const cm = cands.find(p => _concKey(p.c || p.concentration) === targetConc);
       if (cm) return cm;
+    }
+    // No concentration given (or no match among twins): prefer the one you've actually
+    // worn/own over an untried twin, instead of blindly defaulting to the EDP (lowest id).
+    if (cands.length > 1) {
+      const tried = cands.filter(p => p.tried);
+      if (tried.length === 1) return tried[0];
     }
     return cands[0];
   };
@@ -5793,7 +5799,12 @@ function App() {
         // logged while the push was failing) so a stale cloud copy can't clobber them.
         const localDiary = (() => { try { return JSON.parse(localStorage.getItem("perfume_diary") || "[]"); } catch(e) { return []; } })();
         const cloudWear = data.wearLog || [];
-        const _wkey = e => `${e.date}|${(e.house||"").toLowerCase().trim()}|${(e.perfume||"").toLowerCase().trim()}`;
+        const _wkey = e => {
+          const full = _norm(e.perfume);                       // accent-insensitive: Orphéon === Orpheon
+          const base = _stripTrailingConc(full);               // drop a conc typed into the name
+          const conc = _concKey(e.concentration) || _concKey(full); // but keep EDT vs EDP distinct
+          return `${e.date}|${_norm(e.house)}|${base}|${conc}`;
+        };
         const _cloudKeys = new Set(cloudWear.map(_wkey));
         const _localOnly = localDiary.filter(e => !_cloudKeys.has(_wkey(e)));
         const resolvedWear = [...cloudWear, ..._localOnly];
