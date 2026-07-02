@@ -5810,7 +5810,17 @@ function App() {
         const resolvedWear = [...cloudWear, ..._localOnly];
         const resolvedWishlist = data.wishlist || localWishlist;
         const resolvedUserPerfumes = data.userPerfumes && data.userPerfumes.length ? data.userPerfumes : localPerfumes;
-        const resolvedEdits = data.perfumeEdits && Object.keys(data.perfumeEdits).length ? data.perfumeEdits : localEdits;
+        // Merge cloud + local edits PER-PERFUME (local wins field-by-field) instead of
+        // letting the cloud replace local edits wholesale. Previously any edit made on
+        // this device was silently wiped on the next reload if it hadn't been pushed to
+        // the cloud first (the cloud copy clobbered everything). Now an un-pushed edit
+        // survives, and cross-device edits still come through for perfumes you didn't touch.
+        const _cloudEdits = (data.perfumeEdits && typeof data.perfumeEdits === "object") ? data.perfumeEdits : {};
+        const _localEdits = (localEdits && typeof localEdits === "object") ? localEdits : {};
+        const resolvedEdits = {};
+        for (const _eid of new Set([...Object.keys(_cloudEdits), ...Object.keys(_localEdits)])) {
+          resolvedEdits[_eid] = { ...(_cloudEdits[_eid] || {}), ...(_localEdits[_eid] || {}) };
+        }
         // Wishlist tombstones from the cloud — mirror locally BEFORE building the
         // seed so removed built-in items stay removed on this device too.
         const resolvedWishlistRemoved = Array.isArray(data.wishlistRemoved) ? data.wishlistRemoved : _loadWishlistRemoved();
