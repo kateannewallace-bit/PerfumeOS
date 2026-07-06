@@ -374,6 +374,101 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   }
 }
 
+/* ─── HOUSE BROWSE ──────────────────────────────────────────────────────────── */
+.house-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+@media (min-width: 640px) {
+  .house-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+}
+.house-tile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  text-align: left;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  padding: 16px;
+  transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+}
+.house-tile:active, .house-tile:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.06);
+  border-color: var(--gold);
+}
+.house-tile-name {
+  font-size: 15px;
+  color: var(--fg);
+  line-height: 1.25;
+  min-width: 0;
+}
+.house-tile-count {
+  flex-shrink: 0;
+  font-size: 13px;
+  color: var(--gold);
+  background: var(--bg-soft);
+  border-radius: 999px;
+  padding: 3px 10px;
+  min-width: 30px;
+  text-align: center;
+}
+.house-back {
+  background: none;
+  border: none;
+  color: var(--fg-mute);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  padding: 0 0 14px;
+  cursor: pointer;
+}
+.house-back:hover { color: var(--gold); }
+.house-sort-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.name-list {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--border-soft);
+}
+.name-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border-soft);
+  padding: 14px 4px;
+  transition: background 0.12s, padding-left 0.12s;
+}
+.name-row:hover, .name-row:active {
+  background: var(--bg-soft);
+  padding-left: 10px;
+}
+.name-row-name {
+  font-size: 17px;
+  color: var(--fg);
+  min-width: 0;
+}
+.name-row-conc {
+  font-size: 12px;
+  color: var(--fg-soft);
+  margin-left: 8px;
+  letter-spacing: 0.04em;
+}
+.name-row-rating {
+  flex-shrink: 0;
+  font-size: 13px;
+  color: var(--fg-soft);
+}
+
 .card {
   background: #fff;
   border: 1px solid var(--border);
@@ -3653,6 +3748,87 @@ function Modal({ p, onClose, onEdit, perfumes, onNavigate }) {
 }
 
 // ─── VIEWS ────────────────────────────────────────────────────────────────────
+function HousesView({ onSelect, wearStats, perfumes }) {
+  const [selectedHouse, setSelectedHouse] = useState(null);
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState("name"); // "name" | "count"
+
+  const enriched = useMemo(() => enrich(perfumes, wearStats), [wearStats, perfumes]);
+
+  // Group case-insensitively; display the most common spelling of each house.
+  const houses = useMemo(() => {
+    const map = new Map();
+    for (const p of enriched) {
+      const raw = (p.house || "—").trim();
+      const key = raw.toLowerCase();
+      if (!map.has(key)) map.set(key, { items: [], names: {} });
+      const e = map.get(key);
+      e.items.push(p);
+      e.names[raw] = (e.names[raw] || 0) + 1;
+    }
+    return [...map.values()].map(e => {
+      const name = Object.entries(e.names).sort((a, b) => b[1] - a[1])[0][0];
+      return { name, items: e.items };
+    });
+  }, [enriched]);
+
+  const shown = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return houses
+      .filter(h => h.name.toLowerCase().includes(q))
+      .sort((a, b) => sort === "count"
+        ? (b.items.length - a.items.length) || a.name.localeCompare(b.name)
+        : a.name.localeCompare(b.name));
+  }, [houses, search, sort]);
+
+  // ─── House detail: all fragrances from one house ───
+  if (selectedHouse) {
+    const h = houses.find(x => x.name === selectedHouse);
+    const items = (h ? h.items : []).slice().sort((a, b) => a.name.localeCompare(b.name));
+    const tried = items.filter(p => p.tried).length;
+    const loved = items.filter(p => p.preference === "Love").length;
+    return <div>
+      <button className="house-back" onClick={() => setSelectedHouse(null)}>← All houses</button>
+      <h1 className="page-title">{selectedHouse}</h1>
+      <p className="page-sub">{items.length} fragrance{items.length !== 1 ? "s" : ""} · {tried} tried · {loved} loved</p>
+      <div className="name-list">
+        {items.map(p => (
+          <button key={p.id} className="name-row" onClick={() => onSelect(p)}>
+            <span className="name-row-name">
+              {p.name}
+              {p.concentration && <span className="name-row-conc">{p.concentration}</span>}
+            </span>
+            {p.rating != null && <span className="name-row-rating">{p.rating}/10</span>}
+          </button>
+        ))}
+      </div>
+    </div>;
+  }
+
+  // ─── House index ───
+  return <div>
+    <h1 className="page-title">Browse by House</h1>
+    <p className="page-sub">{houses.length} houses · {perfumes.length} fragrances</p>
+
+    <input className="search-input" placeholder="Search houses…" value={search} onChange={e => setSearch(e.target.value)} />
+
+    <div className="house-sort-row">
+      <button type="button" className={`toggle ${sort === "name" ? "active" : ""}`} onClick={() => setSort("name")}>A–Z</button>
+      <button type="button" className={`toggle ${sort === "count" ? "active" : ""}`} onClick={() => setSort("count")}>Most fragrances</button>
+    </div>
+
+    <div className="house-grid">
+      {shown.map(h => (
+        <button key={h.name} className="house-tile" onClick={() => setSelectedHouse(h.name)}>
+          <span className="house-tile-name">{h.name}</span>
+          <span className="house-tile-count">{h.items.length}</span>
+        </button>
+      ))}
+    </div>
+    {shown.length === 0 && <div className="result-count">No houses match "{search}".</div>}
+  </div>;
+}
+
 function CollectionView({ onSelect, wearStats, perfumes }) {
   const [search, setSearch] = useState("");
   const [pref, setPref] = useState("All");
@@ -6002,6 +6178,7 @@ function App() {
     { k: "today", l: "Wear Today" },
     { k: "sample", l: "Sample Queue" },
     { k: "collection", l: "Collection" },
+    { k: "houses", l: "Houses" },
     { k: "taxonomy", l: "Taxonomy" },
     { k: "similar", l: "Similar" },
     { k: "compare", l: "Compare" },
@@ -6035,6 +6212,7 @@ function App() {
       {loaded && view === "today" && <WearTodayView onSelect={setSelected} wearStats={wearStats} perfumes={perfumes} />}
       {loaded && view === "sample" && <SampleQueueView onSelect={setSelected} perfumes={perfumes} onEditPerfume={editPerfume} />}
       {loaded && view === "collection" && <CollectionView onSelect={setSelected} wearStats={wearStats} perfumes={perfumes} />}
+      {loaded && view === "houses" && <HousesView onSelect={setSelected} wearStats={wearStats} perfumes={perfumes} />}
       {loaded && view === "compare" && <CompareView perfumes={perfumes} />}
       {loaded && view === "taxonomy" && <TaxonomyView onSelect={setSelected} perfumes={perfumes} />}
       {loaded && view === "similar" && <SimilarView onSelect={setSelected} perfumes={perfumes} />}
