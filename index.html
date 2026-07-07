@@ -1836,7 +1836,7 @@ const CANONICAL_MAP = {
   'soil':'earthy','red clay':'earthy','white moss':'moss',
   'cannabis':'cannabis','morel mushroom':'mushroom','smoked tea':'lapsang souchong',
   'oolong':'tea','rooibos':'tea','rooibos tea':'tea',
-  'beeswax':'wax','melted wax':'wax','shaving soap':'wax',
+  'melted wax':'wax','shaving soap':'wax',
   'silk':'skin musk','flesh':'skin musk','violin varnish':'violin varnish',
   'turpentine':'turpentine','are iris':'iris','are rose':'rose',
   'are vanilla':'vanilla','are honey':'honey','are aldehydes':'aldehydes',
@@ -2402,7 +2402,7 @@ const TAG_COLOR = {
   "maté": "#a0b878",
   wisteria: "#b898d8", lotus: "#e8d0e0", boronia: "#c8a0b8", cyclamen: "#e0a0c0",
   champaca: "#c8a860", opoponax: "#a08858", coumarin: "#d8c090", davana: "#b8a868",
-  castoreum: "#6a4830", civet: "#786050",
+  castoreum: "#6a4830", civet: "#786050", animalic: "#6e4a3a", beeswax: "#cba24a",
   "cashmere wood": "#a08878", cedarwood: "#8a6844",
   "jasmine sambac": "#f0c4a0", "damask rose": "#c47a7a", "bulgarian rose": "#c47a7a",
   "ylang ylang": "#e8c088", "white musk": "#c0b5a5", ambrette: "#b0a090",
@@ -2991,8 +2991,8 @@ function buildTagsFromText(notes, family) {
   if (has('styrax')) tags.add('styrax');
   if (has('elemi')) tags.add('elemi');
   if (has('opoponax','opoponin','opopanax')) tags.add('opoponax');
-  if (has('castoreum')) tags.add('castoreum');
-  if (has('civet','civette','civettone')) tags.add('civet');
+  if (has('castoreum')) { tags.add('castoreum'); tags.add('animalic'); }
+  if (has('civet','civette','civettone')) { tags.add('civet'); tags.add('animalic'); }
   if (has('tobacco','tabac')) tags.add('tobacco');
   if (has('coumarin')) tags.add('coumarin');
   if (has('davana')) tags.add('davana');
@@ -3103,7 +3103,7 @@ function buildTagsFromText(notes, family) {
   // Non-perfume / unexpected materials
   if (hasW('mushroom','morel','truffle','fungal','mildew')) tags.add('unusual');
   if (has('petrichor','lava rock','volcanic rock','forest floor','soil tincture','wet earth accord')) tags.add('unusual');
-  if (has('wax','beeswax','melted wax','hot wax','candlewax')) tags.add('unusual');
+  if (has('wax','melted wax','hot wax','candlewax') && !has('beeswax')) tags.add('unusual');
   if (has('earthy notes','earthy accord')) tags.add('unusual');
   // 'ink' must be a standalone word — exclude common false positives where "ink" is embedded in another word
   const INK_FALSE_POSITIVES = ['pink','drink','think','link','blink','mink','rink','sink','wink','brink','shrink','stink','kink','clink','fink','oink','linking','drinking','thinking'];
@@ -3143,8 +3143,8 @@ function buildTagsFromText(notes, family) {
     if (seaweedFloral || seaweedAnimalic || seaweedUnexpected) tags.add('unusual');
   }
   if (hasW('chrysanthemum')) tags.add('unusual');
-  // Extreme animalics (specific molecules, not the generic 'animalic' descriptor)
-  if (hasW('civet','castoreum','costus','barnyard','fecal')) tags.add('unusual');
+  // Genuinely odd animalic facets — civet/castoreum are classic notes, not "unusual"
+  if (hasW('costus','barnyard','fecal')) tags.add('unusual');
   // Skin scent: specific synthetic skin molecules only (musk alone is too broad)
   if (has('iso e super') || has('cetalox') || has('ambroxan') || has('ambrox') || has('ambrette')) tags.add('skin scent');
   // Aquatic / mineral
@@ -3176,7 +3176,7 @@ function buildTagsFromText(notes, family) {
   if (has('mint','menthe')) tags.add('mint');
   if (has(' tea','matcha','lapsang','maté','mate ','green tea','black tea','white tea','earl grey','oolong')) tags.add('tea');
   if (has('green tea')) tags.add('green tea');
-  if (has('wax','beeswax','melted wax','candlewax','hot wax','church candle')) tags.add('wax');
+  if (has('wax','melted wax','candlewax','hot wax','church candle') && !has('beeswax')) tags.add('wax');
   if (has('black tea')) tags.add('black tea');
   if (has('white tea')) tags.add('white tea');
   if (has('lapsang')) tags.add('lapsang souchong');
@@ -3196,7 +3196,7 @@ function buildTagsFromText(notes, family) {
   if (has('chypre')) tags.add('chypre');
   // 'ink' tag: only when ink is a real standalone note, not embedded in pink/drink/think/etc.
   if (hasW('ink') && !INK_FALSE_POSITIVES.some(w => has(w))) tags.add('ink');
-  if (has('beeswax')) tags.add('wax');
+  if (has('beeswax')) tags.add('beeswax');
   if (has(' hay')) tags.add('hay');
   if (has('carrot seed','carrot')) tags.add('carrot seed');
   // Broad family derivations
@@ -4586,7 +4586,9 @@ const CATEGORY_MAP = [
   { label: "Woody",              keys: ["sandalwood","cedar","vetiver","guaiac","gaiac","patchouli","woody","oud wood"] },
   { label: "Amber / Resin",      keys: ["amber","labdanum","benzoin","styrax","vanilla","tonka","resin","resinous","balsam","coumarin"] },
   { label: "Powder",             keys: ["powder","cashmeran"] },
-  { label: "Leather / Animalic", keys: ["leather","suede","animalic","civet","castoreum","fur","tobacco"] },
+  { label: "Leather",            keys: ["leather","suede"] },
+  { label: "Animalic",           keys: ["animalic","civet","castoreum","fur","costus","hyraceum"] },
+  { label: "Tobacco",            keys: ["tobacco","tabac"] },
   { label: "Gourmand",           keys: ["cocoa","chocolate","coffee","caramel","almond","praline","honey","gourmand","marzipan","rum"] },
   { label: "Spice",              keys: ["pepper","cardamom","clove","cinnamon","ginger","saffron","spice","spicy"] },
   { label: "Synthetic",          keys: ["ambrox","ambroxan","ambroxide","cetalox","iso e super","helvetolide","galaxolide","habanolide","ethylene brassylate","norlimbanol","ambrocenide","timbersilk","synthetic"] },
@@ -4694,7 +4696,7 @@ function ChartsView({ wearLog, perfumes, wearStats, onRefresh, onSelect }) {
     'Incense / Oud':'#8a6545', 'White Floral':'#e8ddd0', 'Yellow Floral':'#c8b560',
     'Purple Floral':'var(--lilac)', 'Floral':'#d4a0b0', 'Green / Fresh':'#7aaa6a', 'Aromatic':'#8aaa70',
     'Citrus':'#c8b040', 'Fruity':'#c87060', 'Woody':'#a07855', 'Tea':'#8aa86a',
-    'Amber / Resin':'var(--gold)', 'Powder':'#d4c4b8', 'Leather / Animalic':'#7a5a3a',
+    'Amber / Resin':'var(--gold)', 'Powder':'#d4c4b8', 'Leather':'#7a5a3a', 'Animalic':'#6e4a3a', 'Tobacco':'#8a6a3a',
     'Gourmand':'#c87a9a', 'Spice':'#b06040', 'Synthetic':'#8c9aa6', 'Other':'#aaa'
   };
   const MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
