@@ -2245,7 +2245,7 @@ function activeWishlistSeed() {
 const MOODS = ["All","Air","Resin","Bridge","Classic"];
 // Lanes are organized into groups for the dropdown
 const LANE_GROUPS = [
-  { label: "Broad families", lanes: ["Floral","Woody","Citrus","Amber","Ambergris","Musk","Resinous","Gourmand","Leather","Aromatic","Aquatic","Chypre","Fruity","Oriental"] },
+  { label: "Broad families", lanes: ["Floral","Woody","Citrus","Amber","Ambergris","Musk","Resinous","Gourmand","Leather","Animalic","Aromatic","Aquatic","Chypre","Fruity","Oriental"] },
   { label: "Character", lanes: ["Airy","Unusual","Skin Scent","Powdery","Resinous","Spicy","Green","Smoky","Dry Citrus","Herbal Fresh"] },
   { label: "Curated", lanes: ["Old Lady","Borderline Old Lady","Young Fresh","Smells Cheap","Smells Expensive","Tart Fruit"] },
   { label: "Florals", lanes: ["White Floral","Yellow Floral","Purple Floral","Violet","Iris","Lipstick Iris","Rose","Jasmine","Tuberose","Ylang","Magnolia","Orange Blossom","Neroli","Osmanthus","Mimosa","Peony","Lily of the Valley","Narcissus","Heliotrope","Carnation"] },
@@ -2265,7 +2265,7 @@ const LANES = ["All", ...LANE_GROUPS.flatMap(g => g.lanes)];
 
 // Broad families + character descriptors — shown as single-select dropdown
 // Two separate dropdowns:
-const FAMILY_OPTIONS = ["All","Floral","White Floral","Yellow Floral","Purple Floral","Woody","Citrus","Amber","Ambergris","Musk","Resinous","Gourmand","Leather","Aromatic","Aquatic","Chypre","Fruity","Green","Aldehydic","Oriental"];
+const FAMILY_OPTIONS = ["All","Floral","White Floral","Yellow Floral","Purple Floral","Woody","Citrus","Amber","Ambergris","Musk","Resinous","Gourmand","Leather","Animalic","Aromatic","Aquatic","Chypre","Fruity","Green","Aldehydic","Oriental"];
 const CHARACTER_OPTIONS = ["All","Airy","Unusual","Skin Scent","Lipstick Iris","Powdery","Resinous","Spicy","Smoky","Dry Citrus","Herbal Fresh","Fruity","Tart Fruit","Old Lady","Borderline Old Lady","Young Fresh","Smells Cheap","Smells Expensive"];
 
 const BROAD_FAMILIES_SET = new Set(["floral","woody","citrus","amber","musk","resinous","gourmand","leather","aromatic","aquatic","chypre","fruity","green","oriental"]);
