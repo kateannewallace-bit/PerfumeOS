@@ -3902,7 +3902,7 @@ function LocationsView({ onSelect, wearStats, perfumes }) {
       if (!m.has(c.key)) m.set(c.key, { ...c, items: [] });
       m.get(c.key).items.push(p);
     }
-    return [...m.values()].sort((a, b) => a.order - b.order || a.label.localeCompare(b.label));
+    return [...m.values()].sort((a, b) => a.order - b.order || a.label.localeCompare(b.label, undefined, { numeric: true }));
   }, [enriched]);
 
   const placed = enriched.filter(p => p.location).length;
