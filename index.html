@@ -5695,13 +5695,18 @@ function SettingsView({ syncStatus, onSyncChange }) {
     else setBinResult("✗ Write succeeded but read failed. Check Master Key permissions.");
   };
   const pushNow = async () => {
-    if (!binId.trim() || !apiKey.trim()) { setBinResult("Save credentials first."); return; }
+    const usingSupabase = supabaseConfigured();
+    // Supabase needs no keys; only the legacy JSONBin path requires credentials.
+    if (!usingSupabase && (!binId.trim() || !apiKey.trim())) { setBinResult("Save credentials first."); return; }
     setBinPushing(true); setBinResult("");
-    localStorage.setItem("cloud_bin_id", binId.trim());
-    localStorage.setItem("cloud_api_key", apiKey.trim());
+    if (!usingSupabase) {
+      localStorage.setItem("cloud_bin_id", binId.trim());
+      localStorage.setItem("cloud_api_key", apiKey.trim());
+    }
     const res = await cloudSync();
     setBinPushing(false);
     if (res.ok) setBinResult("✓ Pushed local data to the cloud.");
+    else if (res.reason === "shrink-guard") setBinResult(`✗ Blocked by shrink-guard (local diary ${res.outgoing} < cloud ${res.highwater}). Reload to pull the cloud diary first, then Sync now.`);
     else setBinResult(`✗ Push failed — ${res.reason || res.status || res.error || "unknown"}`);
   };
 
