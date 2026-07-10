@@ -1827,12 +1827,12 @@ const CANONICAL_MAP = {
   'sesame':'praline','persimmon':'peach','papaya':'peach',
   'green mango':'melon','prickly pear':'berry','passion fruit':'berry',
   'grape':'berry','riesling grape':'berry','dragon fruit':'berry',
-  'dragee':'berry','fig leaf':'fig','pink pineapple':'pineapple',
+  'dragee':'berry','fig leaf':'fig leaf','pink pineapple':'pineapple',
   'seaweed':'aquatic','kelp':'aquatic','ozonic':'ozonic',
   'ocean breeze':'aquatic','pacific spray':'aquatic','sea fennel':'aquatic',
   'cucumber':'cucumber','cucumber water':'cucumber','aloe vera':'aloe vera',
-  'dry leaves':'hay','stem greens':'herbal','ivy':'herbal',
-  'english ivy':'herbal','crushed herbs':'herbal','forest floor':'earthy',
+  'dry leaves':'hay','stem greens':'stems','ivy':'ivy',
+  'english ivy':'ivy','lierre':'ivy','crushed herbs':'herbal','forest floor':'earthy',
   'soil':'earthy','red clay':'earthy','white moss':'moss',
   'cannabis':'cannabis','morel mushroom':'mushroom','smoked tea':'lapsang souchong',
   'oolong':'tea','rooibos':'tea','rooibos tea':'tea',
@@ -2282,7 +2282,7 @@ const NOTE_GROUPS = [
     "Lily of the Valley","Lily","Narcissus","Heliotrope","Carnation",
     "Mimosa","Gardenia","Freesia","Hyacinth","Honeysuckle","Geranium",
     "Chamomile","Linden","Immortelle","Frangipani","Cherry Blossom",
-    "Lilac","Violet Leaf","Orchid","Wisteria","Lotus","Boronia","Cyclamen",
+    "Lilac","Orchid","Wisteria","Lotus","Boronia","Cyclamen",
     "Hawthorn","Angelica",
   ]},
   { label: "Woods", notes: [
@@ -2291,7 +2291,7 @@ const NOTE_GROUPS = [
   ]},
   { label: "Resins & Smoke", notes: [
     "Incense","Myrrh","Benzoin","Labdanum","Styrax","Elemi","Opoponax",
-    "Tobacco","Oakmoss","Moss","Smoky","Champaca","Galbanum",
+    "Tobacco","Oakmoss","Moss","Smoky","Champaca",
   ]},
   { label: "Gourmand", notes: [
     "Vanilla","Tonka","Chocolate","Caramel","Honey","Coffee","Praline",
@@ -2314,6 +2314,9 @@ const NOTE_GROUPS = [
   ]},
   { label: "Herbals", notes: [
     "Lavender","Sage","Rosemary","Mint","Thyme","Basil","Eucalyptus","Hay","Davana",
+  ]},
+  { label: "Green", notes: [
+    "Green","Galbanum","Violet Leaf","Ivy","Grass","Fig Leaf","Tomato Leaf","Stems",
   ]},
   { label: "Aquatic & Mineral", notes: [
     "Aquatic","Salt","Mineral","Seaweed",
@@ -2353,6 +2356,8 @@ const TAG_COLOR = {
   fruity: "#d89060",
   // Character
   powdery: "#b8a0b0", spicy: "#c87050", green: "#78a868", smoky: "#7a7475",
+  galbanum: "#5f9a52", ivy: "#4e8a4e", grass: "#8ab84e", "violet leaf": "#7fa06a",
+  "fig leaf": "#7a9a50", "tomato leaf": "#6f9a44", stems: "#88a860",
   "herbal fresh": "#80a870", "skin scent": "#c8b8a8", "tart fruit": "#c25b6e",
   // Specific florals
   jasmine: "#f0c4a0", tuberose: "#e8a8b8", ylang: "#e8c088", magnolia: "#e8c4d0",
@@ -3186,6 +3191,11 @@ function buildTagsFromText(notes, family) {
   if (has('rooibos')) tags.add('rooibos');
   // Character
   if (has('green','greens','galbanum','violet leaf','tomato leaf','green notes','fern','ivy ','grass')) tags.add('green');
+  if (hasW('ivy') || has('lierre')) tags.add('ivy');
+  if (hasW('grass') || has('green grass','dune grass')) tags.add('grass');
+  if (has('fig leaf','fig leaves','feuille de figuier')) tags.add('fig leaf');
+  if (hasW('stem','stems') || has('stem greens')) tags.add('stems');
+  if (['ivy','grass','fig leaf','stems','violet leaf','galbanum','tomato leaf'].some(t => tags.has(t))) tags.add('green');
   if (has('oakmoss','mousse de chene','evernyl')) tags.add('oakmoss');
   if (has('moss')) tags.add('moss');
   if (has('powder','powdery','aldehyde','aldehydic','talc')) tags.add('powdery');
