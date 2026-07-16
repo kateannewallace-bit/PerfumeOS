@@ -2427,6 +2427,9 @@ const TAG_COLOR = {
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 function matches(p, { family, character, lanes, safeOnly, wearOnly, excludeAvoid, triedOnly, search, pref, primaryOnly, laneMode, gender, excludeNotes }) {
+  // "Key notes only" fallback: perfumes with no primary notes recorded fall back to
+  // their full tag list instead of silently disappearing from every filtered view.
+  const keyTags = (p.primary && p.primary.length) ? p.primary : (p.tags || []);
   if (excludeAvoid && (p.status === "Avoid" || p.status === "Dislike")) return false;
   if (gender && gender.length && !gender.includes(p.gender)) return false;
   if (triedOnly && !p.tried) return false;
@@ -2441,18 +2444,18 @@ function matches(p, { family, character, lanes, safeOnly, wearOnly, excludeAvoid
   // Family filter
   if (family && family !== "All") {
     const f = family.toLowerCase();
-    const tagList = primaryOnly ? (p.primary || []) : p.tags;
+    const tagList = primaryOnly ? keyTags : p.tags;
     if (!tagList.includes(f)) return false;
   }
   // Character filter
   if (character && character !== "All") {
     const c = character.toLowerCase();
-    const tagList = primaryOnly ? (p.primary || []) : p.tags;
+    const tagList = primaryOnly ? keyTags : p.tags;
     if (!tagList.includes(c)) return false;
   }
   // Specific notes
   if (lanes && lanes.length > 0) {
-    const tagList = primaryOnly ? (p.primary || []) : [...new Set([...(p.tags || []), ...(p.primary || [])])];
+    const tagList = primaryOnly ? keyTags : [...new Set([...(p.tags || []), ...(p.primary || [])])];
     if (laneMode === "any") {
       if (!lanes.some(l => tagList.includes(l))) return false;
     } else {
@@ -4408,7 +4411,8 @@ function TaxonomyView({ onSelect, perfumes }) {
     // fall back to p.tags for those so "Key Notes Only" never returns 0 on a valid tab.
     const canBeKeyNote = primaryOnly && !PRIMARY_TAG_BLACKLIST.has(lt);
     return perfumes.filter(p => {
-      const tagList = canBeKeyNote ? (p.primary || []) : p.tags;
+      // Fall back to full tags when a perfume has no primary notes recorded
+      const tagList = canBeKeyNote ? ((p.primary && p.primary.length) ? p.primary : p.tags) : p.tags;
       return tagList.some(t => t === lt);
     })
       .filter(p => inclAvoid || (p.status !== "Avoid" && p.status !== "Dislike"))
