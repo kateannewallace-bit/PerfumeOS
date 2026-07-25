@@ -6105,7 +6105,7 @@ function App() {
     // Fix: filter by name only (not ID), and reassign IDs that collide with seed.
     // This recovers user-added perfumes whose IDs happen to overlap with seed IDs.
     // normalizeHouseName handles spelling variants like "parfums" vs "perfumes"
-    const normalizeHouseName = s => s.replace(/parfums/gi,'perfumes').replace(/\s+/g,' ').trim();
+    const normalizeHouseName = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[\u2018\u2019\u02BC']/g,"").replace(/parfums/gi,'perfumes').replace(/\s+/g,' ').trim();
     const seedNamesNorm = new Set(PERFUMES_SEED.map(p => normalizeHouseName(p.fullName.toLowerCase())));
     const allUserIds = new Set(userPerfumes.map(p => p.i || 0)); // p.i is the raw id field (compact format)
     let nextAvailId = Math.max(...seedIds, ...allUserIds) + 1;
