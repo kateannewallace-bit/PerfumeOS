@@ -2463,7 +2463,7 @@ function matches(p, { family, character, lanes, safeOnly, wearOnly, excludeAvoid
     }
   }
   if (search) {
-    const na = s => (s || "").toLowerCase().replace(/[\u2018\u2019\u02BC']/g, "");
+    const na = s => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[\u2018\u2019\u02BC']/g, "");
     const q = na(search);
     if (!na(p.fullName).includes(q) && !na(p.notes).includes(q) && !na(p.tags.join(" ")).includes(q) && !na((p.primary || []).join(" ")).includes(q) && !na((p.smellsLike || []).join(" ")).includes(q)) return false;
   }
@@ -3854,7 +3854,7 @@ function HousesView({ onSelect, wearStats, perfumes }) {
   }, [enriched]);
 
   const shown = useMemo(() => {
-    const na = s => (s || "").toLowerCase().replace(/[\u2018\u2019\u02BC']/g, "");
+    const na = s => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[\u2018\u2019\u02BC']/g, "");
     const q = na(search.trim());
     return houses
       .filter(h => na(h.name).includes(q))
@@ -4135,7 +4135,7 @@ function SimilarView({ onSelect, perfumes }) {
 
   // Perfume-mode selector: filter by query + gender
   const choices = useMemo(() => {
-    const na = s => (s || "").toLowerCase().replace(/[\u2018\u2019\u02BC']/g, "");
+    const na = s => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[\u2018\u2019\u02BC']/g, "");
     const q = na(query.trim());
     return perfumes
       .filter(p => !q || na(p.fullName).includes(q))
