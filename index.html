@@ -2463,8 +2463,9 @@ function matches(p, { family, character, lanes, safeOnly, wearOnly, excludeAvoid
     }
   }
   if (search) {
-    const q = search.toLowerCase();
-    if (!p.fullName.toLowerCase().includes(q) && !p.notes.toLowerCase().includes(q) && !p.tags.join(" ").includes(q) && !(p.primary || []).join(" ").includes(q) && !(p.smellsLike || []).join(" ").toLowerCase().includes(q)) return false;
+    const na = s => (s || "").toLowerCase().replace(/[\u2018\u2019\u02BC']/g, "");
+    const q = na(search);
+    if (!na(p.fullName).includes(q) && !na(p.notes).includes(q) && !na(p.tags.join(" ")).includes(q) && !na((p.primary || []).join(" ")).includes(q) && !na((p.smellsLike || []).join(" ")).includes(q)) return false;
   }
   return true;
 }
@@ -3853,9 +3854,10 @@ function HousesView({ onSelect, wearStats, perfumes }) {
   }, [enriched]);
 
   const shown = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const na = s => (s || "").toLowerCase().replace(/[\u2018\u2019\u02BC']/g, "");
+    const q = na(search.trim());
     return houses
-      .filter(h => h.name.toLowerCase().includes(q))
+      .filter(h => na(h.name).includes(q))
       .sort((a, b) => sort === "count"
         ? (b.items.length - a.items.length) || a.name.localeCompare(b.name)
         : a.name.localeCompare(b.name));
@@ -4133,9 +4135,10 @@ function SimilarView({ onSelect, perfumes }) {
 
   // Perfume-mode selector: filter by query + gender
   const choices = useMemo(() => {
-    const q = query.toLowerCase().trim();
+    const na = s => (s || "").toLowerCase().replace(/[\u2018\u2019\u02BC']/g, "");
+    const q = na(query.trim());
     return perfumes
-      .filter(p => !q || p.fullName.toLowerCase().includes(q))
+      .filter(p => !q || na(p.fullName).includes(q))
       .filter(p => genderFilter === "All" || p.gender === genderFilter)
       .sort((a,b) => a.fullName.localeCompare(b.fullName));
   }, [perfumes, query, genderFilter]);
