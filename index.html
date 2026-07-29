@@ -1067,6 +1067,8 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   color: var(--fg-very-soft);
 }
 .safe-line.trev-positive { color: var(--sage); }
+.safe-line.trev-very-positive { color: var(--sage); font-weight: 600; }
+.safe-line.trev-neutral { color: var(--fg-soft); }
 .safe-line.trev-negative, .safe-line.trev-very-negative { color: var(--dusty-rose); }
 .diary-rating {
   font-size: 18px;
@@ -2098,6 +2100,16 @@ const NOTE_CLUSTERS = [
 // computeTrevorOnMe  = would Trevor like this *on Kate*?
 // computeTrevorSelf  = would Trevor wear this himself?
 
+function srToScore(sr) {
+  if (!sr) return null;
+  const s = ('' + sr).toLowerCase().trim();
+  if (s === 'very positive') return 10;
+  if (s === 'positive') return 8;
+  if (s === 'neutral') return 5;
+  if (s === 'negative') return 2;
+  if (s === 'very negative') return 0;
+  return null;
+}
 function computeTrevorOnMe(tags, primary) {
   const all = new Set([...(tags || []), ...(primary || [])]);
   let score = 5;
@@ -2140,6 +2152,9 @@ function computeTrevorOnMe(tags, primary) {
   if (all.has('incense') || all.has('oud')) score -= 1.5;
   if (all.has('smoky') || all.has('tobacco')) score -= 1;
   if (all.has('leather')) score -= 0.5;
+  const darkMarkers = ['incense','oud','leather','star anise','anise','licorice','myrrh','frankincense','tobacco','smoky','birch tar','tar'].filter(t => all.has(t)).length;
+  if (darkMarkers >= 2) score -= 5;
+  else if (all.has('anise') || all.has('star anise') || all.has('licorice')) score -= 2;
   return Math.max(0, Math.min(10, Math.round(score * 2) / 2));
 }
 
@@ -2177,6 +2192,8 @@ function computeTrevorSelf(tags, primary) {
   if (all.has('smoky') || all.has('tobacco')) score -= 1.5;
   if (all.has('leather')) score -= 1;
   if (all.has('labdanum') || all.has('myrrh')) score -= 0.5;
+  if (all.has('tuberose') || all.has('gardenia') || all.has('ylang') || all.has('ylang-ylang') || all.has('white floral')) score -= 2.5;
+  if (all.has('jasmine') || all.has('rose') || all.has('iris') || all.has('orris') || all.has('violet') || all.has('heliotrope')) { if (!(all.has('grapefruit') || all.has('vetiver'))) score -= 1; }
   return Math.max(0, Math.min(10, Math.round(score * 2) / 2));
 }
 
@@ -2216,7 +2233,8 @@ function normalizePerfume(p) {
   })(),
     primary,
     sigScore: p.ss ?? 5, intScore: p.is ?? 3, balScore: p.bs ?? 5,
-    safeScore: computeTrevorOnMe(buildTagsFromText(p.no || "", p.f || ""), primary),
+    safeScore: (srToScore(p.sr) ?? computeTrevorOnMe(buildTagsFromText(p.no || "", p.f || ""), primary)),
+    safeReaction: p.sr || "",
     trevorSelfScore: computeTrevorSelf(buildTagsFromText(p.no || "", p.f || ""), primary),
     mood: p.m || "Classic", myNotes: p.mn || "",
     location: p.loc || "",
