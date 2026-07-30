@@ -597,6 +597,53 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .sim-badge { color: var(--fg-soft); background: var(--bg-soft); padding: 3px 8px; }
 .trev-mark { color: var(--sage); }
 
+/* Trevor "on you" — recorded reaction chip + dimmed prediction */
+.trev-reaction-chip {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 10px;
+}
+.pred-badge {
+  margin-left: auto;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9aa0aa;
+  background: #eef0f3;
+  padding: 3px 8px;
+  border-radius: 10px;
+}
+.card.trev-pred-dim { opacity: 0.62; }
+.card.trev-pred-dim:hover, .card.trev-pred-dim:active { opacity: 1; }
+
+/* Trevor tab — section + tier headers */
+.trev-sec-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 26px 0 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border, #eee);
+}
+.trev-sec-title { font-size: 18px; font-weight: 600; letter-spacing: 0.01em; }
+.trev-sec-note { font-size: 12px; color: var(--fg-soft, #999); text-transform: uppercase; letter-spacing: 0.06em; }
+.trev-pred-caption { font-size: 13px; color: var(--fg-soft, #999); line-height: 1.5; margin: 0 0 16px; max-width: 640px; }
+.trev-tier-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.trev-tier-swatch { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
 .wear-strip {
   margin-top: 8px;
   padding-top: 8px;
@@ -2452,7 +2499,10 @@ function matches(p, { family, character, lanes, safeOnly, wearOnly, excludeAvoid
   if (gender && gender.length && !gender.includes(p.gender)) return false;
   if (triedOnly && !p.tried) return false;
   if (pref !== "All" && p.preference !== pref) return false;
-  if (safeOnly && p.safeScore < 7) return false;
+  // "On you" (Option B, tiered): recorded reactions (any tier, incl. negatives)
+  // always pass; heuristic predictions only pass at >= 7. Sort + card render keep
+  // recorded above/ahead of predictions so guesses can't masquerade as his verdict.
+  if (safeOnly && !p.safeReaction && p.safeScore < 7) return false;
   if (wearOnly && p.trevorSelfScore < 7) return false;
   // Exclude notes
   if (excludeNotes && excludeNotes.length > 0) {
@@ -3568,8 +3618,31 @@ function fmtAge(daysAgo) {
   if (daysAgo < 365) return Math.round(daysAgo / 30) + "mo ago";
   return Math.round(daysAgo / 365) + "y ago";
 }
-function Card({ p, onClick, annotation, simScore }) {
-  return <div className="card" onClick={() => onClick(p)}>
+// Recorded-reaction display metadata: word Trevor said → dashboard label + colors.
+const REACTION_META = {
+  "very positive": { label: "Loved",    color: "#5a8a5f", bg: "#e8f2e6" },
+  "positive":      { label: "Liked",    color: "#6a9a6a", bg: "#eef5ec" },
+  "neutral":       { label: "Neutral",  color: "#8a8a8a", bg: "#f0f0f0" },
+  "negative":      { label: "Disliked", color: "#b06a6a", bg: "#f5e8e8" },
+  "very negative": { label: "Scrubbed", color: "#a04a4a", bg: "#f5e0e0" },
+};
+// Predictions matching Trevor's known-negative profile — the "old-lady" aldehydic /
+// powdery-iris register and cheap-synthetic or dense-dark notes he pans — are
+// suppressed from the Predicted shortlist so a guess can't recommend what he'd scrub.
+function trevorNegProfile(p) {
+  const t = new Set([...(p.tags || []), ...(p.primary || [])]);
+  const has = x => t.has(x);
+  if (has("aldehydes") || has("aldehydic")) return true;
+  if (has("powdery") && (has("iris") || has("orris") || has("violet") || has("heliotrope"))) return true;
+  if (has("synthetic")) return true;
+  if (has("animalic") || has("civet") || has("castoreum")) return true;
+  if (has("oud") || has("incense")) return true;
+  return false;
+}
+function Card({ p, onClick, annotation, simScore, trevorMode }) {
+  const reactMeta = trevorMode && p.safeReaction ? REACTION_META[('' + p.safeReaction).toLowerCase()] : null;
+  const isPrediction = trevorMode && !p.safeReaction;
+  return <div className={`card${isPrediction ? " trev-pred-dim" : ""}`} onClick={() => onClick(p)}>
     <div className="card-head">
       <div className="card-title">
         <div className="card-house">{p.house}</div>
@@ -3594,7 +3667,9 @@ function Card({ p, onClick, annotation, simScore }) {
       <div><div className="mini-lbl">Sig</div><div className="mini-val">{p.sigScore}</div></div>
       <div><div className="mini-lbl">Intr</div><div className="mini-val">{p.intScore}</div></div>
       {simScore != null && <div className="sim-badge">sim {simScore}</div>}
-      {p.safeScore >= 8 && simScore == null && CONFIG.partnerName && <div className="trev-mark">{CONFIG.partnerName} ✓</div>}
+      {reactMeta && <div className="trev-reaction-chip" style={{ color: reactMeta.color, background: reactMeta.bg }}>{reactMeta.label}</div>}
+      {isPrediction && <div className="pred-badge">predicted</div>}
+      {!trevorMode && p.safeScore >= 8 && simScore == null && CONFIG.partnerName && <div className="trev-mark">{CONFIG.partnerName} ✓</div>}
     </div>
     {(p.wearCount > 0) && (
       <div className="wear-strip">
@@ -4033,6 +4108,13 @@ function CollectionView({ onSelect, wearStats, perfumes }) {
         if (sort === "house") return a.house.localeCompare(b.house) * dir;
         if (sort === "name") return a.name.localeCompare(b.name) * dir;
         if (sort === "rating") return ((b.rating||0)-(a.rating||0)) * dir;
+        // "By Trevor (on you)": recorded reactions always rank above heuristic
+        // predictions (regardless of direction), then by score within each tier.
+        if (sort === "safeScore") {
+          const ra = a.safeReaction ? 1 : 0, rb = b.safeReaction ? 1 : 0;
+          if (ra !== rb) return rb - ra;
+          return (b.safeScore - a.safeScore) * dir;
+        }
         return (b[sort]-a[sort]) * dir;
       });
   }, [enriched, search, pref, family, character, lanes, triedOnly, trevorOnly, trevorWearOnly, sort, sortDir, primaryOnly, laneMode, genders, excludeNotes]);
@@ -4108,7 +4190,66 @@ function CollectionView({ onSelect, wearStats, perfumes }) {
     </div>
 
     <div className="result-count">{res.length} fragrance{res.length !== 1 ? "s" : ""}</div>
-    <div className="grid">{res.map(p => <Card key={p.id} p={p} onClick={onSelect} />)}</div>
+    <div className="grid">{res.map(p => <Card key={p.id} p={p} onClick={onSelect} trevorMode={trevorOnly || sort === "safeScore"} />)}</div>
+  </div>;
+}
+
+// ─── TREVOR TAB ──────────────────────────────────────────────────────────────
+// Dashboard that keeps his recorded verdicts and heuristic guesses in separate
+// rooms: Reactions = the 33 things he actually smelled (truth, grouped by tier);
+// Predicted = a capped, negative-profile-filtered shortlist of un-smelled
+// candidates, clearly flagged as guesses so they can never masquerade as data.
+function TrevorView({ onSelect, wearStats, perfumes }) {
+  const enriched = useMemo(() => enrich(perfumes, wearStats), [perfumes, wearStats]);
+  const partner = CONFIG.partnerName || "Partner";
+
+  const recorded = useMemo(() => enriched.filter(p => p.safeReaction), [enriched]);
+  const TIERS = ["very positive", "positive", "neutral", "negative", "very negative"];
+  const byTier = k => recorded
+    .filter(p => ('' + p.safeReaction).toLowerCase() === k)
+    .sort((a, b) => (b.safeScore - a.safeScore) || a.house.localeCompare(b.house) || a.name.localeCompare(b.name));
+
+  const predicted = useMemo(() => enriched
+    .filter(p => !p.safeReaction)
+    .filter(p => p.status !== "Avoid" && p.status !== "Dislike")
+    .filter(p => p.safeScore >= 7)
+    .filter(p => !trevorNegProfile(p))
+    .sort((a, b) => (b.safeScore - a.safeScore) || a.house.localeCompare(b.house) || a.name.localeCompare(b.name))
+    .slice(0, 20), [enriched]);
+
+  return <div>
+    <h1 className="page-title">{partner}</h1>
+    <p className="page-sub">What {partner} actually thinks — and what he might like next.</p>
+
+    <div className="trev-sec-head">
+      <span className="trev-sec-title">Reactions</span>
+      <span className="trev-sec-note">{recorded.length} recorded verdict{recorded.length !== 1 ? "s" : ""}</span>
+    </div>
+
+    {recorded.length === 0 && <p className="trev-pred-caption">No recorded reactions yet.</p>}
+    {TIERS.map(k => {
+      const items = byTier(k);
+      if (!items.length) return null;
+      const m = REACTION_META[k];
+      return <div key={k} style={{ marginBottom: 24 }}>
+        <div className="trev-tier-label" style={{ color: m.color }}>
+          <span className="trev-tier-swatch" style={{ background: m.color }} />
+          {m.label} <span style={{ color: "#bbb", fontWeight: 400 }}>· {items.length}</span>
+        </div>
+        <div className="grid">{items.map(p => <Card key={p.id} p={p} onClick={onSelect} trevorMode />)}</div>
+      </div>;
+    })}
+
+    <div className="trev-sec-head" style={{ marginTop: 34 }}>
+      <span className="trev-sec-title">Predicted</span>
+      <span className="trev-sec-note">he hasn't tried these</span>
+    </div>
+    <p className="trev-pred-caption">
+      Top {predicted.length} best guesses from the note-matching model — {partner} has never smelled these,
+      so treat them as a shopping shortlist, not his opinion. The "old-lady" aldehydic / powdery-iris and
+      cheap-synthetic profiles he pans are filtered out.
+    </p>
+    <div className="grid">{predicted.map(p => <Card key={p.id} p={p} onClick={onSelect} trevorMode />)}</div>
   </div>;
 }
 
@@ -6363,6 +6504,7 @@ function App() {
     { k: "today", l: "Wear Today" },
     { k: "sample", l: "Sample Queue" },
     { k: "collection", l: "Collection" },
+    ...(CONFIG.partnerName ? [{ k: "trevor", l: CONFIG.partnerName }] : []),
     { k: "houses", l: "Houses" },
     { k: "locations", l: "Locations" },
     { k: "taxonomy", l: "Taxonomy" },
@@ -6398,6 +6540,7 @@ function App() {
       {loaded && view === "today" && <WearTodayView onSelect={setSelected} wearStats={wearStats} perfumes={perfumes} />}
       {loaded && view === "sample" && <SampleQueueView onSelect={setSelected} perfumes={perfumes} onEditPerfume={editPerfume} />}
       {loaded && view === "collection" && <CollectionView onSelect={setSelected} wearStats={wearStats} perfumes={perfumes} />}
+      {loaded && view === "trevor" && <TrevorView onSelect={setSelected} wearStats={wearStats} perfumes={perfumes} />}
       {loaded && view === "houses" && <HousesView onSelect={setSelected} wearStats={wearStats} perfumes={perfumes} />}
       {loaded && view === "locations" && <LocationsView onSelect={setSelected} wearStats={wearStats} perfumes={perfumes} />}
       {loaded && view === "compare" && <CompareView perfumes={perfumes} />}
