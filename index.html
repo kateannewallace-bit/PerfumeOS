@@ -2622,6 +2622,20 @@ function hasMuskAsNote(p) {
 // a judgment, not what a fragrance smells of — they must never drive similarity.
 const SIMILARITY_EXCLUDE = new Set(CURATED_TAGS);
 
+// A specific note also emits its generic parent ("pink pepper" → pepper, "oakmoss" →
+// moss). Counting both makes ONE note weigh double in similarity and can hand a
+// perfume a dominant family it doesn't deserve. When the specific tag is present,
+// the generic is dropped.
+const GENERIC_IF_SPECIFIC = {
+  'pepper':  ['pink pepper', 'black pepper', 'white pepper', 'peppercorn'],
+  'moss':    ['oakmoss'],
+  'tea':     ['black tea', 'green tea', 'matcha'],
+  'orange':  ['bitter orange', 'blood orange', 'orange peel'],
+  'rose':    ['damask rose', 'taif rose', 'rose de mai', 'centifolia'],
+  'musk':    ['white musk'],
+  'lily':    ['lily of the valley'],
+};
+
 // ─── NOTE KINSHIP ────────────────────────────────────────────────────────────
 // Notes that read alike even when they aren't the same ingredient: a hinoki scent
 // and a cedar scent can feel related with zero notes in common; likewise gardenia
@@ -2689,10 +2703,14 @@ function dominantFamilies(p) {
 }
 function getComparableTags(p) {
   const hasMusk = hasMuskAsNote(p);
+  const tagSet = new Set(p.tags || []);
   return (p.tags || []).filter(t => {
-    if (t === 'musk' || t === 'musks') return hasMusk;
+    if (t === 'musk' || t === 'musks') return hasMusk && !tagSet.has('white musk');
     if (t === 'musky') return false; // always a family descriptor, never a note
     if (SIMILARITY_EXCLUDE.has(t)) return false; // subjective/opinion tags
+    // Drop a generic when its own specific form is also present (no double-counting).
+    const specifics = GENERIC_IF_SPECIFIC[t];
+    if (specifics && specifics.some(s => tagSet.has(s))) return false;
     return !BROAD_FAMILY_TAGS.has(t);
   });
 }
@@ -3863,7 +3881,7 @@ function Card({ p, onClick, annotation, simScore, trevorMode }) {
   </div>;
 }
 
-function Modal({ p, onClose, onEdit, perfumes, onNavigate }) {
+function Modal({ p, onClose, onEdit, onResetToSeed, hasEdits, perfumes, onNavigate }) {
   const [editMode, setEditMode] = useState(false);
   const [editForm, setEditForm] = useState({});
 
@@ -4101,7 +4119,15 @@ function Modal({ p, onClose, onEdit, perfumes, onNavigate }) {
           <div className="form-actions">
             <button className="btn-primary" onClick={saveEdit}>Save</button>
             <button className="btn-ghost" onClick={() => setEditMode(false)}>Cancel</button>
+            {hasEdits && onResetToSeed && <button className="btn-ghost" style={{marginLeft:"auto",color:"#a55"}}
+              title="Discard all saved overrides for this perfume and show the data from perfume-data.js"
+              onClick={() => { if (window.confirm(`Discard your saved overrides for ${p.name} and restore the notes from the data file?\n\nThis clears edited notes, tags, rating, status and location for this perfume only.`)) { onResetToSeed(p.id); setEditMode(false); onClose(); } }}>
+              Reset to file data
+            </button>}
           </div>
+          {hasEdits && <div style={{fontSize:11,color:"#a58",marginTop:8}}>
+            ⚠ This perfume has saved overrides that take priority over the data file — corrected notes in perfume-data.js won't appear until you reset or re-save them here.
+          </div>}
         </div>
       ) : (
         <div style={{marginTop: 16, textAlign: "right"}}>
@@ -6591,6 +6617,20 @@ function App() {
     });
   }, []);
 
+  // Drop every saved override for a seed perfume so the file's data shows through
+  // again. Edits are merged as { ...seed, ...edit }, so a stale override silently
+  // masks corrected note data forever until it's cleared.
+  const resetPerfumeToSeed = useCallback((id) => {
+    setPerfumeEdits(prev => {
+      if (!prev[id]) return prev;
+      const next = { ...prev };
+      delete next[id];
+      try { localStorage.setItem("perfume_edits", JSON.stringify(next)); } catch (e) {}
+      cloudSync("reset_perfume", { id });
+      return next;
+    });
+  }, []);
+
   const addWishlistItem = useCallback((item) => {
     setWishlist(prev => {
       const next = [...prev, item];
@@ -6716,7 +6756,7 @@ function App() {
       {loaded && view === "settings" && <SettingsView syncStatus={syncStatus} onSyncChange={loadAll} />}
     </main>
 
-    {selected && <Modal p={selected} onClose={() => setSelected(null)} onEdit={editPerfume} perfumes={perfumes} onNavigate={setSelected} />}
+    {selected && <Modal p={selected} onClose={() => setSelected(null)} onEdit={editPerfume} onResetToSeed={resetPerfumeToSeed} hasEdits={!!perfumeEdits[selected.id]} perfumes={perfumes} onNavigate={setSelected} />}
   </div>;
 }
 
