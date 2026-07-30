@@ -2144,15 +2144,110 @@ const PRIMARY_TAG_BLACKLIST = new Set([
 // re-added to primary for tagging purposes that's far less granular than a single
 // ingredient like bergamot or jasmine. Keeping them out of these charts keeps every
 // bar/line at the same "specific ingredient" level.
-const NOTES_CHART_BLACKLIST = new Set(['musk','musky','powder','powdery','resin','resinous','mineral','aldehydes','aldehydic','floral woody musk','floral','woody','wood','woods','citrus','fresh','green','amber','gourmand','oriental','chypre','aromatic','fruity','sweet','hesperidic','marine','aquatic','herbal','herbal fresh','balsamic','solar','tropical','dry citrus','white floral','yellow floral','purple floral','animalic','spicy','warm spicy','fresh spicy','skin scent','airy','clean','soft','warm','smoky']);
+// Note: 'bergamot' is deliberately excluded too. It's the default top-note opener in 165
+// of 1065 bottles here, and only one worn perfume (Le Labo Bergamote 22) is actually
+// *about* bergamot — so on these charts it was a flat high line that said nothing about
+// taste. It still counts everywhere else: tags, search, similarity, and the Citrus line
+// on the Note Clusters chart.
+const NOTES_CHART_BLACKLIST = new Set(['musk','musky','powder','powdery','resin','resinous','mineral','aldehydes','aldehydic','floral woody musk','floral','woody','wood','woods','citrus','fresh','green','amber','gourmand','oriental','chypre','aromatic','fruity','sweet','hesperidic','marine','aquatic','herbal','herbal fresh','balsamic','solar','tropical','dry citrus','white floral','yellow floral','purple floral','animalic','spicy','warm spicy','fresh spicy','skin scent','airy','clean','soft','warm','smoky','bergamot']);
+
+// Synonym map for the notes charts ONLY (Notes Over Time / Scent DNA). The dataset comes
+// from many sources, so the same ingredient arrives under several spellings, botanical
+// names, and origin prefixes — 'cedar' / 'cedarwood' / 'virginian cedarwood' were three
+// separate dots, and neroli sat apart from orange blossom even though they're the same
+// flower. Each key is folded into its canonical value before counting, so one line means
+// one ingredient. Everything else in the app still sees the original raw tags.
+const NOTES_CHART_MERGE = {
+  // — orange blossom family (neroli is the same flower, distilled differently) —
+  'neroli':'orange blossom','moroccan neroli':'orange blossom','tunisian neroli':'orange blossom',
+  'neroli and bergamot':'orange blossom',
+  'orange flower':'orange blossom','orange flower absolute':'orange blossom',
+  'orange blossom absolute':'orange blossom','african orange flower':'orange blossom',
+  // — iris / orris (same root; 'lipstick iris' is the same note by its effect) —
+  'orris':'iris','iris orris':'iris','iris pallida':'iris','florentine iris':'iris',
+  'italian orris':'iris','orris butter':'iris','white orris butter':'iris','lipstick iris':'iris',
+  // — cedar —
+  'cedarwood':'cedar','cedar atlas':'cedar','virginia cedar':'cedar','virginian cedarwood':'cedar',
+  // — mandarin / tangerine —
+  'mandarin orange':'mandarin','italian mandarin':'mandarin','green mandarin':'mandarin',
+  'red mandarin':'mandarin','tangerine':'mandarin','green tangerine':'mandarin',
+  // — rose —
+  'rose absolute':'rose','damask rose':'rose','damascena rose':'rose','turkish rose':'rose',
+  'turkish rose water':'rose','bulgarian rose':'rose','bulgarian rose extract':'rose',
+  'centifolia rose':'rose','centifolia rose absolute':'rose','rose centifolia':'rose',
+  'rose centifolia absolute':'rose','rose de grasse':'rose','rose petals':'rose',
+  'rose extract':'rose','rose bourbon':'rose','rose bourbon absolute':'rose','white rose':'rose',
+  // — pepper —
+  'pink peppercorn':'pink pepper','brazilian pink peppercorn':'pink pepper',
+  'pink pepper leaf':'pink pepper','red pepper berries':'pink pepper','pepper berries':'pink pepper',
+  'pepper':'black pepper','pepper oil':'black pepper','madagascan black pepper oil':'black pepper',
+  'pepper from madagascar':'black pepper',
+  // — citrus —
+  'italian lemon':'lemon','sicilian lemon':'lemon','amalfi lemon':'lemon',
+  'verdelli lemon':'lemon','lemon oil':'lemon','pink grapefruit':'grapefruit',
+  'white grapefruit':'grapefruit','sweet orange':'orange','sicilian orange':'orange',
+  'orange peel':'orange','african orange':'orange','lime peel':'lime','pettigrain':'petitgrain',
+  'italian bergamot':'bergamot','calabrian bergamot':'bergamot','bergamot peel':'bergamot',
+  'bergamot nectar':'bergamot',
+  // — florals —
+  'jasmine sambac':'jasmine','sambac jasmine':'jasmine','jasminum grandiflorum':'jasmine',
+  'muguet':'lily of the valley','violet absolute':'violet','violette':'violet',
+  'powdery violet':'violet','violet leaves':'violet leaf','ylang':'ylang ylang',
+  'tuberose absolute':'tuberose','osmanthus absolute':'osmanthus','white peony':'peony',
+  'wild narcissus':'narcissus','african marigold':'marigold','white champaca':'champaca',
+  // — woods, moss, resins —
+  'mysore sandalwood':'sandalwood','australian sandalwood':'sandalwood',
+  'gaiac':'guaiac wood','guaiac':'guaiac wood','gaiac wood':'guaiac wood',
+  'moss':'oakmoss','mossy':'oakmoss','tree moss':'oakmoss','vetiver from haiti':'vetiver',
+  'olibanum':'incense','olibanum extract':'incense','frankincense':'incense','smoke':'incense',
+  'myrrh essential oil':'myrrh','cistus':'labdanum','rockrose':'labdanum',
+  'hinoki wood':'hinoki','agarwood':'oud','birch leaf':'birch','silver birch':'birch',
+  // — musks & ambers —
+  'musks':'musk','ambrette seed':'ambrette','ambrette seed absolute':'ambrette',
+  'ambrette musk':'ambrette','ambrox':'ambroxan','ambrofix™':'ambroxan','cetalox':'ambroxan',
+  // — fruits, gourmand, herbs, spices —
+  'black currant':'blackcurrant','cassis':'blackcurrant','white peach':'peach',
+  'peach skin flesh':'peach','peche de vigne':'peach','bitter almond':'almond',
+  'sugared almond':'almond','almond almond':'almond','bitter almond almond':'almond',
+  'tonka bean':'tonka','praliné':'praline','coffee absolute':'coffee',
+  'juniper berries':'juniper','juniper berry':'juniper','angelica root':'angelica',
+  'angelica roots':'angelica','angelica seed':'angelica','angelica seeds':'angelica',
+  'coriander seed':'coriander','carrot seeds':'carrot seed','clary sage':'sage',
+  'aniseed':'anise','star anise':'anise','badiane':'anise','liquorice':'licorice',
+  'buchu':'bucchu','buchu leaf':'bucchu','english lavender':'lavender',
+  'french lavender':'lavender','lavandin':'lavender','fig leaves':'fig leaf',
+  'black tea leaves':'black tea','ceylon black tea':'black tea','ceylon tea':'black tea',
+  'tea leaves':'tea','oolong tea':'oolong','matcha tea':'matcha','maté':'mate',
+  'pandan leaf':'pandan','tobacco absolute':'tobacco','elemi resin':'elemi',
+  'sea salt':'salt','salted crystals':'salt','tobacco leaf':'tobacco',
+};
+
+// Fold one raw primary tag down to its chart-level identity. Also repairs the scraped
+// note lists that arrived as sentence fragments ("top: black cherry", "middle notes are
+// tuberose") and drops the run-on ones that were never a single note to begin with.
+function canonChartNote(raw) {
+  if (!raw) return null;
+  let s = ('' + raw).toLowerCase().trim();
+  s = s.replace(/^(?:top|head|heart|middle|mid|base)\s+(?:notes?\s+)?(?:are|is|includes?)?\s*:?\s*/, '')
+       .replace(/^(?:top|head|heart|middle|base)\s*:\s*/, '')
+       .replace(/^(?:main\s+)?notes?\s*:\s*/, '')
+       .trim();
+  if (NOTES_CHART_MERGE[s]) return NOTES_CHART_MERGE[s];
+  // leftover scrape junk: multi-note run-ons, parentheticals, whole sentences
+  if (!s || s.length > 22 || /[;•→(),]|\bnotes?\b|\band\b|\bwith\b/.test(s)) return null;
+  return s;
+}
 
 // Clusters used by the "Note Clusters Over Time" chart — groups of related raw tags so
 // the chart can track a consistent, meaningful granularity (broader than a single note,
 // narrower than a whole olfactory family) across months.
 const NOTE_CLUSTERS = [
-  { label: 'Citrus', keys: ['bergamot','lemon','grapefruit','neroli','petitgrain','mandarin','mandarin orange','orange','tangerine','yuzu','bitter orange'] },
+  // neroli lives with orange blossom in White Florals, not here — same flower, and the
+  // two are scored and charted as one throughout. petitgrain (the leaf/twig of the same
+  // tree) stays in Citrus: it really is the green, bitter part, not the blossom.
+  { label: 'Citrus', keys: ['bergamot','lemon','grapefruit','petitgrain','mandarin','mandarin orange','orange','tangerine','yuzu','bitter orange'] },
   { label: 'Powdery Florals', keys: ['iris','violet','lipstick iris','powder','powdery'] },
-  { label: 'White Florals', keys: ['jasmine','orange blossom','tuberose','ylang ylang','gardenia','lily','lily of the valley','freesia','osmanthus'] },
+  { label: 'White Florals', keys: ['jasmine','orange blossom','neroli','tuberose','ylang ylang','gardenia','lily','lily of the valley','freesia','osmanthus'] },
   { label: 'Dark / Resinous', keys: ['incense','resin','resinous','labdanum','myrrh','amber','benzoin','styrax'] },
   { label: 'Sweet / Gourmand', keys: ['vanilla','tonka','caramel','honey','chocolate','cocoa','praline','almond','coffee','marshmallow','cream','gourmand'] },
   { label: 'Musks & Skin', keys: ['musk','white musk','ambrette','ambroxan','musky','skin scent'] },
@@ -2173,6 +2268,72 @@ function clustersOf(p) {
 // Two separate scores computed from tags — no manual ts values needed.
 // computeTrevorOnMe  = would Trevor like this *on Kate*?
 // computeTrevorSelf  = would Trevor wear this himself?
+
+// ─── STRUCTURAL DIVERGENCE ────────────────────────────────────────────────────
+// Trevor's complaint about Dans tes Bras was "smells like you are wearing 4 perfumes,
+// it's very busy, it's not clean and structured." The obvious reading — too many notes —
+// is measurably WRONG, and Kate caught it: Dans tes Bras has 9 notes, CK One has 17, and
+// CK One is the one this file calls his nostalgic barometer. A note-count penalty
+// punished CK One nearly twice as hard as the perfume he actually disliked.
+//
+// It isn't volume either. Kate's read: Dans tes Bras is very soft, but "very soft at odds
+// with itself" — soft incense, soft pine, soft violet, soft heliotrope. Nothing is loud;
+// nothing agrees.
+//
+// So what's measured here is DIRECTIONS, not notes. Some materials stake out their own
+// territory (incense claims smoke, pine claims conifer, heliotrope claims dust) while
+// others blend into whatever surrounds them (citrus, musk, soft woods).
+//
+// The crucial part is the anchor. CK One contains violet, jasmine and oakmoss too — the
+// same divergent materials — but its citrus holds a clear plurality, so they're absorbed
+// as supporting players in a recognisable chypre skeleton. Dans tes Bras has no plurality
+// at all (dusty 2, musk 2, then five registers with one note each), so every direction
+// stands alone and the nose can't resolve it. Divergence is therefore not a property of a
+// note, it's whether anything is leading.
+const DIRECTIONAL_NOTES = {
+  smoke:    ['incense','olibanum','frankincense','myrrh','birch tar'],
+  conifer:  ['pine','fir','cypress','juniper','palo santo','hinoki'],
+  dusty:    ['heliotrope','violet','iris','orris','orris root','mimosa'],
+  earth:    ['patchouli','vetiver','papyrus','cypriol','oakmoss','moss'],
+  indolic:  ['tuberose','jasmine','gardenia','narcissus','ylang'],
+  animal:   ['cumin','castoreum','civet','leather','suede','tobacco'],
+  balsamic: ['labdanum','benzoin','styrax','immortelle'],
+  sweet:    ['vanilla','tonka','caramel','praline','chocolate','marshmallow','honey'],
+  anisic:   ['anise','licorice','star anise'],
+  green:    ['galbanum','tomato leaf','violet leaf'],
+};
+// Blenders — these support rather than pull, so they never count as a direction, but they
+// CAN be the anchor (CK One's citrus is exactly that).
+const BLENDING_NOTES = {
+  citrus:     ['bergamot','lemon','grapefruit','mandarin','mandarin orange','orange','yuzu','lime','pomelo','petitgrain','citron'],
+  fruit:      ['pineapple','papaya','peach','apricot','pear','lychee','melon','fig','cherry','apple','blackcurrant','raspberry','plum'],
+  wood:       ['sandalwood','cedar','guaiac wood','oud'],
+  musk:       ['musk','white musk','ambrette','ambroxan','cashmeran','cetalox'],
+  spice:      ['cardamom','nutmeg','pepper','pink pepper','cinnamon','clove','saffron','ginger'],
+  softfloral: ['rose','lily of the valley','freesia','peony','magnolia','orange blossom','neroli'],
+};
+
+// How many competing directions a composition sets up, halved when one register clearly
+// leads. Returns 0 for anything coherent. Weight 0.8 per direction beyond the second.
+function structuralDivergence(all, noteStr) {
+  let directions = 0;
+  for (const reg in DIRECTIONAL_NOTES) {
+    if (DIRECTIONAL_NOTES[reg].some(n => all.has(n))) directions++;
+  }
+  if (directions <= 2) return 0;
+  // Does any single register hold a plurality of the declared note list?
+  const notes = String(noteStr || "").split(/[;,]/).map(x => x.trim().toLowerCase()).filter(Boolean);
+  const counts = {};
+  const ALL_REG = { ...DIRECTIONAL_NOTES, ...BLENDING_NOTES };
+  for (const note of notes) {
+    for (const reg in ALL_REG) {
+      if (ALL_REG[reg].some(v => note === v || note.includes(v))) counts[reg] = (counts[reg] || 0) + 1;
+    }
+  }
+  const ranked = Object.values(counts).sort((a, b) => b - a);
+  const anchored = ranked.length > 0 && ranked[0] >= 3 && ranked[0] - (ranked[1] || 0) >= 1;
+  return (directions - 2) * (anchored ? 0.5 : 1);
+}
 
 function srToScore(sr) {
   if (!sr) return null;
@@ -2196,7 +2357,7 @@ function srToScore(sr) {
 //    synthetic, sandalwood, angelica, anise/licorice.
 //  • Note: some verdicts (Rose 31 loved, Highgrove disliked) aren't predictable from
 //    the note list at all — ~0.65 is roughly the ceiling for note-based scoring.
-function computeTrevorOnMe(tags, primary) {
+function computeTrevorOnMe(tags, primary, noteStr) {
   const all = new Set([...(tags || []), ...(primary || [])]);
   const has = (...w) => w.some(x => all.has(x));
   let s = 5;
@@ -2239,6 +2400,29 @@ function computeTrevorOnMe(tags, primary) {
   if (animalic) s -= 1;         // softened (was -4); real animalic only
   if (has('leather', 'suede')) s -= 0.3;
   if (has('hazelnut', 'praline')) s -= 0.5;
+  // — LEGIBILITY (added 2026-07-30, from his Dans tes Bras review) —
+  // "SMELLS LIKE YOU ARE WEARING 4 PERFUMES. IT'S VERY BUSY. IT'S NOT CLEAN AND
+  // STRUCTURED." He's a hedonist, but he wants the pleasure to be legible — one clear
+  // idea, not a committee. See structuralDivergence() above for why this counts competing
+  // directions rather than notes, and why the anchor matters more than either.
+  // Weight 0.8 per unanchored direction beyond the second. Correlation across his 34
+  // reactions is 0.70, statistically a wash against the note-count version it replaces
+  // (0.715) — chosen on mechanism, not on the metric, because note count inverts the two
+  // cases we actually understand and this doesn't.
+  // NB this is a penalty in HIS model only. Kate finds the same disagreement evocative
+  // rather than incoherent — she reads Dans tes Bras as a wet swimsuit at a public pool,
+  // 80s Coppertone plus pine forest plus soft chlorine. Same structure, opposite verdict.
+  s -= 0.8 * structuralDivergence(all, noteStr);
+  // — DUSTY / "OLD LADY" —
+  // Also from that review: "OVERSTUFFED PINK CHINTZ COUCH. OLD LADY. DUSTY." Kate's
+  // old-lady-watchlist independently defines its Tier 2 as "old lady to Trevor" and
+  // names heliotrope-powder there, so this isn't a one-off read.
+  // Tested carefully: a general powdery-floral penalty is WRONG — it fires only on
+  // Santal 33, which he rated 8. The dusty quality he's objecting to is specifically
+  // heliotrope and cashmeran. Those two fire on Liquid Love (2) and Dans tes Bras (0),
+  // with no false positives, and lift correlation 0.691 → 0.711.
+  // Held to 1.2 rather than the best-fitting 1.6 because it rests on two reactions.
+  if (has('heliotrope', 'cashmeran')) s -= 1.2;
   return Math.max(0, Math.min(10, Math.round(s * 2) / 2));
 }
 
@@ -2317,8 +2501,9 @@ function normalizePerfume(p) {
   })(),
     primary,
     sigScore: p.ss ?? 5, intScore: p.is ?? 3, balScore: p.bs ?? 5,
-    safeScore: (srToScore(p.sr) ?? computeTrevorOnMe(buildTagsFromText(p.no || "", p.f || ""), primary)),
+    safeScore: (srToScore(p.sr) ?? computeTrevorOnMe(buildTagsFromText(p.no || "", p.f || ""), primary, p.no || "")),
     safeReaction: p.sr || "",
+    safeReview: p.srv || "",
     trevorSelfScore: computeTrevorSelf(buildTagsFromText(p.no || "", p.f || ""), primary),
     mood: p.m || "Classic", myNotes: p.mn || "",
     location: p.loc || "",
@@ -3682,7 +3867,9 @@ function scoreNewPerfume({ notes, family, tags, myNotes, rating }) {
 
   let trev = 5;
   if (has('grapefruit')) trev += 3;
-  if (has('bergamot', 'pomelo', 'neroli', 'mandarin')) trev += 2;
+  // 'orange blossom' rides with 'neroli' — same flower, and computeTrevorOnMe /
+  // computeTrevorSelf already score them as one, so this list has to agree.
+  if (has('bergamot', 'pomelo', 'neroli', 'orange blossom', 'mandarin')) trev += 2;
   if (has('lemon', 'lime')) trev += 1;
   if (has('vetiver')) trev += 1;
   if (has('herbal', 'mint', 'aromatic')) trev += 1;
@@ -5001,10 +5188,11 @@ const CATEGORY_MAP = [
   { label: "Musk",               keys: ["musk","musks","musky"] },
   { label: "Iris / Powdery",     keys: ["iris","orris","ionone","orris root","violet","violet leaf"] },
   { label: "Incense / Oud",      keys: ["incense","frankincense","myrrh","oud","agarwood","smoke","smoky","olibanum"] },
-  { label: "White Floral",       keys: ["tuberose","gardenia","magnolia","white flower","ylang","orange blossom","lily of the valley","white musk"] },
+  { label: "White Floral",       keys: ["tuberose","gardenia","magnolia","white flower","ylang","orange blossom","neroli","lily of the valley","white musk"] },
   { label: "Yellow Floral",      keys: ["mimosa","narcissus","jonquil","honeysuckle","osmanthus","daffodil","broom","genet","genêt"] },
   { label: "Purple Floral",      keys: ["lavender","lilac","wisteria","heliotrope"] },
-  { label: "Floral",             keys: ["jasmine","peony","neroli","freesia","carnation","lily","floral"] },
+  // neroli moved up to White Floral to sit with orange blossom — same flower.
+  { label: "Floral",             keys: ["jasmine","peony","freesia","carnation","lily","floral"] },
   { label: "Tea",                keys: ["tea","black tea","green tea","white tea","oolong","oolong tea","matcha","matcha tea","rooibos","mate","maté","yerba mate","chai","masala chai","earl grey","lapsang","lapsang souchong","darjeeling","ceylon tea","smoked tea","tea leaf","tea leaves","jasmine tea"] },
   { label: "Green / Fresh",      keys: ["green","ivy","lierre","galbanum","grass","hay","moss","fern","leaf","leaves","aquatic","marine","sea","water","petrichor","aldehydic"] },
   { label: "Aromatic",          keys: ["basil","sage","rosemary","thyme","mint","eucalyptus","fougere","lemon verbena","vervain","chamomile","marjoram","tarragon","hyssop","palmarosa","amyris"] },
@@ -5046,6 +5234,18 @@ const TEA_IDS = new Set([
   563,  // Vilhelm — Dear Polly (ceylon black tea)
 ]);
 
+// When a perfume's NAME says what it is, that's the perfumer telling you the theme —
+// the strongest signal available. Names are often French, so map those to note words.
+// ('white musk' is deliberately not matched from names: it sits in the White Floral key
+// list as a note, and would drag every "White Musk" bottle out of the Musk category.)
+const NAME_NOTE_ALIAS = {
+  'lavande':'lavender', 'oranger':'orange blossom', 'fleur d oranger':'orange blossom',
+  'jasmin':'jasmine', 'tubereuse':'tuberose', 'citron':'lemon', 'pamplemousse':'grapefruit',
+  'encens':'incense', 'santal':'sandalwood', 'cuir':'leather', 'ambre':'amber',
+  'musc':'musk', 'bois':'woody', 'figuier':'fig', 'poudre':'powder', 'poudree':'powder',
+  'vetyver':'vetiver', 'iris':'iris', 'rose':'rose', 'neroli':'neroli', 'the':'tea',
+};
+
 function dominantCategory(p) {
   if (!p) return "Other";
   // Manual override set via the edit form always wins.
@@ -5054,6 +5254,24 @@ function dominantCategory(p) {
   if (TEA_IDS.has(p.id)) return "Tea";
   const primarySet = new Set(p.primary || []);
   const allNotes = new Set([...(p.tags || []), ...(p.primary || [])]);
+  // Notes named in the title — used below as a tie-breaker. Without this, ties between
+  // equally-scoring categories were settled by whichever label sat higher in
+  // CATEGORY_MAP, which put Lavande 31 in White Floral and Cuir 28 in Woody.
+  const _nm = _norm(p.name || p.fullName || "");
+  const nameNotes = new Set();
+  for (const alias in NAME_NOTE_ALIAS) {
+    if (wordKeyMatch(_nm, alias)) nameNotes.add(NAME_NOTE_ALIAS[alias]);
+  }
+  // Which keys the name matches, per category. A key is then ignored if it's a proper
+  // substring of another matched key: "Orange Blossom" matches both 'orange blossom'
+  // (White Floral) and 'orange' (Citrus), and without this both would get the bonus and
+  // cancel out. Only overlapping matches are resolved this way — a name that genuinely
+  // says two different things ("Iris Poudre" → iris + powder) still rewards both.
+  const _nameKeys = (keys) => keys.filter(k => k !== 'white musk' &&
+    (wordKeyMatch(_nm, k) || [...nameNotes].some(n => wordKeyMatch(n, k))));
+  const _allNameKeys = [];
+  for (const { keys } of CATEGORY_MAP) _allNameKeys.push(..._nameKeys(keys));
+  const _shadowed = k => _allNameKeys.some(o => o !== k && o.includes(k));
   let bestLabel = null, bestScore = 0;
   for (const { label, keys } of CATEGORY_MAP) {
     let score = 0;
@@ -5087,6 +5305,10 @@ function dominantCategory(p) {
           score += primarySet.has(note) ? 3 : 1;
         }
       }
+      // Name tie-breaker: +2 when the bottle's name announces this category. Less than a
+      // primary note (3), so it only decides otherwise-even races — Lavande 31 back to
+      // Purple Floral, Cuir 28 to Leather, Iris Poudre to Iris / Powdery.
+      if (_nameKeys(keys).some(k => !_shadowed(k))) score += 2;
     }
     if (score > bestScore) { bestScore = score; bestLabel = label; }
   }
@@ -5152,7 +5374,17 @@ function ChartsView({ wearLog, perfumes, wearStats, onRefresh, onSelect }) {
   // PRIMARY_TAG_BLACKLIST; we additionally drop the few surviving descriptors (powder,
   // resin, musk, mineral...) via NOTES_CHART_BLACKLIST so every note shown is a
   // specific ingredient at the same granularity.
-  const chartNotes = p => (Array.isArray(p.primary) ? p.primary : []).filter(n => !NOTES_CHART_BLACKLIST.has(n));
+  // canonChartNote then folds synonyms together (neroli → orange blossom, cedarwood →
+  // cedar) and the Set dedupes, so a bottle listing both 'iris' and 'orris' counts once
+  // for iris rather than twice.
+  const chartNotes = p => {
+    const seen = new Set();
+    for (const raw of (Array.isArray(p.primary) ? p.primary : [])) {
+      const n = canonChartNote(raw);
+      if (n && !NOTES_CHART_BLACKLIST.has(n)) seen.add(n);
+    }
+    return [...seen];
+  };
   // Format a {perfumeName: count} map into a newline list for chart hover tooltips
   const fmtNodePerf = m => m ? Object.entries(m).sort((a,b)=>b[1]-a[1]).map(([n,c])=>c>1?`${n} ×${c}`:n).join('\n') : '';
 
