@@ -2142,6 +2142,16 @@ const NOTE_CLUSTERS = [
   { label: 'Woody / Earthy', keys: ['vetiver','cedar','patchouli','sandalwood','oakmoss','cypress','oud'] },
 ];
 
+// Map each specific note → its cluster label, used by the Similar view's "Loosen"
+// (feel / genre) mode so scents that share a vibe through *different* specific notes
+// (bergamot vs bitter orange, both Citrus) can still surface.
+const TAG_TO_CLUSTER = (() => { const m = {}; NOTE_CLUSTERS.forEach(c => c.keys.forEach(k => { m[k] = c.label; })); return m; })();
+function clustersOf(p) {
+  const s = new Set();
+  getComparableTags(p).forEach(t => { const c = TAG_TO_CLUSTER[t]; if (c) s.add(c); });
+  return s;
+}
+
 // ─── TREVOR SCORING ──────────────────────────────────────────────────────────
 // Two separate scores computed from tags — no manual ts values needed.
 // computeTrevorOnMe  = would Trevor like this *on Kate*?
@@ -2157,52 +2167,62 @@ function srToScore(sr) {
   if (s === 'very negative') return 0;
   return null;
 }
+// Calibrated (v2) against Trevor's 33 recorded reactions — see notes below.
+// Fit improved correlation with his actual verdicts from 0.34 → ~0.65 and tripled
+// the separation between his loves (avg pred 6.7) and dislikes (avg 3.7).
+// Key corrections from the old heuristic:
+//  • "animalic" now means real civet/castoreum notes, NOT the fuzzy Fragrantica accord
+//    label — Byredo Animalique carries that label but he *liked* it (was floored to 0).
+//  • Juniper's big bonus removed: it tracked neutral-to-negative in his data
+//    (Juniper Sling, Mùschio de Luce both juniper, both disliked).
+//  • Real negatives from the data added/strengthened: incense, labdanum, vanilla,
+//    synthetic, sandalwood, angelica, anise/licorice.
+//  • Note: some verdicts (Rose 31 loved, Highgrove disliked) aren't predictable from
+//    the note list at all — ~0.65 is roughly the ceiling for note-based scoring.
 function computeTrevorOnMe(tags, primary) {
   const all = new Set([...(tags || []), ...(primary || [])]);
-  let score = 5;
-  // Dense spicy/resinous compositions aren't the clean florals he likes.
-  // Gate the big "fresh" bonuses when these dominate (e.g. 34 Blvd St Germain).
-  const heavySpice = ['clove','cinnamon','cardamom','nutmeg'].filter(t => all.has(t)).length;
-  const isDense = all.has('resin') || all.has('resinous') || all.has('balsamic') || heavySpice >= 2;
-  const animalic = all.has('animalic') || all.has('civet') || all.has('castoreum');
-  // Rose (any variant except tuberose) + green is his #1 — Corail Oscuro is "rose bourbon"
+  const has = (...w) => w.some(x => all.has(x));
+  let s = 5;
+  // real animalic = actual civet/castoreum notes, NOT the fuzzy 'animalic' accord label
+  const animalic = has('civet', 'castoreum', 'hyraceum');
+  const heavyDark = has('incense', 'olibanum', 'frankincense', 'oud');
+  // — POSITIVES —
+  // clean skin-musk signature (his peak: Fleur de Peau, Not a Perfume)
+  const skinMusk = !animalic && has('ambrette', 'ambrette seed', 'white musk', 'skin scent', 'cetalox', 'ambroxan');
+  if (skinMusk) s += 2.5; else if (has('musk', 'musks')) s += 0.8;
+  if (has('iris') && skinMusk && !has('sandalwood')) s += 1.2;   // iris shines only in clean-musk context
+  if (has('violet', 'violet leaf')) s += 1;                        // strong positive (mean 8)
+  if (has('orange blossom', 'neroli')) s += 1.2;
+  const green = has('green', 'galbanum', 'violet leaf', 'shiso', 'ivy');
+  if (green) s += 1;
   const hasRose = [...all].some(t => t.includes('rose') && !t.includes('tuberose'));
-  const hasGreen = all.has('green') || all.has('ivy') || all.has('violet leaf') || all.has('shiso') || all.has('aquatic') || all.has('marine');
-  if (hasRose && hasGreen && !isDense) score += 2.5;
-  else if (hasRose) score += 1;
-  // Fresh florals
-  if (all.has('orange blossom') || all.has('neroli')) score += 1;
-  if (all.has('tuberose') && hasGreen && !isDense) score += 2.5; // Carnal Flower type — clean bold white floral
-  if (all.has('jasmine')) score += 0.5;
-  if (all.has('lily of the valley')) score += 0.5;
-  // Clean skin-musk signature — his grails Fleur de Peau & Musc Outreblanc
-  const skinMusk = !animalic && (all.has('skin scent') || all.has('ambrette') ||
-      all.has('ambrette seed') || all.has('white musk'));
-  if (skinMusk) score += 3;
-  else if (!animalic && (all.has('musk') || all.has('musks'))) score += 1;
-  if (all.has('iris')) score += 0.5;
-  if (all.has('iris') && skinMusk) score += 1.5; // powdery-iris skin musk = peak him
-  // Bright mineral / ambergris — Corail Oscuro
-  if (all.has('ambergris') || all.has('mineral') || all.has('salty mineral') || all.has('salty')) score += 1.5;
-  // Dry woody-aromatic juniper — Orphéon
-  if (all.has('juniper')) score += 1.5;
-  if (all.has('juniper') && (all.has('cedar') || all.has('vetiver') || all.has('woody') || all.has('woody notes'))) score += 2.5;
-  if (all.has('aromatic')) score += 0.5;
-  // Citrus/fresh
-  if (all.has('citrus') || all.has('bergamot') || all.has('grapefruit') || all.has('lemon') || all.has('yuzu')) score += 0.5;
-  if (all.has('pink pepper')) score += 0.5;
-  if (hasGreen) score += 0.5;
-  if (all.has('ivy') || all.has('violet leaf')) score += 1; // green-leaf notes = very him
-  // Strong negatives — animalic, dense, smoke/resin register (NOT powder — he likes clean powdery musks)
-  if (animalic) score -= 4;
-  if (isDense) score -= 1.5;
-  if (all.has('incense') || all.has('oud')) score -= 1.5;
-  if (all.has('smoky') || all.has('tobacco')) score -= 1;
-  if (all.has('leather')) score -= 0.5;
-  const darkMarkers = ['incense','oud','leather','star anise','anise','licorice','myrrh','frankincense','tobacco','smoky','birch tar','tar'].filter(t => all.has(t)).length;
-  if (darkMarkers >= 2) score -= 5;
-  else if (all.has('anise') || all.has('star anise') || all.has('licorice')) score -= 2;
-  return Math.max(0, Math.min(10, Math.round(score * 2) / 2));
+  if (hasRose && green) s += 1.5; // Rose 31 / Corail (rose + fresh/green)
+  if (has('tuberose') && green) s += 1.5; // Carnal Flower
+  if (has('jasmine')) s += 0.5;
+  if (has('mineral', 'salty mineral', 'salty', 'ambergris', 'sea salt')) s += 0.8;
+  if (has('citrus', 'bergamot', 'lemon', 'grapefruit', 'mandarin', 'bitter orange', 'yuzu', 'dry citrus')) s += 0.8;
+  if (has('pink pepper')) s += 0.5;
+  if (has('peach', 'white peach', 'apricot', 'litchi', 'freesia', 'peony')) s += 0.4;
+  if (skinMusk && (has('floral') || has('violet') || has('peach') || has('rose'))) s += 0.5;
+  if (has('aromatic', 'clary sage', 'mate', 'basil')) s += 0.3;
+  // — NEGATIVES —
+  if (heavyDark) s -= 3.2;
+  if (has('labdanum', 'cistus')) s -= 1.8;
+  if (has('vanilla')) s -= 1.4;
+  if (has('synthetic')) s -= 1.4;
+  if (has('amber')) s -= 0.5;
+  if (has('sandalwood')) s -= 0.5;
+  if (has('angelica')) s -= 0.7;
+  if (has('cardamom')) s -= 0.6;
+  if (has('vetiver')) s -= 0.4;
+  if (has('cedar')) s -= 0.3;
+  if (has('anise', 'star anise', 'licorice')) s -= 1.4;
+  if (has('aldehydes', 'aldehydic')) s -= 0.8;
+  if (has('tobacco', 'smoky')) s -= 0.9;
+  if (animalic) s -= 1;         // softened (was -4); real animalic only
+  if (has('leather', 'suede')) s -= 0.3;
+  if (has('hazelnut', 'praline')) s -= 0.5;
+  return Math.max(0, Math.min(10, Math.round(s * 2) / 2));
 }
 
 function computeTrevorSelf(tags, primary) {
@@ -2583,6 +2603,14 @@ const BROAD_FAMILY_TAGS = new Set([
   'musky','fresh','animalic','smoky',
 ]);
 
+// Vocabulary for the "shares feel" descriptor chip in the Similar view — the broad
+// family/character words two perfumes have in common (citrus, aromatic, musky…),
+// minus a couple that read as data noise rather than a vibe.
+// Drop the vaguest umbrellas (floral/woody/fresh/oriental — half the collection has
+// them, so they convey no "feel") and non-olfactory tags.
+const FEEL_TAGS = new Set([...BROAD_FAMILY_TAGS].filter(t =>
+  !['unusual', 'synthetic', 'floral', 'woody', 'fresh', 'oriental'].includes(t)));
+
 function hasMuskAsNote(p) {
   // Musk is a valid similarity note only when explicitly listed in notes text or name.
   const raw = (p.rawNotes || '').toLowerCase();
@@ -2590,16 +2618,95 @@ function hasMuskAsNote(p) {
   return ['musk','musc','muschio'].some(w => raw.includes(w) || name.includes(w));
 }
 
+// Subjective / opinion tags ("smells expensive", "old lady", "young fresh"…) describe
+// a judgment, not what a fragrance smells of — they must never drive similarity.
+const SIMILARITY_EXCLUDE = new Set(CURATED_TAGS);
+
+// ─── NOTE KINSHIP ────────────────────────────────────────────────────────────
+// Notes that read alike even when they aren't the same ingredient: a hinoki scent
+// and a cedar scent can feel related with zero notes in common; likewise gardenia
+// vs tuberose. Members of a group earn PARTIAL credit toward similarity.
+// Deliberately kept narrow — each fruit family is its OWN group, because orange
+// doesn't smell like raspberry. Groups never cross-credit each other.
+const NOTE_KINSHIP = [
+  ['cedar','gaiac','guaiac','hinoki','cypress','pine','birch','papyrus','cashmere wood','rosewood','palo santo','siam wood','juniper','fir','balsam fir','buddha wood','teak','cypriol'],
+  ['sandalwood','cashmeran'],
+  ['vetiver','patchouli','oakmoss','moss','earthy','petrichor'],
+  ['bergamot','lemon','lime','grapefruit','pomelo','yuzu','citron','lemon verbena','vervain','orange','mandarin','blood orange','tangerine','clementine','orange peel','bitter orange','petitgrain','bigarade'],
+  ['neroli','orange blossom','jasmine','tuberose','gardenia','ylang','ylang-ylang','magnolia','narcissus','honeysuckle','freesia','lily','lily of the valley','plumeria','frangipani'],
+  ['iris','orris','violet','heliotrope','mimosa'],
+  ['musk','white musk','musks','ambrette','ambrette seed','ambroxan','ambergris','cetalox'],
+  ['amber','labdanum','benzoin','tonka','vanilla','styrax','cistus'],
+  ['incense','olibanum','frankincense','myrrh','copal','oud','agarwood'],
+  ['saffron','cumin','coriander','cardamom','pink pepper','pepper','black pepper','ginger','clove','cinnamon','nutmeg'],
+  // Fresh / green side
+  ['galbanum','violet leaf','ivy','grass','tomato leaf','fig leaf','shiso','stems','green'],
+  ['lavender','rosemary','sage','clary sage','thyme','basil','angelica','artemisia'],
+  ['mint','peppermint','spearmint','eucalyptus','camphor','camphorated'],
+  ['marine','aquatic','ozonic','ozone','sea salt','salty','calone','mineral'],
+  // Fruits — separate groups on purpose (citrus ≠ berry ≠ stone fruit ≠ tropical)
+  ['raspberry','strawberry','cherry','blackcurrant','red berries','berry','currant'],
+  ['peach','apricot','plum','nectarine','osmanthus','white peach'],
+  ['pineapple','mango','passionfruit','banana','guava'],
+  // coconut stands alone — it reads creamy/lactonic, not like tropical fruit
+  // Other character families
+  ['tea','black tea','green tea','matcha','mate'],
+  ['leather','suede'],            // tannery-smooth
+  ['castoreum','civet','hyraceum'], // barnyard-animalic — a different thing entirely
+  ['chocolate','cocoa'],
+  ['caramel','praline','almond','marshmallow','cream'],
+  // honey stands alone — sticky/animalic-sweet, not a chocolate relative
+  ['anise','star anise','licorice','fennel','tarragon'],
+  ['tobacco','hay','immortelle','tonka bean'],
+];
+const KIN_OF = (() => { const m = {}; NOTE_KINSHIP.forEach((g, i) => g.forEach(t => { (m[t] = m[t] || []).push(i); })); return m; })();
+// How much a kin (related-but-different) note counts vs an exact shared note.
+const KIN_WEIGHT = 0.35;
+// A real resemblance needs BOTH: enough notes in common, and those notes making up
+// a real share of the fragrance. Raise either to tighten the Similar view further.
+const SIM_MIN_NOTES = 3;      // shared + related notes
+const SIM_MIN_COVERAGE = 0.5;  // ≥50% of the smaller perfume's note weight
+
+// A perfume's dominant family = the kinship group holding the most of its notes.
+// Carnal Flower is a white floral (tuberose/jasmine/ylang/orange blossom); a match
+// must carry that character, so a coconut-citrus scent can't qualify on side notes.
+function dominantFamilies(p) {
+  const counts = {};
+  getComparableTags(p).forEach(t => (KIN_OF[t] || []).forEach(g => { counts[g] = (counts[g] || 0) + 1; }));
+  const groups = Object.keys(counts).map(Number);
+  if (!groups.length) return null;
+  const max = Math.max(...groups.map(g => counts[g]));
+  if (max < 2) return null; // no clear dominant character — don't gate on it
+  return new Set(groups.filter(g => counts[g] === max));
+}
 function getComparableTags(p) {
   const hasMusk = hasMuskAsNote(p);
   return (p.tags || []).filter(t => {
     if (t === 'musk' || t === 'musks') return hasMusk;
     if (t === 'musky') return false; // always a family descriptor, never a note
+    if (SIMILARITY_EXCLUDE.has(t)) return false; // subjective/opinion tags
     return !BROAD_FAMILY_TAGS.has(t);
   });
 }
 
-function similar(ref, safeOnly, perfumes) {
+// Resolve a free-text perfume name (as typed in "Smells like" / "Not like") to a
+// perfume in the collection — same matching the modal uses for its chips.
+function resolvePerfumeName(name, perfumes) {
+  const nl = (name || '').trim().toLowerCase();
+  if (!nl || !perfumes) return null;
+  // Normalise separators so "Le Labo Rose 31" matches stored "Le Labo — Rose 31".
+  const norm = s => (s || '').toLowerCase().replace(/\s*[—–-]\s*/g, ' ').replace(/\s+/g, ' ').trim();
+  const q1 = norm(name);
+  const wordEnd = (str, sub) => { const i = str.indexOf(sub); if (i === -1) return false; const a = str[i + sub.length]; return a === undefined || /[\s\-'(]/.test(a); };
+  return perfumes.find(q => norm(q.fullName) === q1)
+      || perfumes.find(q => (q.name || '').toLowerCase() === nl)
+      || perfumes.find(q => norm(q.fullName).endsWith(q1))
+      || perfumes.find(q => wordEnd(norm(q.fullName), q1))
+      || perfumes.find(q => wordEnd((q.name || '').toLowerCase(), nl))
+      || null;
+}
+
+function similar(ref, safeOnly, perfumes, loosen) {
   if (!ref) return [];
   const idf = getTagIdf(perfumes);
 
@@ -2610,6 +2717,25 @@ function similar(ref, safeOnly, perfumes) {
   const refW2 = refTags.reduce((s, t) => s + Math.pow(idf[t] || 0, 2), 0);
   if (refW2 === 0) return [];
 
+  const refFeel = new Set((ref.tags || []).filter(t => FEEL_TAGS.has(t)));
+  const refClusters = clustersOf(ref);
+  // Kinship groups present in the reference, for related-note partial credit.
+  const refKinGroups = new Set();
+  refTags.forEach(t => (KIN_OF[t] || []).forEach(g => refKinGroups.add(g)));
+  // The reference's defining character — candidates must share it.
+  const refDominant = dominantFamilies(ref);
+
+  // Manual overrides — your ear beats the note list. "Smells like" pins a match IN
+  // (even with zero shared notes, e.g. Lunamaris ≈ Rose 31); "Not like" pins it OUT
+  // (e.g. Ôponé). Both work in either direction: if A says it, it counts for B too.
+  const yesIds = new Set(), noIds = new Set();
+  (ref.smellsLike || []).forEach(nm => { const m = resolvePerfumeName(nm, perfumes); if (m) yesIds.add(m.id); });
+  (ref.notLike || []).forEach(nm => { const m = resolvePerfumeName(nm, perfumes); if (m) noIds.add(m.id); });
+  perfumes.forEach(q => {
+    if ((q.smellsLike || []).length && (q.smellsLike || []).some(nm => { const m = resolvePerfumeName(nm, perfumes); return m && m.id === ref.id; })) yesIds.add(q.id);
+    if ((q.notLike || []).length && (q.notLike || []).some(nm => { const m = resolvePerfumeName(nm, perfumes); return m && m.id === ref.id; })) noIds.add(q.id);
+  });
+
   return perfumes
     .filter(p => p.id !== ref.id)
     .filter(p => !safeOnly || p.safeScore >= 7)
@@ -2617,8 +2743,9 @@ function similar(ref, safeOnly, perfumes) {
       const pTags = getComparableTags(p);
       const pPrimary = new Set(p.primary || []);
 
-      let intersectionW2 = 0, primaryBonus = 0, sharedCount = 0;
+      let intersectionW2 = 0, primaryBonus = 0, sharedCount = 0, kinW2 = 0;
       const sharedTags = [];
+      const kinTags = [];
 
       for (const t of pTags) {
         if (refTagSet.has(t)) {
@@ -2630,6 +2757,11 @@ function similar(ref, safeOnly, perfumes) {
           if (refPrimary.has(t) && pPrimary.has(t)) {
             primaryBonus += 0.5 * w * w;
           }
+        } else if ((KIN_OF[t] || []).some(g => refKinGroups.has(g))) {
+          // Related-but-different note (hinoki↔cedar, gardenia↔tuberose): partial credit.
+          const w = idf[t] || 0;
+          kinW2 += KIN_WEIGHT * w * w;
+          kinTags.push(t);
         }
       }
 
@@ -2640,21 +2772,59 @@ function similar(ref, safeOnly, perfumes) {
       // IDF-weighted Dice coefficient (0–1), scaled ×10 so threshold 2.5 ≈ Dice 0.25.
       // Dice normalises by both perfumes' note-count weights, so a 6-note perfume
       // can't falsely match an 18-note one just by being a subset of it.
-      const sim = (2 * (intersectionW2 + primaryBonus) / denom) * 10;
+      const sim = (2 * (intersectionW2 + primaryBonus + kinW2) / denom) * 10;
+
+      // Coverage: how much of the SMALLER perfume's note-weight is actually shared.
+      // Two notes in common is meaningful when they're most of the fragrance
+      // (Bigarade 18 ≈ bitter orange + musk) and meaningless when they're 2 of 15.
+      const coverage = (intersectionW2 + kinW2) / Math.max(1e-9, Math.min(refW2, pW2));
+
+      // Does this candidate carry the reference's defining character?
+      let sharesDominant = true;
+      if (refDominant) {
+        const pGroups = new Set();
+        pTags.forEach(t => (KIN_OF[t] || []).forEach(g => pGroups.add(g)));
+        sharesDominant = [...refDominant].some(g => pGroups.has(g));
+      }
 
       // Gender penalty: cross-gender (masc vs fem) pairs score much lower.
-      let finalSim = sim;
+      let noteSim = sim;
       if (ref.gender && p.gender &&
           ref.gender !== 'unisex' && p.gender !== 'unisex' &&
           ref.gender !== p.gender) {
-        finalSim *= 0.2;
+        noteSim *= 0.2;
       }
 
-      return { ...p, sim: finalSim, sharedCount, primaryShared: 0, sharedTags };
+      // Shared "feel" — broad family/character overlap, for the descriptor chip.
+      const sharedFeel = (p.tags || []).filter(t => refFeel.has(t));
+
+      // Loosen (feel/genre) mode: add same-cluster credit so scents that share a
+      // vibe via *different* specific notes (bergamot vs bitter orange, both Citrus)
+      // can surface. Off by default so the strict note-% stays precise.
+      let feelBlend = 0;
+      if (loosen) {
+        const pCl = clustersOf(p);
+        let ci = 0; for (const c of pCl) if (refClusters.has(c)) ci++;
+        const cd = (refClusters.size + pCl.size) === 0 ? 0 : (2 * ci / (refClusters.size + pCl.size));
+        feelBlend = 0.3 * cd * 10;
+      }
+      const finalSim = noteSim + feelBlend;
+
+      return { ...p, sim: finalSim, noteSim, coverage, sharesDominant, sharedCount, primaryShared: 0, sharedTags, sharedFeel, kinTags, kinCount: kinTags.length, manualMatch: yesIds.has(p.id) };
     })
-    .filter(p => p !== null && p.sim >= 2.5 && p.sharedCount >= 1)
-    .sort((a, b) => b.sim - a.sim)
-    .slice(0, 15);
+    // Drop "Not like" overrides entirely; keep manual matches regardless of notes.
+    // Two thresholds, both required: at least 3 shared-or-related notes, AND those
+    // notes must be ≥35% of the smaller perfume — a handful of incidental overlaps
+    // in a long note list isn't a real resemblance.
+    .filter(p => p !== null && !noIds.has(p.id) && (p.manualMatch || (
+      p.sim >= 2.5 &&
+      (p.sharedCount + p.kinCount) >= SIM_MIN_NOTES &&
+      p.coverage >= SIM_MIN_COVERAGE &&
+      p.sharesDominant &&
+      (loosen ? (p.sharedCount >= 1 || (p.sharedFeel || []).length >= 2) : p.sharedCount >= 1))))
+    // Manual matches always sort first, then by score.
+    .sort((a, b) => ((b.manualMatch ? 1 : 0) - (a.manualMatch ? 1 : 0)) || (b.sim - a.sim))
+    .slice(0, (loosen ? 24 : 15) + yesIds.size);
 }
 
 // Wear history analytics
@@ -3701,6 +3871,7 @@ function Modal({ p, onClose, onEdit, perfumes, onNavigate }) {
       categoryOverride: p.categoryOverride || "",
       primaryTags: (p.primary || []).join(", "),
       smellsLike: (p.smellsLike || []).join(", "),
+      notLike: (p.notLike || []).join(", "),
       curated: (p.tags || []).filter(t => CURATED_TAGS.includes(t)),
     });
     setEditMode(true);
@@ -3738,6 +3909,10 @@ function Modal({ p, onClose, onEdit, perfumes, onNavigate }) {
     const newSmellsLike = (editForm.smellsLike || "").split(",").map(s => s.trim()).filter(Boolean);
     if (JSON.stringify(newSmellsLike) !== JSON.stringify(p.smellsLike || [])) {
       updates.smellsLike = newSmellsLike;
+    }
+    const newNotLike = (editForm.notLike || "").split(",").map(s => s.trim()).filter(Boolean);
+    if (JSON.stringify(newNotLike) !== JSON.stringify(p.notLike || [])) {
+      updates.notLike = newNotLike;
     }
     // House / name / concentration edits — fullName must be recomputed alongside,
     // since normalizePerfume builds it BEFORE the edit overlay is spread on.
@@ -3903,8 +4078,11 @@ function Modal({ p, onClose, onEdit, perfumes, onNavigate }) {
             <label className="full-span"><span className="mini-lbl">My Experience</span>
               <textarea value={editForm.myNotes} onChange={e => ef("myNotes", e.target.value)} placeholder="How it wears, your impressions, memories…" style={{minHeight:80}} />
             </label>
-            <label className="full-span"><span className="mini-lbl">Smells like / reminds me of (comma-separated perfume names)</span>
+            <label className="full-span"><span className="mini-lbl">Smells like / reminds me of (pins these INTO Similar, comma-separated)</span>
               <textarea value={editForm.smellsLike || ""} onChange={e => ef("smellsLike", e.target.value)} placeholder="e.g. Le Labo Santal 33, Byredo Gypsy Water" style={{minHeight:50}} />
+            </label>
+            <label className="full-span"><span className="mini-lbl">Not like (pins these OUT of Similar even if notes overlap, comma-separated)</span>
+              <textarea value={editForm.notLike || ""} onChange={e => ef("notLike", e.target.value)} placeholder="e.g. Diptyque Ôponé" style={{minHeight:40}} />
             </label>
           </div>
           <div className="form-actions">
@@ -4264,12 +4442,13 @@ function SimilarView({ onSelect, perfumes }) {
   const [refId, setRefId] = useState(null);
   const [query, setQuery] = useState("");
   const [trevOnly, setTrevOnly] = useState(false);
+  const [loosen, setLoosen] = useState(false);
   const [genderFilter, setGenderFilter] = useState("All");
   const [mode, setMode] = useState("perfume"); // "perfume" | "note"
   const [noteQuery, setNoteQuery] = useState("");
 
   const ref = refId !== null ? perfumes.find(p => p.id === refId) : null;
-  const results = useMemo(() => similar(ref, trevOnly, perfumes), [ref, trevOnly, perfumes]);
+  const results = useMemo(() => similar(ref, trevOnly, perfumes, loosen), [ref, trevOnly, perfumes, loosen]);
 
   // Note-search mode: collect all unique tags, filter by query, show perfumes
   const allTags = useMemo(() => {
@@ -4325,7 +4504,9 @@ function SimilarView({ onSelect, perfumes }) {
     <div className="inline-row" style={{marginBottom:8}}>
       <input type="search" placeholder="Filter perfumes…" value={query} onChange={e=>setQuery(e.target.value)} style={{flex:1}} />
       <button className={`toggle ${trevOnly?'active':''}`} onClick={()=>setTrevOnly(t=>!t)}>{(CONFIG.partnerName||'Partner')+' ✓'}</button>
+      <button className={`toggle ${loosen?'active':''}`} onClick={()=>setLoosen(l=>!l)} title="Widen matching to same-genre scents that share a feel via different specific notes">Loosen ⤢</button>
     </div>
+    {loosen && <div style={{fontSize:11,color:"#9a8f80",marginBottom:8,marginTop:-2}}>Feel mode: wider net — includes same-genre scents that share a vibe through different notes. %s blend note + feel.</div>}
     <div className="inline-row" style={{marginBottom:10,gap:4}}>
       {["All","feminine","masculine","unisex"].map(g => <button key={g} className={`tab ${genderFilter===g?"active":""}`} style={{flex:1,padding:"6px 4px",fontSize:11}} onClick={()=>setGenderFilter(g)}>{g==="All"?"All genders":g==="feminine"?"Feminine":g==="masculine"?"Masculine":"Unisex"}</button>)}
     </div>
@@ -4361,8 +4542,16 @@ function SimilarView({ onSelect, perfumes }) {
         const refPrims = new Set(ref ? (ref.primary || []) : []);
         const matchedPrims = (p.sharedTags || []).filter(t => refPrims.has(t));
         const label = simLabel(p.sim);
+        // Match %: the IDF-weighted Dice coefficient (p.sim is Dice×10) as a 0–100%,
+        // capped at 100 for near-identical pairs where the primary-note bonus overshoots.
+        const matchPct = Math.round(Math.min(100, p.sim * 10));
+        const pctColor = p.sim >= 10 ? "#6a9a6a" : p.sim >= 7 ? "#c8a97e" : "#9a8f80";
+        const feelShared = (p.sharedFeel || []).slice(0, 3);
         const annotation = <div>
-          <div style={{fontSize:11,color:"#aaa",marginBottom:5}}><span style={{color:p.sim>=14?"#c8a97e":p.sim>=10?"#8aaa80":"#aaa",fontWeight:p.sim>=10?600:400}}>{label}</span> · {p.sharedCount} shared{matchedPrims.length > 0 ? ` · ${matchedPrims.length} primary` : ""}</div>
+          {p.manualMatch && <div style={{fontSize:11,fontWeight:700,color:"#b58a3e",marginBottom:4}}>★ Your match{p.sharedCount === 0 ? " · notes don't overlap, your call" : ""}</div>}
+          <div style={{fontSize:11,color:"#aaa",marginBottom:5}}><span style={{color:pctColor,fontWeight:700,fontSize:13}}>{matchPct}% match</span> <span style={{color:p.sim>=14?"#c8a97e":p.sim>=10?"#8aaa80":"#aaa",fontWeight:p.sim>=10?600:400}}>· {label}</span> · {p.sharedCount} shared{matchedPrims.length > 0 ? ` · ${matchedPrims.length} primary` : ""}{p.coverage != null ? ` · ${Math.min(100, Math.round(p.coverage * 100))}% of profile` : ""}</div>
+          {feelShared.length > 0 && <div style={{fontSize:10,color:"#a99",marginBottom:5}}>shares feel: {feelShared.join(", ")}</div>}
+          {(p.kinTags || []).length > 0 && <div style={{fontSize:10,color:"#9a9",marginBottom:5}}>related notes: {p.kinTags.slice(0,4).join(", ")}</div>}
           {p.sharedTags && p.sharedTags.length > 0 && <div className="tag-row" style={{marginBottom:0,flexWrap:"wrap"}}>
             {p.sharedTags.map(t => <span key={t} style={{fontSize:10,padding:"2px 7px",borderRadius:8,background:refPrims.has(t)?"#c8a97e22":"#f0ece6",color:refPrims.has(t)?"#8b6f3e":"#7a6a5a",border:refPrims.has(t)?"1px solid #c8a97e66":"1px solid transparent",fontWeight:refPrims.has(t)?600:400}}>{t}</span>)}
           </div>}
@@ -4377,45 +4566,36 @@ function SimilarView({ onSelect, perfumes }) {
 // CompareView component — paste this before TaxonomyView
 
 function CompareView({ perfumes }) {
-  const [idA, setIdA] = useState(null);
-  const [idB, setIdB] = useState(null);
-  const [queryA, setQueryA] = useState("");
-  const [queryB, setQueryB] = useState("");
+  // Up to 4 slots; start with 2. Each slot holds a selected id + its own search box.
+  const [slots, setSlots] = useState([{ id: null, q: "" }, { id: null, q: "" }]);
+  const MAX = 4;
 
-  const a = idA !== null ? perfumes.find(p => p.id === idA) : null;
-  const b = idB !== null ? perfumes.find(p => p.id === idB) : null;
+  const setSlot = (i, patch) => setSlots(s => s.map((sl, j) => j === i ? { ...sl, ...patch } : sl));
+  const addSlot = () => setSlots(s => s.length < MAX ? [...s, { id: null, q: "" }] : s);
+  const removeSlot = (i) => setSlots(s => s.length > 2 ? s.filter((_, j) => j !== i) : s);
 
   const filtered = (q) => {
     const lower = q.toLowerCase().trim();
-    return perfumes
-      .filter(p => !lower || p.fullName.toLowerCase().includes(lower))
+    return perfumes.filter(p => !lower || p.fullName.toLowerCase().includes(lower))
       .sort((x, y) => x.fullName.localeCompare(y.fullName));
   };
 
-  // Compute shared/unique note sets
-  const { sharedTags, onlyA, onlyB, sharedPrimary } = useMemo(() => {
-    if (!a || !b) return { sharedTags: new Set(), onlyA: [], onlyB: [], sharedPrimary: new Set() };
-    const tagsA = new Set(a.tags || []);
-    const tagsB = new Set(b.tags || []);
-    const primA = new Set(a.primary || []);
-    const primB = new Set(b.primary || []);
-    const shared = new Set([...tagsA].filter(t => tagsB.has(t)));
-    const sharedPrim = new Set([...shared].filter(t => primA.has(t) && primB.has(t)));
-    const uniqA = [...tagsA].filter(t => !tagsB.has(t));
-    const uniqB = [...tagsB].filter(t => !tagsA.has(t));
-    return { sharedTags: shared, onlyA: uniqA, onlyB: uniqB, sharedPrimary: sharedPrim };
-  }, [a, b]);
+  const chosen = slots.map(sl => sl.id !== null ? perfumes.find(p => p.id === sl.id) : null);
+  const active = chosen.filter(Boolean);
+  const n = active.length;
 
-  const tagStyle = (tag, pref) => {
-    const isPrim = (pref?.primary || []).includes(tag);
-    const isShared = sharedTags.has(tag);
-    const isBothPrim = sharedPrimary.has(tag);
-    if (isBothPrim) return { background: "#c8a97e", color: "#fff", border: "none", fontWeight: 700 };
-    if (isShared && isPrim) return { background: "#c8a97e44", color: "#8b6f3e", border: "1px solid #c8a97e99", fontWeight: 600 };
-    if (isShared) return { background: "#e8f0e8", color: "#4a6a4a", border: "1px solid #aaccaa" };
-    if (isPrim) return { background: "#f5f0e8", color: "#8b6f3e", border: "1px solid #d4bc8a", fontWeight: 600 };
-    return { background: "#f0ece6", color: "#888", border: "1px solid transparent" };
-  };
+  // N-way note analysis: how many selected perfumes carry each tag, and in how many
+  // is it a primary note.
+  const { tagCount, primCount, sharedAll, sharedAllPrimary } = useMemo(() => {
+    const tc = {}, pc = {};
+    active.forEach(p => {
+      new Set(p.tags || []).forEach(t => { tc[t] = (tc[t] || 0) + 1; });
+      new Set(p.primary || []).forEach(t => { pc[t] = (pc[t] || 0) + 1; });
+    });
+    const all = Object.keys(tc).filter(t => n >= 2 && tc[t] === n);
+    const allPrim = all.filter(t => (pc[t] || 0) === n);
+    return { tagCount: tc, primCount: pc, sharedAll: all, sharedAllPrimary: allPrim };
+  }, [slots, perfumes]);
 
   const genderStyle = (g) => ({
     fontSize: 11, fontWeight: 600, letterSpacing: "0.05em", padding: "2px 8px",
@@ -4424,67 +4604,46 @@ function CompareView({ perfumes }) {
     color: g === "feminine" ? "#9b5f8a" : g === "masculine" ? "#4a6fa5" : "#5a7a4a"
   });
 
-  const scoreDiff = (a && b) ? {
-    sig: (a.sigScore || 5) - (b.sigScore || 5),
-    int: (a.intScore || 3) - (b.intScore || 3),
-    bal: (a.balScore || 5) - (b.balScore || 5),
-  } : null;
-
-  const ScoreBar = ({ label, valA, valB, max = 10 }) => {
-    const diff = Math.abs(valA - valB);
-    return <div style={{ marginBottom: 10 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#999", marginBottom: 3 }}>
-        <span style={{ fontWeight: 600, color: "#555" }}>{valA}</span>
-        <span style={{ color: "#bbb" }}>{label}</span>
-        <span style={{ fontWeight: 600, color: "#555" }}>{valB}</span>
-      </div>
-      <div style={{ display: "flex", height: 6, borderRadius: 3, overflow: "hidden", background: "#f0ece6" }}>
-        <div style={{ width: `${(valA / max) * 50}%`, background: "#c8a97e", marginLeft: "auto" }} />
-        <div style={{ width: 2, background: "#fff" }} />
-        <div style={{ width: `${(valB / max) * 50}%`, background: "#8aaa80" }} />
-      </div>
-    </div>;
+  // Colour a note by how widely it's shared across the selected set.
+  const tagStyle = (tag, p) => {
+    const cnt = tagCount[tag] || 0;
+    const isPrimHere = (p.primary || []).includes(tag);
+    if (n >= 2 && cnt === n) { // in ALL selected
+      return (primCount[tag] === n)
+        ? { background: "#c8a97e", color: "#fff", border: "none", fontWeight: 700 }
+        : { background: "#e0cfa8", color: "#6b552e", border: "none", fontWeight: 600 };
+    }
+    if (cnt >= 2 && cnt < n) { // in SOME
+      return { background: "#e8f0e8", color: "#4a6a4a", border: "1px solid #aaccaa", fontWeight: isPrimHere ? 600 : 400 };
+    }
+    return { background: "#f0ece6", color: "#888", border: isPrimHere ? "1px solid #d4bc8a" : "1px solid transparent", fontWeight: isPrimHere ? 600 : 400 }; // unique
   };
 
-  const PerfumePanel = ({ p, side }) => {
-    if (!p) return <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "#ccc", fontSize: 14, padding: 24 }}>
-      Pick a perfume
-    </div>;
-
+  const PerfumePanel = ({ p }) => {
+    if (!p) return <div style={{ flex: "1 0 190px", minWidth: 190, display: "flex", alignItems: "center", justifyContent: "center", color: "#ccc", fontSize: 13, padding: 24, border: "1px dashed #e5ded4", borderRadius: 10 }}>Pick a perfume</div>;
     const allTags = p.tags || [];
     const prims = new Set(p.primary || []);
-
-    return <div style={{ flex: 1, minWidth: 0 }}>
-      <div style={{ marginBottom: 12 }}>
+    return <div style={{ flex: "1 0 200px", minWidth: 200 }}>
+      <div style={{ marginBottom: 10 }}>
         <div className="card-house">{p.house}</div>
-        <div style={{ fontSize: 17, fontWeight: 700, color: "#2d2926", lineHeight: 1.2, marginBottom: 4 }}>
-          {p.name}{p.concentration ? <span style={{ fontWeight: 400, color: "#888", fontSize: 14 }}> {p.concentration}</span> : ""}
+        <div style={{ fontSize: 16, fontWeight: 700, color: "#2d2926", lineHeight: 1.2, marginBottom: 4 }}>
+          {p.name}{p.concentration ? <span style={{ fontWeight: 400, color: "#888", fontSize: 13 }}> {p.concentration}</span> : ""}
         </div>
         <div style={{ fontSize: 12, color: "#aaa", marginBottom: 6 }}>{p.family}</div>
         <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
           {p.gender && <span style={genderStyle(p.gender)}>{p.gender}</span>}
           {p.rating != null && <span style={{ fontSize: 13, fontWeight: 600, color: p.rating >= 9 ? "#c8a97e" : p.rating >= 8 ? "#8aaa80" : "#999" }}>{p.rating}/10</span>}
-          {p.preference && p.preference !== "Unrated" && <span style={{ fontSize: 11, color: "#aaa" }}>{p.preference}</span>}
+        </div>
+        <div style={{ fontSize: 11, color: "#bbb", marginTop: 6, display: "flex", gap: 10 }}>
+          {p.wearCount > 0 && <span>Worn {p.wearCount}×</span>}
+          {p.daysAgo != null && <span>{fmtAge(p.daysAgo)}</span>}
         </div>
       </div>
-
-      {/* Mood + wear */}
-      <div style={{ fontSize: 11, color: "#bbb", marginBottom: 10, display: "flex", gap: 10 }}>
-        {p.wearCount > 0 && <span>Worn {p.wearCount}×</span>}
-        {p.daysAgo != null && <span>{fmtAge(p.daysAgo)}</span>}
-      </div>
-
-      {/* Notes */}
       {allTags.length > 0 && <div className="tag-row" style={{ flexWrap: "wrap" }}>
-        {/* Primary notes first */}
         {[...allTags].sort((x, y) => {
-          const xp = prims.has(x), yp = prims.has(y);
-          const xs = sharedTags.has(x), ys = sharedTags.has(y);
-          if (xp && yp) return 0;
-          if (xp) return -1; if (yp) return 1;
-          if (xs && ys) return 0;
-          if (xs) return -1; if (ys) return 1;
-          return 0;
+          const xp = prims.has(x) ? 0 : 1, yp = prims.has(y) ? 0 : 1;
+          if (xp !== yp) return xp - yp;
+          return (tagCount[y] || 0) - (tagCount[x] || 0); // more widely shared first
         }).map(t => <span key={t} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 8, display: "inline-block", margin: "2px", ...tagStyle(t, p) }}>{t}</span>)}
       </div>}
     </div>;
@@ -4492,93 +4651,83 @@ function CompareView({ perfumes }) {
 
   return <div>
     <h1 className="page-title">Compare</h1>
-    <p className="page-sub">Side-by-side note breakdown. Shared notes are highlighted.</p>
+    <p className="page-sub">Side-by-side note breakdown for 2–4 perfumes. Notes shared across all are highlighted.</p>
 
     {/* Selectors */}
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
-      <div>
-        <input type="search" placeholder="Search A…" value={queryA} onChange={e => setQueryA(e.target.value)} style={{ width: "100%", marginBottom: 6, boxSizing: "border-box" }} />
-        <select value={idA ?? ""} onChange={e => setIdA(e.target.value === '' ? null : parseInt(e.target.value))} style={{ width: "100%", padding: "10px 12px", fontSize: 13, fontFamily: "inherit", border: "1px solid #ddd", background: "#fff", minHeight: 44, boxSizing: "border-box" }}>
-          <option value="">— Perfume A —</option>
-          {filtered(queryA).map(p => <option key={p.id} value={p.id}>{p.fullName}</option>)}
-        </select>
-      </div>
-      <div>
-        <input type="search" placeholder="Search B…" value={queryB} onChange={e => setQueryB(e.target.value)} style={{ width: "100%", marginBottom: 6, boxSizing: "border-box" }} />
-        <select value={idB ?? ""} onChange={e => setIdB(e.target.value === '' ? null : parseInt(e.target.value))} style={{ width: "100%", padding: "10px 12px", fontSize: 13, fontFamily: "inherit", border: "1px solid #ddd", background: "#fff", minHeight: 44, boxSizing: "border-box" }}>
-          <option value="">— Perfume B —</option>
-          {filtered(queryB).map(p => <option key={p.id} value={p.id}>{p.fullName}</option>)}
-        </select>
-      </div>
+    <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 18 }}>
+      {slots.map((sl, i) => (
+        <div key={i} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: "#c8a97e", width: 20, flexShrink: 0 }}>{String.fromCharCode(65 + i)}</span>
+          <input type="search" placeholder="Search…" value={sl.q} onChange={e => setSlot(i, { q: e.target.value })} style={{ flex: "0 0 32%", minWidth: 0, boxSizing: "border-box" }} />
+          <select value={sl.id ?? ""} onChange={e => setSlot(i, { id: e.target.value === '' ? null : parseInt(e.target.value) })} style={{ flex: 1, minWidth: 0, padding: "10px 12px", fontSize: 13, fontFamily: "inherit", border: "1px solid #ddd", background: "#fff", minHeight: 44, boxSizing: "border-box" }}>
+            <option value="">— Perfume {String.fromCharCode(65 + i)} —</option>
+            {filtered(sl.q).map(p => <option key={p.id} value={p.id}>{p.fullName}</option>)}
+          </select>
+          {slots.length > 2 && <button onClick={() => removeSlot(i)} title="Remove" style={{ flexShrink: 0, background: "none", border: "1px solid #e0d8cc", borderRadius: 8, cursor: "pointer", width: 34, height: 34, fontSize: 16, lineHeight: 1, color: "#a55" }}>×</button>}
+        </div>
+      ))}
+      {slots.length < MAX && <button onClick={addSlot} style={{ alignSelf: "flex-start", background: "none", border: "1px dashed #cbb992", borderRadius: 8, color: "#9a7f4e", cursor: "pointer", padding: "8px 14px", fontSize: 13, fontFamily: "inherit" }}>+ Add perfume ({slots.length}/{MAX})</button>}
     </div>
 
     {/* Legend */}
-    {a && b && <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16, fontSize: 11 }}>
-      <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-        <span style={{ width: 12, height: 12, borderRadius: 3, background: "#c8a97e", display: "inline-block" }} /> Primary in both
-      </span>
-      <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-        <span style={{ width: 12, height: 12, borderRadius: 3, background: "#e8f0e8", border: "1px solid #aaccaa", display: "inline-block" }} /> Shared note
-      </span>
-      <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-        <span style={{ width: 12, height: 12, borderRadius: 3, background: "#f5f0e8", border: "1px solid #d4bc8a", display: "inline-block" }} /> Primary (one side)
-      </span>
-      <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-        <span style={{ width: 12, height: 12, borderRadius: 3, background: "#f0ece6", display: "inline-block" }} /> Unique note
-      </span>
+    {n >= 2 && <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16, fontSize: 11 }}>
+      <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 12, height: 12, borderRadius: 3, background: "#c8a97e", display: "inline-block" }} /> Primary in all</span>
+      <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 12, height: 12, borderRadius: 3, background: "#e0cfa8", display: "inline-block" }} /> In all</span>
+      <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 12, height: 12, borderRadius: 3, background: "#e8f0e8", border: "1px solid #aaccaa", display: "inline-block" }} /> In some</span>
+      <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 12, height: 12, borderRadius: 3, background: "#f0ece6", display: "inline-block" }} /> Unique</span>
     </div>}
 
-    {/* Side by side panels */}
-    <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
-      <PerfumePanel p={a} side="a" />
-      {a && b && <div style={{ width: 1, background: "#e8e2da", flexShrink: 0, alignSelf: "stretch" }} />}
-      <PerfumePanel p={b} side="b" />
+    {/* Side-by-side panels — horizontal scroll when 3–4 get narrow */}
+    <div style={{ display: "flex", gap: 16, alignItems: "flex-start", overflowX: "auto", paddingBottom: 4 }}>
+      {slots.map((sl, i) => <PerfumePanel key={i} p={chosen[i]} />)}
     </div>
 
-    {/* Summary stats */}
-    {a && b && <div style={{ marginTop: 24, padding: "16px", background: "#faf9f7", border: "1px solid #e8e2da", borderRadius: 12 }}>
-      <div className="sec-lbl" style={{ marginBottom: 12 }}>Comparison summary</div>
+    {/* Summary */}
+    {n >= 2 && <div style={{ marginTop: 24, padding: "16px", background: "#faf9f7", border: "1px solid #e8e2da", borderRadius: 12 }}>
+      <div className="sec-lbl" style={{ marginBottom: 12 }}>Comparison summary — {n} perfumes</div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, textAlign: "center", marginBottom: 16 }}>
-        <div>
-          <div style={{ fontSize: 22, fontWeight: 700, color: "#c8a97e" }}>{sharedTags.size}</div>
-          <div style={{ fontSize: 11, color: "#aaa" }}>shared notes</div>
-        </div>
-        <div>
-          <div style={{ fontSize: 22, fontWeight: 700, color: "#8b6f3e" }}>{sharedPrimary.size}</div>
-          <div style={{ fontSize: 11, color: "#aaa" }}>shared primaries</div>
-        </div>
-        <div>
-          <div style={{ fontSize: 22, fontWeight: 700, color: "#999" }}>{onlyA.length + onlyB.length}</div>
-          <div style={{ fontSize: 11, color: "#aaa" }}>unique notes total</div>
-        </div>
+        <div><div style={{ fontSize: 22, fontWeight: 700, color: "#c8a97e" }}>{sharedAll.length}</div><div style={{ fontSize: 11, color: "#aaa" }}>notes in all {n}</div></div>
+        <div><div style={{ fontSize: 22, fontWeight: 700, color: "#8b6f3e" }}>{sharedAllPrimary.length}</div><div style={{ fontSize: 11, color: "#aaa" }}>primary in all</div></div>
+        <div><div style={{ fontSize: 22, fontWeight: 700, color: "#999" }}>{Object.keys(tagCount).filter(t => tagCount[t] === 1).length}</div><div style={{ fontSize: 11, color: "#aaa" }}>unique to one</div></div>
       </div>
 
-      {/* Character score comparison */}
-      <ScoreBar label="Match" valA={a.sigScore || 5} valB={b.sigScore || 5} />
-      <ScoreBar label="Intensity" valA={a.intScore || 3} valB={b.intScore || 3} />
-      <ScoreBar label="Appeal" valA={a.balScore || 5} valB={b.balScore || 5} />
-
-      {/* Notes only in A */}
-      {onlyA.length > 0 && <div style={{ marginTop: 12 }}>
-        <div style={{ fontSize: 11, color: "#aaa", marginBottom: 4 }}>Only in {a.name}</div>
+      {/* Notes shared across ALL */}
+      {sharedAll.length > 0 && <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 11, color: "#aaa", marginBottom: 4 }}>Common to all {n}</div>
         <div className="tag-row" style={{ flexWrap: "wrap" }}>
-          {onlyA.map(t => <span key={t} style={{ fontSize: 11, padding: "2px 7px", borderRadius: 8, background: "#f5f0e8", color: "#8b6f3e", border: "1px solid #d4bc8a44", margin: 2 }}>{t}</span>)}
+          {sharedAll.sort((x, y) => (sharedAllPrimary.includes(y) ? 1 : 0) - (sharedAllPrimary.includes(x) ? 1 : 0)).map(t => <span key={t} style={{ fontSize: 11, padding: "2px 7px", borderRadius: 8, margin: 2, ...(sharedAllPrimary.includes(t) ? { background: "#c8a97e", color: "#fff", fontWeight: 700 } : { background: "#e0cfa8", color: "#6b552e", fontWeight: 600 }) }}>{t}</span>)}
         </div>
       </div>}
 
-      {/* Notes only in B */}
-      {onlyB.length > 0 && <div style={{ marginTop: 10 }}>
-        <div style={{ fontSize: 11, color: "#aaa", marginBottom: 4 }}>Only in {b.name}</div>
-        <div className="tag-row" style={{ flexWrap: "wrap" }}>
-          {onlyB.map(t => <span key={t} style={{ fontSize: 11, padding: "2px 7px", borderRadius: 8, background: "#e8f0e8", color: "#4a6a4a", border: "1px solid #aaccaa44", margin: 2 }}>{t}</span>)}
-        </div>
-      </div>}
-
-      {/* Gender / mood match */}
-      <div style={{ marginTop: 12, fontSize: 11, color: "#aaa", display: "flex", gap: 16 }}>
-        {a.gender && b.gender && <span>Gender: {a.gender === b.gender ? "✓ match" : a.gender === "unisex" || b.gender === "unisex" ? "~ one unisex" : "✗ different"}</span>}
-        {a.tags.includes('airy') !== b.tags.includes('airy') && <span>Weight: {a.tags.includes('airy') ? 'airy' : 'heavier'} vs {b.tags.includes('airy') ? 'airy' : 'heavier'}</span>}
+      {/* Score table across all */}
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 320 }}>
+          <thead><tr style={{ color: "#aaa", textAlign: "left" }}>
+            <th style={{ padding: "4px 8px", fontWeight: 500 }}></th>
+            {active.map((p, i) => <th key={i} style={{ padding: "4px 8px", fontWeight: 600, color: "#555" }}>{p.name}</th>)}
+          </tr></thead>
+          <tbody>
+            {[["Match", "sigScore", 5], ["Intensity", "intScore", 3], ["Appeal", "balScore", 5], ["On me", "safeScore", 5]].map(([label, key, dflt]) => (
+              <tr key={label} style={{ borderTop: "1px solid #eee7dd" }}>
+                <td style={{ padding: "5px 8px", color: "#999" }}>{label}</td>
+                {active.map((p, i) => { const v = p[key] ?? dflt; const best = Math.max(...active.map(q => q[key] ?? dflt)); return <td key={i} style={{ padding: "5px 8px", fontWeight: v === best ? 700 : 400, color: v === best ? "#8b6f3e" : "#666" }}>{v}</td>; })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
+
+      {/* Per-perfume unique notes */}
+      {active.map((p, i) => {
+        const uniq = (p.tags || []).filter(t => tagCount[t] === 1);
+        if (!uniq.length) return null;
+        return <div key={i} style={{ marginTop: 10 }}>
+          <div style={{ fontSize: 11, color: "#aaa", marginBottom: 4 }}>Only in {p.name}</div>
+          <div className="tag-row" style={{ flexWrap: "wrap" }}>
+            {uniq.map(t => <span key={t} style={{ fontSize: 11, padding: "2px 7px", borderRadius: 8, background: "#f0ece6", color: "#888", border: "1px solid transparent", margin: 2 }}>{t}</span>)}
+          </div>
+        </div>;
+      })}
     </div>}
   </div>;
 }
