@@ -2270,10 +2270,10 @@ function normalizePerfume(p) {
     preference: p.pr || "Unrated", status: p.st || "Unrated",
     tags: (() => {
     const t = new Set([...buildTagsFromText(p.no || "", p.f || ""), ...(p.ct || []), ...(p.m === 'Air' ? ['airy'] : [])]);
-    // Diary-word unusual detection
-    const mn = (p.mn || '').toLowerCase();
-    const WEIRD_WORDS = ['weird','strange','odd','bizarre','unexpected','wild','peculiar','metallic','antiseptic','crazy','experimental','pie crust','pie','Play-Doh','playdoh','band-aid','bandaid','hospital'];
-    if (WEIRD_WORDS.some(w => new RegExp('\\b' + w + '\\b').test(mn))) t.add('unusual');
+    // Note: diary-word "unusual" detection removed — it tripped on casual asides
+    // ("weird funk", "crazy cola note"), tagging conventional perfumes (La Violette,
+    // Féminité du Bois) as unusual. "unusual" now comes only from genuinely offbeat
+    // note materials (tar, ink, mushroom, etc.) and any manual/curated tag.
     // Lipstick iris: also catch perfumes with "lipstick" in the name
     if ((p.n || '').toLowerCase().includes('lipstick') && t.has('iris')) t.add('lipstick iris');
     return [...t];
