@@ -614,6 +614,23 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .sim-chip.prim { background: #c8a97e22; color: #8b6f3e; border-color: #c8a97e66; font-weight: 600; }
 .sim-chip.kin { background: none; color: #a8a49c; border: 1px dashed #ddd6cc; }
 
+/* Note filter above the Similar results */
+.note-filter { background: #faf9f7; border: 1px solid #e8e2da; border-radius: 12px; padding: 10px 12px; margin-bottom: 14px; }
+.note-filter-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.note-filter-clear { background: none; border: none; padding: 0; font-family: inherit; font-size: 11px; color: #9a8f80; text-decoration: underline; cursor: pointer; }
+.note-filter-chips { display: flex; flex-wrap: wrap; gap: 5px; max-height: 116px; overflow-y: auto; }
+.note-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 9px; font-size: 11.5px; font-family: inherit; line-height: 1.4;
+  border: 1px solid #e0d9d0; border-radius: 9px; background: #fff; color: #6a6259;
+  cursor: pointer; min-height: 28px;
+}
+.note-chip:hover { border-color: #c8a97e; color: #2d2926; }
+.note-chip.inref { border-color: #c8a97e66; color: #8b6f3e; }
+.note-chip.on { background: #c8a97e; border-color: #c8a97e; color: #fff; font-weight: 600; }
+.note-chip-n { font-size: 10px; opacity: 0.6; font-variant-numeric: tabular-nums; }
+.note-chip.on .note-chip-n { opacity: 0.85; }
+
 /* Trevor "on you" — recorded reaction chip + dimmed prediction */
 .trev-reaction-chip {
   margin-left: auto;
@@ -4719,8 +4736,36 @@ function SimilarView({ onSelect, perfumes }) {
   const [mode, setMode] = useState("perfume"); // "perfume" | "note"
   const [noteQuery, setNoteQuery] = useState("");
 
+  const [noteFilters, setNoteFilters] = useState([]);
+
   const ref = refId !== null ? perfumes.find(p => p.id === refId) : null;
   const results = useMemo(() => similar(ref, trevOnly, perfumes, loosen), [ref, trevOnly, perfumes, loosen]);
+
+  // Note filter for the Similar results. The aggregate match % answers "how alike are
+  // these overall", which isn't always the question — sometimes you want "of the things
+  // near Rose 31, show me the ones that actually have rose in them". Narrowing by a
+  // specific note is a better route to real resemblance than trusting one number.
+  useEffect(() => { setNoteFilters([]); }, [refId, trevOnly, loosen]);
+
+  // Every note present across the current results, ref's own notes first (those are the
+  // interesting ones), then by how many results carry them.
+  const filterableNotes = useMemo(() => {
+    const counts = {};
+    results.forEach(p => new Set(p.tags || []).forEach(t => { counts[t] = (counts[t] || 0) + 1; }));
+    const refTags = new Set(ref ? (ref.tags || []) : []);
+    return Object.keys(counts).sort((a, b) => {
+      const ra = refTags.has(a) ? 0 : 1, rb = refTags.has(b) ? 0 : 1;
+      return ra - rb || counts[b] - counts[a] || a.localeCompare(b);
+    }).map(t => ({ tag: t, n: counts[t], inRef: refTags.has(t) }));
+  }, [results, ref]);
+
+  // A result must carry EVERY selected note — filters narrow, they don't widen.
+  const shownResults = useMemo(() => (
+    noteFilters.length === 0 ? results
+      : results.filter(p => { const s = new Set(p.tags || []); return noteFilters.every(t => s.has(t)); })
+  ), [results, noteFilters]);
+
+  const toggleNote = t => setNoteFilters(f => f.includes(t) ? f.filter(x => x !== t) : [...f, t]);
 
   // Note-search mode: collect all unique tags, filter by query, show perfumes
   const allTags = useMemo(() => {
@@ -4808,9 +4853,33 @@ function SimilarView({ onSelect, perfumes }) {
     })()}
 
     {ref && results.length === 0 && <p className="empty">No strong matches. Try a different reference.</p>}
-    {ref && results.length > 0 && <div className="sec-lbl" style={{marginBottom:10}}>Most similar to {ref.fullName}</div>}
+
+    {ref && results.length > 0 && <div className="note-filter">
+      <div className="note-filter-head">
+        <span className="sec-lbl" style={{margin:0}}>Filter by note</span>
+        {noteFilters.length > 0 && <button className="note-filter-clear" onClick={()=>setNoteFilters([])}>clear</button>}
+      </div>
+      <div className="note-filter-chips">
+        {filterableNotes.map(({tag,n,inRef}) => {
+          const on = noteFilters.includes(tag);
+          return <button key={tag} onClick={()=>toggleNote(tag)}
+            className={`note-chip${on?" on":""}${inRef?" inref":""}`}
+            title={inRef ? `${tag} — in ${ref.name} too, ${n} of ${results.length} matches` : `${tag} — ${n} of ${results.length} matches`}>
+            {tag}<span className="note-chip-n">{n}</span>
+          </button>;
+        })}
+      </div>
+    </div>}
+
+    {ref && results.length > 0 && <div className="sec-lbl" style={{marginBottom:10}}>
+      {noteFilters.length === 0
+        ? <>Most similar to {ref.fullName}</>
+        : <>Similar to {ref.fullName} <em>and containing</em> {noteFilters.join(" + ")} — {shownResults.length} of {results.length}</>}
+    </div>}
+    {ref && results.length > 0 && shownResults.length === 0 &&
+      <p className="empty">None of the {results.length} matches contain {noteFilters.join(" + ")}.</p>}
     <div className="grid">
-      {results.map(p => {
+      {shownResults.map(p => {
         const refPrims = new Set(ref ? (ref.primary || []) : []);
         const matchedPrims = (p.sharedTags || []).filter(t => refPrims.has(t));
         const label = simLabel(p.sim);
