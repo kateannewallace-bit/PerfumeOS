@@ -2631,7 +2631,10 @@ const SIMILARITY_EXCLUDE = new Set(CURATED_TAGS);
 const NOTE_KINSHIP = [
   ['cedar','gaiac','guaiac','hinoki','cypress','pine','birch','papyrus','cashmere wood','rosewood','palo santo','siam wood','juniper','fir','balsam fir','buddha wood','teak','cypriol'],
   ['sandalwood','cashmeran'],
-  ['vetiver','patchouli','oakmoss','moss','earthy','petrichor'],
+  // Earthy notes are NOT interchangeable: vetiver is dry/rooty/grassy, patchouli is
+  // damp/dark/camphorous, moss is its own thing. Each stands alone.
+  ['oakmoss','moss'],
+  ['earthy','petrichor'],
   ['bergamot','lemon','lime','grapefruit','pomelo','yuzu','citron','lemon verbena','vervain','orange','mandarin','blood orange','tangerine','clementine','orange peel','bitter orange','petitgrain','bigarade'],
   ['neroli','orange blossom','jasmine','tuberose','gardenia','ylang','ylang-ylang','magnolia','narcissus','honeysuckle','freesia','lily','lily of the valley','plumeria','frangipani'],
   ['iris','orris','violet','heliotrope','mimosa'],
@@ -2639,7 +2642,11 @@ const NOTE_KINSHIP = [
   ['amber','labdanum','benzoin','styrax','cistus'],  // resinous
   ['vanilla','tonka','tonka bean','coumarin'],       // sweet/balsamic — NOT the same as resin
   ['incense','olibanum','frankincense','myrrh','copal','oud','agarwood'],
-  ['saffron','cumin','coriander','cardamom','pink pepper','pepper','black pepper','ginger','clove','cinnamon','nutmeg'],
+  // Spices are mostly their own thing — saffron (leathery-hay), cumin, coriander and
+  // ginger each stand alone. Only the warm baking spices genuinely read alike, and
+  // pepper variants group as one ingredient.
+  ['cardamom','clove','cinnamon','nutmeg','allspice'],
+  ['pepper','black pepper','pink pepper','white pepper','peppercorn'],
   // Fresh / green side
   ['galbanum','violet leaf','ivy','grass','tomato leaf','fig leaf','shiso','stems','green'],
   ['lavender','rosemary','sage','clary sage','thyme','basil','angelica','artemisia'],
@@ -3203,7 +3210,9 @@ function buildTagsFromText(notes, family) {
   if (has('camellia')) tags.add('camellia');
   if (has('chamomile','camomile','roman chamomile')) tags.add('chamomile');
   if (has('cotton flower','cotton blossom')) tags.add('cotton flower');
-  if (has('mallow')) tags.add('mallow');
+  // 'mallow' is a real flower note, but "musk mallow" is just the botanical name for
+  // ambrette and "marshmallow" is a gourmand — neither should produce a mallow note.
+  if (has('mallow') && !/(musk|marsh)\s*mallow/.test(text)) tags.add('mallow');
   if (has('sunflower')) tags.add('sunflower');
   if (has('tulip')) tags.add('tulip');
   if (has('water lily','waterlily','black water lily')) tags.add('water lily');
@@ -3279,7 +3288,9 @@ function buildTagsFromText(notes, family) {
   if (has('leather','cuir')) tags.add('leather');
   if (has('suede','daim')) tags.add('suede');
   // Spices
-  if (has('pepper','poivre','peppercorn')) tags.add('pepper');
+  // "peppermint" is a mint, not a pepper — don't let it create a pepper note.
+  if ((has('pepper','poivre','peppercorn') && !/peppermint/.test(text)) ||
+      has('black pepper','pink pepper','white pepper','poivre','peppercorn')) tags.add('pepper');
   if (has('pink pepper','pink peppercorn','brazilian pink peppercorn')) tags.add('pink pepper');
   if (has('cardamom','cardamome')) tags.add('cardamom');
   if (has('cinnamon','cannelle','cassia')) tags.add('cinnamon');
@@ -3433,7 +3444,8 @@ function buildTagsFromText(notes, family) {
   if (has('maté','mate ','yerba mate')) tags.add('maté');
   if (has('rooibos')) tags.add('rooibos');
   // Character
-  if (has('green','greens','galbanum','violet leaf','tomato leaf','green notes','fern','ivy ','grass')) tags.add('green');
+  // 'grass' must be word-bounded: "Rose de Grasse" is a place in France, not a green note.
+  if (has('green','greens','galbanum','violet leaf','tomato leaf','green notes','fern','ivy ') || hasW('grass')) tags.add('green');
   if (hasW('ivy') || has('lierre')) tags.add('ivy');
   if (hasW('grass') || has('green grass','dune grass')) tags.add('grass');
   if (has('fig leaf','fig leaves','feuille de figuier')) tags.add('fig leaf');
