@@ -597,6 +597,23 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .sim-badge { color: var(--fg-soft); background: var(--bg-soft); padding: 3px 8px; }
 .trev-mark { color: var(--sage); }
 
+/* Similar view — compact match annotation */
+.sim-annot { margin-bottom: 2px; }
+.sim-manual {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.04em;
+  text-transform: uppercase; color: #b58a3e; margin-bottom: 4px;
+}
+.sim-meta { display: flex; align-items: baseline; gap: 7px; margin-bottom: 6px; flex-wrap: wrap; }
+.sim-pct { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; line-height: 1; }
+.sim-sub { font-size: 10.5px; color: #b0a89e; letter-spacing: 0.01em; }
+.sim-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.sim-chip {
+  font-size: 10px; padding: 2px 7px; border-radius: 7px;
+  background: #f2efe9; color: #7a6a5a; border: 1px solid transparent; white-space: nowrap;
+}
+.sim-chip.prim { background: #c8a97e22; color: #8b6f3e; border-color: #c8a97e66; font-weight: 600; }
+.sim-chip.kin { background: none; color: #a8a49c; border: 1px dashed #ddd6cc; }
+
 /* Trevor "on you" — recorded reaction chip + dimmed prediction */
 .trev-reaction-chip {
   margin-left: auto;
@@ -2626,6 +2643,15 @@ const SIMILARITY_EXCLUDE = new Set(CURATED_TAGS);
 // moss). Counting both makes ONE note weigh double in similarity and can hand a
 // perfume a dominant family it doesn't deserve. When the specific tag is present,
 // the generic is dropped.
+// Tags to show in the UI: hide a generic when its specific form is already listed,
+// so a single note ("pink pepper") never appears as two chips.
+function displayTags(p) {
+  const t = new Set(p.tags || []);
+  return (p.tags || []).filter(x => {
+    const specifics = GENERIC_IF_SPECIFIC[x];
+    return !(specifics && specifics.some(s => t.has(s)));
+  });
+}
 const GENERIC_IF_SPECIFIC = {
   'pepper':  ['pink pepper', 'black pepper', 'white pepper', 'peppercorn'],
   'moss':    ['oakmoss'],
@@ -2634,6 +2660,8 @@ const GENERIC_IF_SPECIFIC = {
   'rose':    ['damask rose', 'taif rose', 'rose de mai', 'centifolia'],
   'musk':    ['white musk'],
   'lily':    ['lily of the valley'],
+  'citrus':  ['dry citrus'],
+  'floral':  ['white floral', 'yellow floral', 'purple floral'],
 };
 
 // ─── NOTE KINSHIP ────────────────────────────────────────────────────────────
@@ -3840,7 +3868,7 @@ function trevorNegProfile(p) {
   if (has("oud") || has("incense")) return true;
   return false;
 }
-function Card({ p, onClick, annotation, simScore, trevorMode }) {
+function Card({ p, onClick, annotation, simScore, trevorMode, excludeTags }) {
   const reactMeta = trevorMode && p.safeReaction ? REACTION_META[('' + p.safeReaction).toLowerCase()] : null;
   const isPrediction = trevorMode && !p.safeReaction;
   return <div className={`card${isPrediction ? " trev-pred-dim" : ""}`} onClick={() => onClick(p)}>
@@ -3859,9 +3887,12 @@ function Card({ p, onClick, annotation, simScore, trevorMode }) {
     </div>
     {annotation && <div className="card-annotation">{annotation}</div>}
     {p.tags.length > 0 && (() => {
-      const prims = (p.primary || []).filter(t => p.tags.includes(t));
-      const supp = p.tags.filter(t => !prims.includes(t));
+      const ex = new Set(excludeTags || []);
+      const vis = displayTags(p).filter(t => !ex.has(t));
+      const prims = (p.primary || []).filter(t => vis.includes(t));
+      const supp = vis.filter(t => !prims.includes(t));
       const show = [...prims, ...supp].slice(0, 5);
+      if (!show.length) return null;
       return <div className="tag-row">{show.map(t => <Tag key={t} tag={t} sm primary={prims.includes(t)} />)}</div>;
     })()}
     <div className="card-foot">
@@ -3975,8 +4006,9 @@ function Modal({ p, onClose, onEdit, onResetToSeed, hasEdits, perfumes, onNaviga
         </div>
       </div>
       {p.tags.length > 0 && (() => {
-        const prims = (p.primary || []).filter(t => p.tags.includes(t));
-        const supp = p.tags.filter(t => !prims.includes(t));
+        const vis = displayTags(p);
+        const prims = (p.primary || []).filter(t => vis.includes(t));
+        const supp = vis.filter(t => !prims.includes(t));
         return <>
           {prims.length > 0 && <div style={{marginBottom: 8}}>
             <div className="sec-lbl" style={{marginBottom: 6}}>Primary</div>
@@ -4585,17 +4617,23 @@ function SimilarView({ onSelect, perfumes }) {
         // capped at 100 for near-identical pairs where the primary-note bonus overshoots.
         const matchPct = Math.round(Math.min(100, p.sim * 10));
         const pctColor = p.sim >= 10 ? "#6a9a6a" : p.sim >= 7 ? "#c8a97e" : "#9a8f80";
-        const feelShared = (p.sharedFeel || []).slice(0, 3);
-        const annotation = <div>
-          {p.manualMatch && <div style={{fontSize:11,fontWeight:700,color:"#b58a3e",marginBottom:4}}>★ Your match{p.sharedCount === 0 ? " · notes don't overlap, your call" : ""}</div>}
-          <div style={{fontSize:11,color:"#aaa",marginBottom:5}}><span style={{color:pctColor,fontWeight:700,fontSize:13}}>{matchPct}% match</span> <span style={{color:p.sim>=14?"#c8a97e":p.sim>=10?"#8aaa80":"#aaa",fontWeight:p.sim>=10?600:400}}>· {label}</span> · {p.sharedCount} shared{matchedPrims.length > 0 ? ` · ${matchedPrims.length} primary` : ""}{p.coverage != null ? ` · ${Math.min(100, Math.round(p.coverage * 100))}% of profile` : ""}</div>
-          {feelShared.length > 0 && <div style={{fontSize:10,color:"#a99",marginBottom:5}}>shares feel: {feelShared.join(", ")}</div>}
-          {(p.kinTags || []).length > 0 && <div style={{fontSize:10,color:"#9a9",marginBottom:5}}>related notes: {p.kinTags.slice(0,4).join(", ")}</div>}
-          {p.sharedTags && p.sharedTags.length > 0 && <div className="tag-row" style={{marginBottom:0,flexWrap:"wrap"}}>
-            {p.sharedTags.map(t => <span key={t} style={{fontSize:10,padding:"2px 7px",borderRadius:8,background:refPrims.has(t)?"#c8a97e22":"#f0ece6",color:refPrims.has(t)?"#8b6f3e":"#7a6a5a",border:refPrims.has(t)?"1px solid #c8a97e66":"1px solid transparent",fontWeight:refPrims.has(t)?600:400}}>{t}</span>)}
+        // De-duplicate the feel words the same way the tag chips are de-duplicated
+        // (no "citrus" alongside "dry citrus"), and keep it to two.
+        const feelShared = displayTags({ tags: p.sharedFeel || [] }).slice(0, 2);
+        const kin = (p.kinTags || []).slice(0, 4);
+        const annotation = <div className="sim-annot">
+          {p.manualMatch && <div className="sim-manual">★ Your match{p.sharedCount === 0 ? " · your call" : ""}</div>}
+          <div className="sim-meta">
+            <span className="sim-pct" style={{color:pctColor}}>{matchPct}%</span>
+            <span className="sim-sub">{p.sharedCount} shared{matchedPrims.length > 0 ? `, ${matchedPrims.length} primary` : ""}{p.coverage != null ? ` · ${Math.min(100, Math.round(p.coverage * 100))}% of profile` : ""}{feelShared.length ? ` · ${feelShared.join("/")}` : ""}</span>
+          </div>
+          {(p.sharedTags.length > 0 || kin.length > 0) && <div className="sim-chips">
+            {p.sharedTags.map(t => <span key={t} className={`sim-chip${refPrims.has(t) ? " prim" : ""}`}>{t}</span>)}
+            {kin.map(t => <span key={t} className="sim-chip kin">≈ {t}</span>)}
           </div>}
         </div>;
-        return <Card key={p.id} p={p} onClick={()=>onSelect(p)} annotation={annotation} />;
+        // Don't repeat notes in the card's own tag row that are already shown above.
+        return <Card key={p.id} p={p} onClick={()=>onSelect(p)} annotation={annotation} excludeTags={[...p.sharedTags, ...kin]} />;
       })}
     </div>
     </>}
