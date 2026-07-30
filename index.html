@@ -2945,6 +2945,20 @@ function resolvePerfumeName(name, perfumes) {
       || null;
 }
 
+// How much a shared note counts, from its IDF (rarity). This was idf² until 2026-07-30,
+// which let a single rare note outvote everything two perfumes had in common: comparing
+// Rose 31 with Portrait of a Lady, their five genuinely shared notes (rose, cedar,
+// incense, amber, musk) totalled 10.3 while Rose 31's cumin ALONE scored 22.8. The
+// engine had effectively decided Rose 31 *is* cumin, so nothing without cumin could
+// clear SIM_MIN_COVERAGE, and two obviously-related rose-over-dry-woods scents never
+// met. Squaring also compounds a second problem — cumin is only big in Rose 31's
+// opening; it's a creamy resinous rose after that — so the note dominating the maths is
+// one that's gone in ten minutes. Plain IDF still favours rare notes, just not to the
+// point of drowning out agreement.
+function tagWeight(idfValue) {
+  return idfValue || 0;
+}
+
 function similar(ref, safeOnly, perfumes, loosen) {
   if (!ref) return [];
   const idf = getTagIdf(perfumes);
@@ -2953,7 +2967,7 @@ function similar(ref, safeOnly, perfumes, loosen) {
   const refTagSet = new Set(refTags);
   const refPrimary = new Set(ref.primary || []);
   // IDF-squared norm for Dice denominator
-  const refW2 = refTags.reduce((s, t) => s + Math.pow(idf[t] || 0, 2), 0);
+  const refW2 = refTags.reduce((s, t) => s + tagWeight(idf[t]), 0);
   if (refW2 === 0) return [];
 
   const refFeel = new Set((ref.tags || []).filter(t => FEEL_TAGS.has(t)));
@@ -2988,23 +3002,23 @@ function similar(ref, safeOnly, perfumes, loosen) {
 
       for (const t of pTags) {
         if (refTagSet.has(t)) {
-          const w = idf[t] || 0;
-          intersectionW2 += w * w;
+          const w = tagWeight(idf[t]);
+          intersectionW2 += w;
           sharedCount += 1;
           sharedTags.push(t);
           // Extra weight when note is primary in BOTH perfumes
           if (refPrimary.has(t) && pPrimary.has(t)) {
-            primaryBonus += 0.5 * w * w;
+            primaryBonus += 0.5 * w;
           }
         } else if ((KIN_OF[t] || []).some(g => refKinGroups.has(g))) {
           // Related-but-different note (hinoki↔cedar, gardenia↔tuberose): partial credit.
-          const w = idf[t] || 0;
-          kinW2 += KIN_WEIGHT * w * w;
+          const w = tagWeight(idf[t]);
+          kinW2 += KIN_WEIGHT * w;
           kinTags.push(t);
         }
       }
 
-      const pW2 = pTags.reduce((s, t) => s + Math.pow(idf[t] || 0, 2), 0);
+      const pW2 = pTags.reduce((s, t) => s + tagWeight(idf[t]), 0);
       const denom = refW2 + pW2;
       if (denom === 0) return null;
 
