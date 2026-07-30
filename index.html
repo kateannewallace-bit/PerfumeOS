@@ -2636,7 +2636,8 @@ const NOTE_KINSHIP = [
   ['neroli','orange blossom','jasmine','tuberose','gardenia','ylang','ylang-ylang','magnolia','narcissus','honeysuckle','freesia','lily','lily of the valley','plumeria','frangipani'],
   ['iris','orris','violet','heliotrope','mimosa'],
   ['musk','white musk','musks','ambrette','ambrette seed','ambroxan','ambergris','cetalox'],
-  ['amber','labdanum','benzoin','tonka','vanilla','styrax','cistus'],
+  ['amber','labdanum','benzoin','styrax','cistus'],  // resinous
+  ['vanilla','tonka','tonka bean','coumarin'],       // sweet/balsamic — NOT the same as resin
   ['incense','olibanum','frankincense','myrrh','copal','oud','agarwood'],
   ['saffron','cumin','coriander','cardamom','pink pepper','pepper','black pepper','ginger','clove','cinnamon','nutmeg'],
   // Fresh / green side
@@ -2657,7 +2658,7 @@ const NOTE_KINSHIP = [
   ['caramel','praline','almond','marshmallow','cream'],
   // honey stands alone — sticky/animalic-sweet, not a chocolate relative
   ['anise','star anise','licorice','fennel','tarragon'],
-  ['tobacco','hay','immortelle','tonka bean'],
+  ['tobacco','hay','immortelle'],
 ];
 const KIN_OF = (() => { const m = {}; NOTE_KINSHIP.forEach((g, i) => g.forEach(t => { (m[t] = m[t] || []).push(i); })); return m; })();
 // How much a kin (related-but-different) note counts vs an exact shared note.
