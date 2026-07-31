@@ -1665,7 +1665,7 @@ const CONFIG = {
   tagline: "Your collection, your way",
   accentColor: "#c8a97e",                     // gold (default). Try "#9b7db8" (lilac), "#8aaa80" (sage)
   publicBinId: "69ed6bc1aaba8821973a433d",    // JSONBin bin ID — legacy, used once to migrate into Supabase
-  buildVersion: "2026-06-28b · merge dedup + smart conc",   // bump on each deploy to confirm the live build
+  buildVersion: "2026-07-31a · trevor tags ↔ reaction",   // bump on each deploy to confirm the live build
   // Supabase backend (primary). The anon key is public by design (safe to ship in the client).
   supabaseUrl: "https://oxmcgryusgchdodbarhn.supabase.co",
   supabaseKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im94bWNncnl1c2djaGRvZGJhcmhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2ODg2NDksImV4cCI6MjA5ODI2NDY0OX0.4hK_nBi0nXhs0sKb_O12jfc2V5fdYFCJI48D6PHszzw",
@@ -2362,6 +2362,23 @@ function srToScore(sr) {
   if (s === 'very negative') return 0;
   return null;
 }
+
+// Single pass that keeps the partner-verdict trio consistent, applied after edits and
+// diary data have been merged in. `safeReaction` is the input; the trevor-* tag and
+// safeScore are both derived from it, so a stale tag left in stored `tags` (or one
+// written by the edit panel) can never contradict the recorded reaction. With no
+// reaction on file the heuristic prediction in safeScore is left untouched.
+function reconcileTrevor(p) {
+  const sr = ('' + (p.safeReaction || '')).toLowerCase().trim();
+  const want = TREVOR_TAG_BY_SR[sr] || null;
+  const kept = (p.tags || []).filter(t => !SR_BY_TREVOR_TAG[t]);
+  return {
+    ...p,
+    safeReaction: sr,
+    tags: want ? [...kept, want] : kept,
+    safeScore: srToScore(sr) ?? p.safeScore,
+  };
+}
 // Calibrated (v2) against Trevor's 33 recorded reactions — see notes below.
 // Fit improved correlation with his actual verdicts from 0.34 → ~0.65 and tripled
 // the separation between his loves (avg pred 6.7) and dislikes (avg 3.7).
@@ -2569,12 +2586,31 @@ const LANES = ["All", ...LANE_GROUPS.flatMap(g => g.lanes)];
 
 // Broad families + character descriptors — shown as single-select dropdown
 // Two separate dropdowns:
+// ─── PARTNER REACTION ↔ CURATED TAG ──────────────────────────────────────────
+// `safeReaction` (sr) is the stored truth for the partner's verdict. The trevor-*
+// tag is its visible handle: derived from sr on read, and written back to sr when
+// ticked in the edit panel. Nothing stores the verdict twice, so the tag and the
+// reaction can never disagree. Tag names are lowercase so they behave like every
+// other curated tag; the filter dropdown title-cases them for display.
+const TREVOR_TAG_BY_SR = {
+  "very positive": "trevor-love",
+  "positive":      "trevor-pretty",
+  "neutral":       "trevor-meh",
+  "negative":      "trevor-ugh",
+  "very negative": "trevor-scrub",
+};
+const SR_BY_TREVOR_TAG = Object.fromEntries(
+  Object.entries(TREVOR_TAG_BY_SR).map(([sr, tag]) => [tag, sr])
+);
+const TREVOR_TAGS = Object.values(TREVOR_TAG_BY_SR);
+const TREVOR_TAG_LABELS = TREVOR_TAGS.map(t => t.replace(/\b\w/g, c => c.toUpperCase()));
+
 const FAMILY_OPTIONS = ["All","Floral","White Floral","Yellow Floral","Purple Floral","Woody","Citrus","Amber","Ambergris","Musk","Resinous","Gourmand","Leather","Animalic","Aromatic","Aquatic","Chypre","Fruity","Green","Aldehydic","Oriental"];
-const CHARACTER_OPTIONS = ["All","Airy","Unusual","Skin Scent","Lipstick Iris","Powdery","Resinous","Spicy","Smoky","Dry Citrus","Herbal Fresh","Fruity","Tart Fruit","Old Lady","Borderline Old Lady","Young Fresh","Smells Cheap","Smells Expensive"];
+const CHARACTER_OPTIONS = ["All","Airy","Unusual","Skin Scent","Lipstick Iris","Powdery","Resinous","Spicy","Smoky","Dry Citrus","Herbal Fresh","Fruity","Tart Fruit","Old Lady","Borderline Old Lady","Young Fresh","Smells Cheap","Smells Expensive", ...TREVOR_TAG_LABELS];
 
 const BROAD_FAMILIES_SET = new Set(["floral","woody","citrus","amber","musk","resinous","gourmand","leather","aromatic","aquatic","chypre","fruity","green","oriental"]);
-const CHARACTER_SET = new Set(["airy","unusual","skin scent","powdery","resinous","spicy","smoky","dry citrus","herbal fresh","lipstick iris","fruity","powder","aldehydes","aldehydic","tart fruit","old lady","borderline old lady","young fresh","smells cheap","smells expensive"]);
-const CURATED_TAGS = ["old lady","borderline old lady","young fresh","smells cheap","smells expensive","tart fruit"];
+const CHARACTER_SET = new Set(["airy","unusual","skin scent","powdery","resinous","spicy","smoky","dry citrus","herbal fresh","lipstick iris","fruity","powder","aldehydes","aldehydic","tart fruit","old lady","borderline old lady","young fresh","smells cheap","smells expensive", ...TREVOR_TAGS]);
+const CURATED_TAGS = ["old lady","borderline old lady","young fresh","smells cheap","smells expensive","tart fruit", ...TREVOR_TAGS];
 
 // Static curated note groups — canonical names only, no variants.
 // These must match exactly what buildTagsFromText + canonicalizeRawTags produce.
@@ -3104,10 +3140,18 @@ function computeWearStats(wearLog) {
   for (const entry of wearLog) {
     const pid = entry.perfumeId;
     if (pid == null) continue;
-    const cur = stats.get(pid) || { count: 0, lastWorn: null, ratings: [] };
+    const cur = stats.get(pid) || { count: 0, lastWorn: null, ratings: [], reactions: [] };
     cur.count += 1;
     const d = new Date(entry.date);
     if (!cur.lastWorn || d > cur.lastWorn) cur.lastWorn = d;
+    // A diary reaction is the partner's verdict on that wearing, so the latest one
+    // should reach the card the same way the latest rating does. Only the five
+    // canonical levels can set the verdict; anything else is a remark, not a rating,
+    // and is carried through as the quote instead.
+    if (entry.safeReaction) {
+      const _sr = ('' + entry.safeReaction).toLowerCase().trim();
+      cur.reactions.push({ date: d, canonical: srToScore(_sr) != null ? _sr : null, text: entry.safeReaction });
+    }
     if (entry.rating != null && entry.rating !== "" && !isNaN(Number(entry.rating))) {
       cur.ratings.push({ date: d, rating: Number(entry.rating) });
     }
@@ -3119,6 +3163,10 @@ function computeWearStats(wearLog) {
     s.latestRating = s.ratings.length ? s.ratings[s.ratings.length - 1].rating : null;
     s.firstRating = s.ratings.length ? s.ratings[0].rating : null;
     s.ratingDelta = (s.firstRating != null && s.latestRating != null) ? (s.latestRating - s.firstRating) : null;
+    s.reactions.sort((a, b) => a.date - b.date);
+    const _canon = s.reactions.filter(r => r.canonical);
+    s.latestReaction = _canon.length ? _canon[_canon.length - 1].canonical : null;
+    s.latestReactionText = s.reactions.length ? s.reactions[s.reactions.length - 1].text : null;
   }
   return stats;
 }
@@ -3132,6 +3180,9 @@ function enrich(perfumes, stats) {
       // Diary entries override the seed rating so a perfume's card reflects the latest verdict.
       rating: diaryRating != null ? diaryRating : p.rating,
       seedRating: p.rating,
+      // Diary reactions override the seed the same way diary ratings do.
+      safeReaction: s?.latestReaction || p.safeReaction,
+      safeReview: p.safeReview || (s?.latestReactionText && !s?.latestReaction ? s.latestReactionText : ""),
       ratingHistory: s?.ratings || [],
       ratingDelta: s?.ratingDelta ?? null,
       wearCount: s?.count || 0,
@@ -4186,6 +4237,14 @@ function Modal({ p, onClose, onEdit, onResetToSeed, hasEdits, perfumes, onNaviga
         updates.tags = [...new Set([...(p.tags || []).filter(t => !CURATED_TAGS.includes(t)), ...(editForm.curated || [])])];
       }
     }
+    // A trevor-* tick is just a friendlier way of setting the reaction, so translate it
+    // back into `safeReaction`. reconcileTrevor re-derives the tag from that on read,
+    // which is what keeps the checkbox and the TREVOR tab telling the same story.
+    const _trevPick = (editForm.curated || []).find(t => SR_BY_TREVOR_TAG[t]);
+    const _trevSr = _trevPick ? SR_BY_TREVOR_TAG[_trevPick] : "";
+    if (('' + (p.safeReaction || '')).toLowerCase().trim() !== _trevSr) {
+      updates.safeReaction = _trevSr;
+    }
     const newSmellsLike = (editForm.smellsLike || "").split(",").map(s => s.trim()).filter(Boolean);
     if (JSON.stringify(newSmellsLike) !== JSON.stringify(p.smellsLike || [])) {
       updates.smellsLike = newSmellsLike;
@@ -4350,7 +4409,15 @@ function Modal({ p, onClose, onEdit, onResetToSeed, hasEdits, perfumes, onNaviga
                 {CURATED_TAGS.map(t => (
                   <label key={t} style={{display:"flex",alignItems:"center",gap:5,fontSize:13,cursor:"pointer",border:"1px solid #ddd",borderRadius:8,padding:"4px 10px"}}>
                     <input type="checkbox" checked={(editForm.curated || []).includes(t)}
-                      onChange={e => ef("curated", e.target.checked ? [...(editForm.curated || []), t] : (editForm.curated || []).filter(x => x !== t))} />
+                      onChange={e => {
+                        const cur = editForm.curated || [];
+                        if (!e.target.checked) { ef("curated", cur.filter(x => x !== t)); return; }
+                        // The trevor-* tags are one scale, not five independent traits —
+                        // he can't have both loved it and scrubbed it, so picking one
+                        // clears any other. Ordinary curated tags stay multi-select.
+                        const base = SR_BY_TREVOR_TAG[t] ? cur.filter(x => !SR_BY_TREVOR_TAG[x]) : cur;
+                        ef("curated", [...base, t]);
+                      }} />
                     {t}
                   </label>
                 ))}
@@ -5146,7 +5213,10 @@ function DiaryEntryForm({ initial, onSave, onCancel, title }) {
       <label><span className="mini-lbl">Perfume *</span><input value={form.perfume||""} onChange={e => f("perfume", e.target.value)} placeholder="e.g. Fleur de Peau" /></label>
       <label><span className="mini-lbl">Concentration</span><input value={form.concentration||""} onChange={e => f("concentration", e.target.value)} placeholder="EDP / EDT / Extrait" /></label>
       <label><span className="mini-lbl">Rating</span><input type="number" min="0" max="10" step="0.5" value={form.rating ?? ""} onChange={e => f("rating", e.target.value)} placeholder="x/10" /></label>
-      <label className="full-span"><span className="mini-lbl">{(CONFIG.partnerName || "Partner") + "'s Reaction"}</span><input value={form.safeReaction||""} onChange={e => f("safeReaction", e.target.value)} placeholder="positive / negative / —" /></label>
+      <label className="full-span"><span className="mini-lbl">{(CONFIG.partnerName || "Partner") + "'s Reaction"}</span><select value={REACTION_META[('' + (form.safeReaction || '')).toLowerCase()] ? ('' + form.safeReaction).toLowerCase() : ""} onChange={e => f("safeReaction", e.target.value)}>
+        <option value="">—</option>
+        {Object.keys(REACTION_META).map(k => <option key={k} value={k}>{REACTION_META[k].label}</option>)}
+      </select></label>
       <label className="full-span"><span className="mini-lbl">Notes</span><textarea value={form.notes||""} onChange={e => f("notes", e.target.value)} placeholder="Opening, drydown, longevity…" /></label>
     </div>
     <div className="form-actions">
@@ -6825,7 +6895,7 @@ function App() {
     });
     const resolvedLog = wearLog.map(e => attachPerfumeIdToEntry(normalizeWearEntry(e), withEdits));
     const stats = computeWearStats(resolvedLog);
-    return enrich(withEdits, stats);
+    return enrich(withEdits, stats).map(reconcileTrevor);
   }, [userPerfumes, perfumeEdits, wearLog]);
   const [syncStatus, setSyncStatus] = useState("Local storage");
   const [loaded, setLoaded] = useState(false);
