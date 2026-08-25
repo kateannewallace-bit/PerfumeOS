@@ -52,6 +52,7 @@ h1 em{font-style:italic;color:var(--accent)}
 
 .toolbar{position:sticky;top:0;z-index:30;background:var(--bg);border-bottom:1px solid var(--rule);
   padding:14px 0;display:grid;gap:11px}
+.toolbar[hidden]{display:none}
 #q{width:100%;font-family:"Archivo",sans-serif;font-size:16px;color:var(--ink);background:var(--surface);
   border:1px solid var(--rule);padding:11px 14px;border-radius:0}
 #q::placeholder{color:var(--faint)}
@@ -68,6 +69,7 @@ h1 em{font-style:italic;color:var(--accent)}
 
 .catnav{display:flex;flex-wrap:wrap;gap:6px;padding:16px 0 0}
 .catnav:empty{padding:0}
+.catnav[hidden]{display:none}
 .catlink{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:10.5px;letter-spacing:.06em;
   padding:6px 11px;border:1px solid var(--rule);background:transparent;color:var(--muted);cursor:pointer;
   transition:background .15s,color .15s,border-color .15s}
@@ -83,6 +85,7 @@ section.cat:first-of-type{border-top:none;padding-top:34px}
 
 .entry{display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr) auto;gap:8px 48px;
   align-items:start;padding:15px 0;border-top:1px solid var(--rule)}
+.entry[hidden]{display:none}
 .entries .entry:last-of-type{border-bottom:1px solid var(--rule)}
 .name{display:grid;gap:1px;min-width:0}
 .house{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:10.5px;letter-spacing:.13em;
