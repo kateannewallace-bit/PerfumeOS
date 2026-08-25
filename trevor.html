@@ -677,7 +677,7 @@ const TIER_LABEL = {indie:"Indie", niche:"Niche", designer:"Designer"};
    "forgotten love" and "overworn" read straight off his wear log.
    ─────────────────────────────────────────────────────────────────────────── */
 const SEASONS = ["Spring","Summer","Autumn","Winter"];
-const OCCASIONS = ["Casual","Work","Evening","Date Night","Outdoors","Weekend"];
+const OCCASIONS = ["Casual","Focus","Evening","Date Night","Outdoors","Weekend"];
 const VIBES = ["Fresh","Cozy","Romantic","Bold","Soft","Energizing"];
 
 function contextScore(it, ctx){
@@ -701,7 +701,7 @@ function contextScore(it, ctx){
     if(has("citrus","aquatic")) bonus -= 1;
   }
 
-  if(ctx.occasion === "Work"){
+  if(ctx.occasion === "Focus"){
     if(has("smoky","tobacco","oud")) bonus -= 1;
   } else if(ctx.occasion === "Evening"){
     if(it.mood === "Resin" || it.mood === "Classic") bonus += 2;
@@ -945,7 +945,7 @@ const catnavEl  = document.getElementById("catnav");
 const qEl       = document.getElementById("q");
 let tier = "indie", filter = "all";
 let wtSeason = (m => m>=2&&m<=4 ? "Spring" : m>=5&&m<=7 ? "Summer" : m>=8&&m<=10 ? "Autumn" : "Winter")(new Date().getMonth());
-let wtOccasion = "Casual", wtVibe = "Fresh", wtRotate = true;
+let wtOccasion = "Casual", wtVibe = "Fresh", wtCategory = "Any", wtRotate = true;
 
 const slugify = s => "cat-" + s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 const stripAccents = s => String(s).normalize("NFD").replace(/[̀-ͯ]/g, "");
@@ -1031,7 +1031,9 @@ function rankForToday(){
   const ctx = {season:wtSeason, occasion:wtOccasion, vibe:wtVibe};
   const eligible = ITEMS.filter(it => {
     const v = verdictOf(it);
-    return v !== "negative" && v !== "very negative";
+    if(v === "negative" || v === "very negative") return false;
+    if(wtCategory !== "Any" && it.cat !== wtCategory) return false;
+    return true;
   });
   return eligible.map(it => {
     const wears = state.wearLog.filter(e => e.key === it.key);
@@ -1057,8 +1059,8 @@ function rankForToday(){
 
 function ctxGroup(label, options, current, kind){
   return '<div class="today-ctx-group"><div class="today-ctx-label">'+label+'</div><div class="today-ctx-chips">'+
-    options.map(o => '<button class="chip" data-act="ctx" data-kind="'+kind+'" data-val="'+o+'" '+
-      'aria-pressed="'+(o===current)+'">'+o+'</button>').join("")+
+    options.map(o => '<button class="chip" data-act="ctx" data-kind="'+kind+'" data-val="'+esc(o)+'" '+
+      'aria-pressed="'+(o===current)+'">'+esc(o)+'</button>').join("")+
     '</div></div>';
 }
 
@@ -1067,6 +1069,7 @@ function buildWearToday(){
     ctxGroup("Season", SEASONS, wtSeason, "season")+
     ctxGroup("Occasion", OCCASIONS, wtOccasion, "occasion")+
     ctxGroup("Vibe", VIBES, wtVibe, "vibe")+
+    ctxGroup("Category", ["Any"].concat(CATEGORIES.map(c => c.name)), wtCategory, "category")+
     '<div class="today-ctx-group"><div class="today-ctx-label">Rotation</div><div class="today-ctx-chips">'+
       '<button class="chip" data-act="rotate" aria-pressed="'+wtRotate+'">↩ Favor neglected &amp; forgotten loves</button>'+
     '</div></div>'+
@@ -1078,8 +1081,9 @@ function buildWearToday(){
   } else {
     const top = ranked[0];
     const review = reviewOf(top.it);
+    const ctxLabel = [wtSeason, wtOccasion, wtVibe].concat(wtCategory !== "Any" ? [wtCategory] : []).join(" · ");
     html += '<div class="today-hero">'+
-      '<div class="today-hero-label">Top pick for '+wtSeason+' · '+wtOccasion+' · '+wtVibe+'</div>'+
+      '<div class="today-hero-label">Top pick for '+esc(ctxLabel)+'</div>'+
       '<div class="today-hero-house">'+esc(top.it.house)+'</div>'+
       '<div class="today-hero-name">'+esc(top.it.displayName)+'</div>'+
       '<div class="tags">'+tagsFor(top.it)+'</div>'+
@@ -1236,6 +1240,7 @@ listEl.addEventListener("click", e => {
     if(kind === "season") wtSeason = val;
     else if(kind === "occasion") wtOccasion = val;
     else if(kind === "vibe") wtVibe = val;
+    else if(kind === "category") wtCategory = val;
     buildWearToday();
     return;
   }
