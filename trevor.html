@@ -119,6 +119,7 @@ section.cat:first-of-type{border-top:none;padding-top:34px}
   font-family:"IBM Plex Mono",monospace;font-size:13px}
 
 .tag.mine{border-color:var(--accent);color:var(--accent);background:var(--accent-soft);font-weight:500}
+.tag.tier{border-style:dashed;color:var(--muted)}
 .mini{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:10px;letter-spacing:.1em;
   text-transform:uppercase;padding:5px 10px;border:1px solid var(--rule);background:transparent;
   color:var(--faint);cursor:pointer;transition:color .15s,border-color .15s,background .15s}
@@ -599,7 +600,8 @@ for(const p of RAW){
 const kateState = it => it.rating === null ? "untried" : (it.rating >= 7 ? "rated" : "mixed");
 
 const TIERS = [{id:"indie",label:"Indie"},{id:"niche",label:"Niche"},
-               {id:"designer",label:"Designer"},{id:"diary",label:"Diary"}];
+               {id:"designer",label:"Designer"},{id:"all",label:"All"},{id:"diary",label:"Diary"}];
+const TIER_LABEL = {indie:"Indie", niche:"Niche", designer:"Designer"};
 
 /* ───────────────────────────────────────────────────────────────────────────
    TREVOR'S DATA — Supabase row id="trevor", localStorage fallback.
@@ -822,6 +824,7 @@ for(const it of ITEMS) byKey[it.key] = it;
 function tagsFor(it){
   const out = [];
   const mine = state.ratings[it.key];
+  if(tier === "all") out.push('<span class="tag tier">'+TIER_LABEL[it.tier]+'</span>');
   if(it.gender === "masculine") out.push('<span class="tag soft">labelled masc</span>');
   if(typeof mine === "number") out.push('<span class="tag mine">you '+mine+'/10</span>');
   const v = verdictOf(it);
@@ -881,7 +884,7 @@ function entryHTML(it, catName){
 }
 
 function buildList(){
-  const mine = ITEMS.filter(i => i.tier === tier);
+  const mine = tier === "all" ? ITEMS.slice() : ITEMS.filter(i => i.tier === tier);
   const byCat = new Map();
   for(const it of mine){
     if(!byCat.has(it.cat)) byCat.set(it.cat, []);
