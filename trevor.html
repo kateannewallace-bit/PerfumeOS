@@ -230,7 +230,8 @@ const OVERRIDES = {
     "Ulrich Lang — 17 Nandan Road"
   ],
   include: [
-    "Le Labo — Another 13"
+    "Le Labo — Another 13",
+    "Diptyque — Philosykos"
   ],
   recategorize: {
     "Guerlain — Tobacco Honey": "Tobacco, Booze & Amber",
@@ -479,6 +480,7 @@ for(const p of RAW){
   if(!includeSet.has(k) && !leansMasculine(p, s)) continue;
   ITEMS.push({
     key:k, id:p.i, tier:tierOf(p.h), house:p.h, name:p.n, family:p.f || "",
+    conc:p.c || "",
     seedVerdict:(p.sr || ""), seedReview:(p.srv || ""),
     notes:(p.no || (p.tg||[]).join("; ") || "").replace(/\s*[;,]\s*/g, " · "),
     rating:(typeof p.r === "number" ? p.r : null),
@@ -487,6 +489,28 @@ for(const p of RAW){
     owns:/^trevor$/i.test((p.loc||"").trim()),
     cat:categorize(p, s.pr)
   });
+}
+
+// Same house + name shows up more than once (different concentrations) —
+// disambiguate the title so they're not indistinguishable in the list.
+{
+  const nameCounts = {};
+  for(const it of ITEMS){
+    const dk = (it.house + "|" + it.name).toLowerCase();
+    nameCounts[dk] = (nameCounts[dk] || 0) + 1;
+  }
+  for(const it of ITEMS){
+    const dk = (it.house + "|" + it.name).toLowerCase();
+    if(nameCounts[dk] > 1){
+      // Same-name entries previously shared one state key, so rating one
+      // silently overwrote the other. Give each a key unique to its own
+      // concentration (falling back to its raw id) so saved state can't collide.
+      it.displayName = it.conc ? it.name + " " + it.conc : it.name;
+      it.key = it.key + " (" + (it.conc || it.id) + ")";
+    } else {
+      it.displayName = it.name;
+    }
+  }
 }
 
 // A numeric rating is the source of truth — the tried flag in the data is unreliable.
@@ -768,7 +792,7 @@ function panelFor(it){
 function entryHTML(it, catName){
   return '<article class="entry" data-key="'+esc(it.key)+'" data-kate="'+kateState(it)+'" data-owns="'+it.owns+'" '+
     'data-search="'+esc((it.house+" "+it.name+" "+it.family+" "+it.notes+" "+catName).toLowerCase())+'">'+
-    '<div class="name"><span class="house">'+esc(it.house)+'</span><span class="title">'+esc(it.name)+'</span></div>'+
+    '<div class="name"><span class="house">'+esc(it.house)+'</span><span class="title">'+esc(it.displayName)+'</span></div>'+
     '<div class="notes">'+esc(it.notes)+'</div>'+
     '<div class="side"><div class="tags">'+tagsFor(it)+'</div>'+reactFor(it)+
       '<button class="mini toggle" data-act="toggle" aria-expanded="false">Rate &amp; log</button></div>'+
@@ -956,7 +980,7 @@ listEl.addEventListener("click", e => {
       id: uid(),
       key: key,
       date: dateInput.value || today(),
-      perfume: it.name,
+      perfume: it.displayName,
       house: it.house,
       perfumeId: it.id,
       rating: typeof state.ratings[key] === "number" ? state.ratings[key] : null,
