@@ -678,7 +678,7 @@ const TIER_LABEL = {indie:"Indie", niche:"Niche", designer:"Designer"};
    ─────────────────────────────────────────────────────────────────────────── */
 const SEASONS = ["Spring","Summer","Autumn","Winter"];
 const OCCASIONS = ["Casual","Focus","Evening","Date Night","Outdoors","Weekend"];
-const VIBES = ["Fresh","Cozy","Romantic","Bold","Soft","Energizing"];
+const VIBES = ["Fresh","Warm","Romantic","Bold","Smooth","Energizing"];
 
 function contextScore(it, ctx){
   const hay = (it.notes + " · " + it.family).toLowerCase();
@@ -717,13 +717,13 @@ function contextScore(it, ctx){
 
   if(ctx.vibe === "Fresh"){
     if(has("citrus","mint","green","aquatic","herbal fresh")) bonus += 3;
-  } else if(ctx.vibe === "Cozy"){
+  } else if(ctx.vibe === "Warm"){
     if(has("vanilla","tonka","amber","resinous","sandalwood","honey","cream")) bonus += 3;
   } else if(ctx.vibe === "Romantic"){
     if(has("rose","jasmine","musk","gardenia","peony","iris")) bonus += 3;
   } else if(ctx.vibe === "Bold"){
     if(has("oud","leather","smoky","incense")) bonus += 2;
-  } else if(ctx.vibe === "Soft"){
+  } else if(ctx.vibe === "Smooth"){
     if(has("musk","powdery","floral","iris","violet")) bonus += 3;
   } else if(ctx.vibe === "Energizing"){
     if(has("citrus","grapefruit","bergamot","mint","cardamom","pepper")) bonus += 3;
