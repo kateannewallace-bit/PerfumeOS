@@ -103,7 +103,6 @@ section.cat:first-of-type{border-top:none;padding-top:34px}
 .tag.rated{border-color:var(--brass);color:var(--brass);background:var(--brass-soft)}
 .tag.top{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
 .tag.mixed{border-style:dashed}
-.tag.owns{border-color:var(--ink);color:var(--ink)}
 .tag.soft{opacity:.7}
 .react{display:flex}
 .react button{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:10px;letter-spacing:.1em;
@@ -194,7 +193,6 @@ section.cat:first-of-type{border-top:none;padding-top:34px}
       <button class="chip" data-f="all" aria-pressed="true">Everything</button>
       <button class="chip" data-f="untried" aria-pressed="false">Untried</button>
       <button class="chip" data-f="rated" aria-pressed="false">Kate approved</button>
-      <button class="chip" data-f="owns" aria-pressed="false">Already yours</button>
       <button class="chip" data-f="want" aria-pressed="false">Want to try</button>
       <button class="chip" data-f="verdict" aria-pressed="false">You've judged</button>
       <button class="chip" data-f="yours" aria-pressed="false">You rated</button>
@@ -291,7 +289,33 @@ const OVERRIDES = {
     "byredo — Oboro",
     "Le Labo — Shiu 25",
     "Ledda — 18 Vanilla Nera",
-    "Byredo — Baudelaire"
+    "Byredo — Baudelaire",
+    // Leather-forward pieces where a substantial leather note outweighs
+    // an otherwise floral profile (2026-08-25 follow-up)
+    "Chanel — Cuir de Russie",
+    "Penhaligon's — Halfeti",
+    "Jorum Studio — Trimerous",
+    "Le Labo — Oud 27*",
+    "Boy Smells — Violet Ends (pre-reformulation)*",
+    "Boy Smells — Violet Ends (new)*",
+    "Puredistance — M V2Q (No. 03)",
+    "Dedcool — Fragrance 03 blonde",
+    "Escentric Molecules — Fragrance 03 Blonde",
+    "Etat Libre d'Orange — Rien Intense Incense",
+    "Miller Harris — Staccato",
+    "Byredo — M/Mink",
+    "Jorum Studio — Athenaeum",
+    "Discothèque — Dark Imagination",
+    "Penhaligon's — Iris Prima",
+    "Le Labo — Santal 33",
+    "Maison Crivelli — Iris Malikhan",
+    "Les Bains Guerbois — 1900 L'Heure de Proust",
+    "Oriza L. Legrand — Peau d'Espagne",
+    "Byredo — Rouge Chaotique",
+    "Oriza L. Legrand — Horizon",
+    "Carolina Herrera — Iris Empire",
+    "Oriza L. Legrand — Gentry Jockey Club",
+    "Van Cleef & Arpels — Bois d'Iris"
   ],
   recategorize: {
     "Guerlain — Tobacco Honey": "Tobacco, Booze & Amber",
@@ -545,8 +569,6 @@ for(const p of RAW){
     notes:(p.no || (p.tg||[]).join("; ") || "").replace(/\s*[;,]\s*/g, " · "),
     rating:(typeof p.r === "number" ? p.r : null),
     gender:p.g || null,
-    loc:p.loc || null,
-    owns:/^trevor$/i.test((p.loc||"").trim()),
     cat:categorize(p, s.pr)
   });
 }
@@ -801,7 +823,6 @@ function tagsFor(it){
   const out = [];
   const mine = state.ratings[it.key];
   if(it.gender === "masculine") out.push('<span class="tag soft">labelled masc</span>');
-  if(it.owns) out.push('<span class="tag owns">yours</span>');
   if(typeof mine === "number") out.push('<span class="tag mine">you '+mine+'/10</span>');
   const v = verdictOf(it);
   if(v){
@@ -812,7 +833,6 @@ function tagsFor(it){
   if(st === "rated")      out.push('<span class="tag '+(it.rating >= 8 ? "top" : "rated")+'">Kate '+it.rating+'/10</span>');
   else if(st === "mixed") out.push('<span class="tag mixed">Kate '+it.rating+'/10</span>');
   else                    out.push('<span class="tag">untried</span>');
-  if(it.loc && !it.owns)  out.push('<span class="tag soft">'+esc(it.loc)+'</span>');
   return out.join("");
 }
 
@@ -850,7 +870,7 @@ function panelFor(it){
 }
 
 function entryHTML(it, catName){
-  return '<article class="entry" data-key="'+esc(it.key)+'" data-kate="'+kateState(it)+'" data-owns="'+it.owns+'" '+
+  return '<article class="entry" data-key="'+esc(it.key)+'" data-kate="'+kateState(it)+'" '+
     'data-search="'+esc((it.house+" "+it.name+" "+it.family+" "+it.notes+" "+catName).toLowerCase())+'">'+
     '<div class="name"><span class="house">'+esc(it.house)+'</span><span class="title">'+esc(it.displayName)+'</span></div>'+
     '<div class="notes">'+esc(it.notes)+'</div>'+
@@ -951,7 +971,6 @@ function apply(){
       let ok = true;
       if(filter === "untried")      ok = row.dataset.kate === "untried";
       else if(filter === "rated")   ok = row.dataset.kate === "rated";
-      else if(filter === "owns")    ok = row.dataset.owns === "true";
       else if(filter === "want")    ok = !!state.wants[key];
       else if(filter === "verdict") ok = !!verdictOf(byKey[key]);
       else if(filter === "yours")   ok = typeof state.ratings[key] === "number" || !!reviewOf(byKey[key]);

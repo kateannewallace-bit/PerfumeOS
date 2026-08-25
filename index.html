@@ -468,13 +468,6 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   font-size: 13px;
   color: var(--fg-soft);
 }
-.name-row-loc {
-  display: block;
-  font-size: 12px;
-  color: var(--gold);
-  margin-top: 3px;
-  letter-spacing: 0.02em;
-}
 .name-row-house {
   display: block;
   font-size: 11px;
@@ -483,26 +476,6 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   color: var(--fg-soft);
   margin-bottom: 2px;
 }
-.card-location {
-  margin-top: 10px;
-  font-size: 12px;
-  color: var(--gold);
-  letter-spacing: 0.02em;
-}
-.location-box {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  background: var(--bg-soft);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 8px 12px;
-  margin-bottom: 12px;
-  font-size: 14px;
-}
-.location-box .sec-lbl { margin: 0; }
-.location-pin { font-size: 13px; }
-
 .card {
   background: #fff;
   border: 1px solid var(--border);
@@ -2540,7 +2513,6 @@ function normalizePerfume(p) {
     safeReview: p.srv || "",
     trevorSelfScore: computeTrevorSelf(buildTagsFromText(p.no || "", p.f || ""), primary),
     mood: p.m || "Classic", myNotes: p.mn || "",
-    location: p.loc || "",
     // Gender: explicit field from data (p.g) → name inference → null (unknown)
     gender: p.g || inferGenderFromName(p.n || "") || null,
     userAdded: p.userAdded || false,
@@ -4177,7 +4149,6 @@ function Card({ p, onClick, annotation, simScore, trevorMode, excludeTags }) {
         Worn {p.wearCount}×{p.daysAgo != null && ` · ${p.daysAgo === 0 ? "today" : p.daysAgo === 1 ? "yesterday" : `${p.daysAgo}d ago`}`}
       </div>
     )}
-    {p.location && <div className="card-location">📍 {p.location}</div>}
   </div>;
 }
 
@@ -4195,7 +4166,6 @@ function Modal({ p, onClose, onEdit, onResetToSeed, hasEdits, perfumes, onNaviga
       rating: p.rating ?? "",
       status: p.status || "Unrated",
       gender: p.gender || "",
-      location: p.location || "",
       myNotes: p.myNotes || "",
       rawNotes: p.rawNotes || "",
       family: p.family || "",
@@ -4217,7 +4187,6 @@ function Modal({ p, onClose, onEdit, onResetToSeed, hasEdits, perfumes, onNaviga
       status: editForm.status,
       preference: editForm.status, // keep preference in sync with status
       gender: editForm.gender || null,
-      location: editForm.location.trim() || null,
       myNotes: editForm.myNotes,
       categoryOverride: editForm.categoryOverride || null,
     };
@@ -4303,7 +4272,6 @@ function Modal({ p, onClose, onEdit, onResetToSeed, hasEdits, perfumes, onNaviga
           <div key={l}><div className="sec-lbl">{l}</div><Bar v={v} color={c} /></div>
         )}
       </div>
-      {p.location && <div className="location-box"><span className="location-pin">📍</span> <span className="sec-lbl" style={{display:"inline"}}>Location</span> <span style={{marginLeft:6}}>{p.location}</span></div>}
       <div className="meta-grid">
         <div><span className="sec-lbl">Family</span> <span>{p.family || "—"}</span></div>
         {CONFIG.partnerName && <div><span className="sec-lbl">For {CONFIG.partnerName}</span> <span style={{color: p.trevorSelfScore >= 7 ? "var(--sage)" : p.trevorSelfScore <= 4 ? "var(--dusty-rose)" : "var(--fg-mute)"}}>{p.trevorSelfScore ?? "—"}/10</span></div>}
@@ -4384,9 +4352,6 @@ function Modal({ p, onClose, onEdit, onResetToSeed, hasEdits, perfumes, onNaviga
                 <option value="feminine">Feminine</option>
                 <option value="unisex">Unisex</option>
               </select>
-            </label>
-            <label className="full-span"><span className="mini-lbl">Location (where the bottle physically lives)</span>
-              <input type="text" value={editForm.location} onChange={e => ef("location", e.target.value)} placeholder="e.g. Binder A, Row 2, Space 5 · Box · Pen drawer 3" />
             </label>
             <label className="full-span"><span className="mini-lbl">Notes (raw, comma or semicolon separated)</span>
               <textarea value={editForm.rawNotes} onChange={e => ef("rawNotes", e.target.value)} placeholder="e.g. rose, bergamot, sandalwood, musk" style={{minHeight:60}} />
@@ -4506,7 +4471,6 @@ function HousesView({ onSelect, wearStats, perfumes }) {
             <span className="name-row-name">
               {p.name}
               {p.concentration && <span className="name-row-conc">{p.concentration}</span>}
-              {p.location && <span className="name-row-loc">📍 {p.location}</span>}
             </span>
             {p.rating != null && <span className="name-row-rating">{p.rating}/10</span>}
           </button>
@@ -4536,81 +4500,6 @@ function HousesView({ onSelect, wearStats, perfumes }) {
       ))}
     </div>
     {shown.length === 0 && <div className="result-count">No houses match "{search}".</div>}
-  </div>;
-}
-
-// Parse a free-text location string into a container bucket for grouping.
-function locationContainer(loc) {
-  const s = (loc || "").trim();
-  if (!s) return { key: "unassigned", label: "Unassigned", order: 9999 };
-  let m;
-  if ((m = s.match(/binder\s*0*([0-9]+)/i))) return { key: "binder-" + m[1], label: "Binder " + m[1], order: 100 + (+m[1]) };
-  if ((m = s.match(/drawer\s*0*([0-9]+)/i))) return { key: "drawer-" + m[1], label: "Drawer " + m[1], order: 200 + (+m[1]) };
-  if (/mini/i.test(s)) return { key: "mini", label: "Miniature box", order: 300 };
-  if (/full/i.test(s)) return { key: "full", label: "Full size", order: 301 };
-  return { key: "other:" + s.toLowerCase(), label: s, order: 500 };
-}
-// Sort key for physical order within a container (row, then space).
-function locationSortKey(loc) {
-  const s = loc || "";
-  const row = (s.match(/row\s*0*([0-9]+)/i) || [])[1];
-  const space = (s.match(/space\s*0*([0-9]+)/i) || [])[1];
-  return [row ? +row : 9999, space ? +space : 9999];
-}
-
-function LocationsView({ onSelect, wearStats, perfumes }) {
-  const [selected, setSelected] = useState(null);
-  const enriched = useMemo(() => enrich(perfumes, wearStats), [wearStats, perfumes]);
-
-  const groups = useMemo(() => {
-    const m = new Map();
-    for (const p of enriched) {
-      const c = locationContainer(p.location);
-      if (!m.has(c.key)) m.set(c.key, { ...c, items: [] });
-      m.get(c.key).items.push(p);
-    }
-    return [...m.values()].sort((a, b) => a.order - b.order || a.label.localeCompare(b.label, undefined, { numeric: true }));
-  }, [enriched]);
-
-  const placed = enriched.filter(p => p.location).length;
-
-  if (selected) {
-    const g = groups.find(x => x.key === selected);
-    const items = (g ? g.items : []).slice().sort((a, b) => {
-      const ka = locationSortKey(a.location), kb = locationSortKey(b.location);
-      return ka[0] - kb[0] || ka[1] - kb[1] || a.house.localeCompare(b.house) || a.name.localeCompare(b.name);
-    });
-    return <div>
-      <button className="house-back" onClick={() => setSelected(null)}>← All locations</button>
-      <h1 className="page-title">{g ? g.label : ""}</h1>
-      <p className="page-sub">{items.length} fragrance{items.length !== 1 ? "s" : ""}</p>
-      <div className="name-list">
-        {items.map(p => (
-          <button key={p.id} className="name-row" onClick={() => onSelect(p)}>
-            <span className="name-row-name">
-              <span className="name-row-house">{p.house}</span>
-              {p.name}
-              {p.concentration && <span className="name-row-conc">{p.concentration}</span>}
-              {p.location && <span className="name-row-loc">📍 {p.location}</span>}
-            </span>
-            {p.rating != null && <span className="name-row-rating">{p.rating}/10</span>}
-          </button>
-        ))}
-      </div>
-    </div>;
-  }
-
-  return <div>
-    <h1 className="page-title">Browse by Location</h1>
-    <p className="page-sub">{placed} of {perfumes.length} placed · {perfumes.length - placed} unassigned</p>
-    <div className="house-grid">
-      {groups.map(g => (
-        <button key={g.key} className="house-tile" onClick={() => setSelected(g.key)}>
-          <span className="house-tile-name">{g.label}</span>
-          <span className="house-tile-count">{g.items.length}</span>
-        </button>
-      ))}
-    </div>
   </div>;
 }
 
@@ -7131,7 +7020,6 @@ function App() {
     { k: "collection", l: "Collection" },
     ...(CONFIG.partnerName ? [{ k: "trevor", l: CONFIG.partnerName }] : []),
     { k: "houses", l: "Houses" },
-    { k: "locations", l: "Locations" },
     { k: "taxonomy", l: "Taxonomy" },
     { k: "similar", l: "Similar" },
     { k: "compare", l: "Compare" },
@@ -7167,7 +7055,6 @@ function App() {
       {loaded && view === "collection" && <CollectionView onSelect={setSelected} wearStats={wearStats} perfumes={perfumes} />}
       {loaded && view === "trevor" && <TrevorView onSelect={setSelected} wearStats={wearStats} perfumes={perfumes} />}
       {loaded && view === "houses" && <HousesView onSelect={setSelected} wearStats={wearStats} perfumes={perfumes} />}
-      {loaded && view === "locations" && <LocationsView onSelect={setSelected} wearStats={wearStats} perfumes={perfumes} />}
       {loaded && view === "compare" && <CompareView perfumes={perfumes} />}
       {loaded && view === "taxonomy" && <TaxonomyView onSelect={setSelected} perfumes={perfumes} />}
       {loaded && view === "similar" && <SimilarView onSelect={setSelected} perfumes={perfumes} />}
