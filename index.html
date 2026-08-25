@@ -7108,5 +7108,40 @@ ReactDOM.createRoot(document.getElementById("root")).render(<App />);
   },200);
 })();
 </script>
+<!-- Kate's categorized browse page — nav link. Re-appends itself if React re-renders the nav. -->
+<script id="kate-link-injected">
+(function(){
+  "use strict";
+  var HREF="kate.html", ID="kate-os-link";
+  function make(){
+    var a=document.createElement("a");
+    a.id=ID; a.href=HREF; a.className="nav-link";
+    a.textContent="My iSmell";
+    a.style.textDecoration="none";
+    a.style.display="inline-block";
+    return a;
+  }
+  function place(){
+    var links=document.querySelector(".nav-links");
+    if(!links) return false;
+    if(links.querySelector("#"+ID)) return true;
+    links.appendChild(make());
+    return true;
+  }
+  function watch(){
+    var links=document.querySelector(".nav-links");
+    if(!links) return;
+    new MutationObserver(function(){
+      if(!links.querySelector("#"+ID)) links.appendChild(make());
+    }).observe(links,{childList:true});
+  }
+  var tries=0;
+  var t=setInterval(function(){
+    tries++;
+    if(place()){ clearInterval(t); watch(); }
+    else if(tries>60) clearInterval(t);
+  },200);
+})();
+</script>
 </body>
 </html>
