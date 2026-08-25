@@ -877,6 +877,10 @@ function apply(){
     sec.hidden = vis === 0 && (terms.length > 0 || filter !== "all");
   });
   noResEl.hidden = shown > 0;
+  catnavEl.querySelectorAll(".catlink").forEach(btn => {
+    const sec = document.getElementById(btn.dataset.target);
+    btn.hidden = !sec || sec.hidden;
+  });
 }
 
 /* ── interaction ─────────────────────────────────────────────────────────── */
