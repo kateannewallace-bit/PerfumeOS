@@ -72,7 +72,6 @@ h1 em{font-style:italic;color:var(--accent)}
   padding:6px 11px;border:1px solid var(--rule);background:transparent;color:var(--muted);cursor:pointer;
   transition:background .15s,color .15s,border-color .15s}
 .catlink:hover{border-color:var(--accent);color:var(--ink)}
-.catlink .n{color:var(--faint);margin-left:5px}
 
 section.cat{padding:44px 0 6px;border-top:1px solid var(--rule);scroll-margin-top:96px}
 section.cat:first-of-type{border-top:none;padding-top:34px}
@@ -793,8 +792,7 @@ function buildList(){
             '<p class="gloss">'+cat.gloss+'</p></div><div class="entries">'+
             arr.map(it => entryHTML(it, cat.name)).join("")+
             '</div><p class="empty" hidden>Nothing in this character matches.</p></section>';
-    navHtml += '<button class="catlink" data-target="'+id+'">'+esc(cat.name)+
-               '<span class="n">'+arr.length+'</span></button>';
+    navHtml += '<button class="catlink" data-target="'+id+'">'+esc(cat.name)+'</button>';
   }
   listEl.innerHTML = html;
   catnavEl.innerHTML = navHtml;
