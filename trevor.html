@@ -678,7 +678,7 @@ const TIER_LABEL = {indie:"Indie", niche:"Niche", designer:"Designer"};
    ─────────────────────────────────────────────────────────────────────────── */
 const SEASONS = ["Spring","Summer","Autumn","Winter"];
 const OCCASIONS = ["Casual","Focus","Evening","Date Night","Outdoors","Weekend"];
-const VIBES = ["Fresh","Warm","Romantic","Bold","Smooth","Energizing"];
+const VIBES = ["Fresh","Warm","Magnetic","Bold","Smooth","Energizing"];
 
 function contextScore(it, ctx){
   const hay = (it.notes + " · " + it.family).toLowerCase();
@@ -719,7 +719,7 @@ function contextScore(it, ctx){
     if(has("citrus","mint","green","aquatic","herbal fresh")) bonus += 3;
   } else if(ctx.vibe === "Warm"){
     if(has("vanilla","tonka","amber","resinous","sandalwood","honey","cream")) bonus += 3;
-  } else if(ctx.vibe === "Romantic"){
+  } else if(ctx.vibe === "Magnetic"){
     if(has("rose","jasmine","musk","gardenia","peony","iris")) bonus += 3;
   } else if(ctx.vibe === "Bold"){
     if(has("oud","leather","smoky","incense")) bonus += 2;
