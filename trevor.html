@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Trevor's Perfume OS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#E7E8E1; --surface:#F3F4EE; --ink:#171A16; --muted:#5D6357; --faint:#868B7B;
+  --rule:#C7CABE; --accent:#2F4F45; --accent-soft:#D8E0D9; --brass:#8A6624; --brass-soft:#E6DCC4;
+  --want:#2F4F45; --nope:#8C3B2F;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#121410; --surface:#1B1E17; --ink:#E5E7DC; --muted:#9AA08E; --faint:#767C6B;
+    --rule:#2F3429; --accent:#86AC9A; --accent-soft:#1F2A25; --brass:#C9A45E; --brass-soft:#2A2418;
+    --want:#86AC9A; --nope:#D08B7C;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#121410; --surface:#1B1E17; --ink:#E5E7DC; --muted:#9AA08E; --faint:#767C6B;
+  --rule:#2F3429; --accent:#86AC9A; --accent-soft:#1F2A25; --brass:#C9A45E; --brass-soft:#2A2418;
+  --want:#86AC9A; --nope:#D08B7C;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:"Archivo","Helvetica Neue",Arial,sans-serif;
+  font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.wrap{max-width:1180px;margin:0 auto;padding:0 28px 110px}
+
+.mast{padding:52px 0 26px;display:grid;gap:16px}
+.backlink{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:11px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--faint);text-decoration:none;justify-self:start}
+.backlink:hover{color:var(--accent)}
+h1{font-family:"Instrument Serif",Georgia,serif;font-weight:400;font-size:clamp(42px,7vw,76px);
+  line-height:.98;letter-spacing:-.01em;text-wrap:balance}
+h1 em{font-style:italic;color:var(--accent)}
+
+.tiers{display:flex;border-bottom:1px solid var(--rule);margin-top:6px;overflow-x:auto}
+.tier{font-family:"Instrument Serif",Georgia,serif;font-size:22px;padding:10px 22px 12px;
+  border:none;background:none;color:var(--faint);cursor:pointer;white-space:nowrap;
+  border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s,border-color .15s}
+.tier:first-child{padding-left:0}
+.tier:hover{color:var(--ink)}
+.tier[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+
+.toolbar{position:sticky;top:0;z-index:30;background:var(--bg);border-bottom:1px solid var(--rule);
+  padding:14px 0;display:grid;gap:11px}
+#q{width:100%;font-family:"Archivo",sans-serif;font-size:16px;color:var(--ink);background:var(--surface);
+  border:1px solid var(--rule);padding:11px 14px;border-radius:0}
+#q::placeholder{color:var(--faint)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.chip{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:11.5px;letter-spacing:.04em;
+  padding:6px 12px;border:1px solid var(--rule);background:transparent;color:var(--muted);cursor:pointer;
+  transition:background .15s,color .15s,border-color .15s}
+.chip:hover{border-color:var(--accent);color:var(--ink)}
+.chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.status{margin-left:auto;font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:11px;
+  color:var(--faint);font-variant-numeric:tabular-nums;text-align:right}
+.status .sync{display:block;font-size:10px;letter-spacing:.08em;text-transform:uppercase}
+.status .sync.err{color:var(--nope)}
+
+section.cat{padding:44px 0 6px;border-top:1px solid var(--rule)}
+section.cat:first-of-type{border-top:none;padding-top:34px}
+.cat-head{display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr);gap:10px 48px;
+  align-items:baseline;margin-bottom:22px}
+.cat-head h2{font-family:"Instrument Serif",Georgia,serif;font-weight:400;
+  font-size:clamp(27px,3.2vw,38px);line-height:1.04;text-wrap:balance}
+.cat-head .gloss{color:var(--muted);font-size:15px;max-width:56ch}
+
+.entry{display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr) auto;gap:8px 48px;
+  align-items:start;padding:15px 0;border-top:1px solid var(--rule)}
+.entries .entry:last-of-type{border-bottom:1px solid var(--rule)}
+.name{display:grid;gap:1px;min-width:0}
+.house{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:10.5px;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--faint)}
+.title{font-family:"Instrument Serif",Georgia,serif;font-size:23px;line-height:1.12}
+.notes{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12.5px;line-height:1.7;
+  color:var(--muted);min-width:0;overflow-wrap:anywhere}
+.side{display:grid;gap:8px;justify-items:end}
+.tags{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.tag{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:10px;letter-spacing:.1em;
+  text-transform:uppercase;padding:4px 8px;white-space:nowrap;border:1px solid var(--rule);color:var(--faint)}
+.tag.rated{border-color:var(--brass);color:var(--brass);background:var(--brass-soft)}
+.tag.top{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+.tag.mixed{border-style:dashed}
+.tag.owns{border-color:var(--ink);color:var(--ink)}
+.tag.soft{opacity:.7}
+.react{display:flex}
+.react button{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:10px;letter-spacing:.1em;
+  text-transform:uppercase;padding:5px 10px;border:1px solid var(--rule);background:transparent;
+  color:var(--faint);cursor:pointer;margin-left:-1px;transition:background .15s,color .15s,border-color .15s}
+.react button:first-child{margin-left:0}
+.react button:hover{color:var(--ink);border-color:var(--muted)}
+.react button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.react button.want[aria-pressed="true"]{background:var(--want);border-color:var(--want);color:var(--bg)}
+.react button.nope[aria-pressed="true"]{background:var(--nope);border-color:var(--nope);color:#fff}
+
+.empty{padding:20px 0;color:var(--faint);font-family:"IBM Plex Mono",monospace;font-size:12.5px}
+.noresults{padding:80px 0;text-align:center;color:var(--faint);
+  font-family:"IBM Plex Mono",monospace;font-size:13px}
+
+.tag.mine{border-color:var(--accent);color:var(--accent);background:var(--accent-soft);font-weight:500}
+.mini{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:10px;letter-spacing:.1em;
+  text-transform:uppercase;padding:5px 10px;border:1px solid var(--rule);background:transparent;
+  color:var(--faint);cursor:pointer;transition:color .15s,border-color .15s,background .15s}
+.mini:hover{color:var(--ink);border-color:var(--muted)}
+.mini.solid{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+.mini.solid:hover{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.mini.toggle[aria-expanded="true"]{color:var(--ink);border-color:var(--ink)}
+
+.logpanel{grid-column:1/-1;display:grid;gap:12px;margin-top:12px;padding:16px 18px;
+  background:var(--surface);border:1px solid var(--rule)}
+.rate{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.rate label{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:10px;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--faint)}
+.rate input[type=range]{flex:1;min-width:150px;accent-color:var(--accent)}
+.rate .val{font-family:"Instrument Serif",Georgia,serif;font-size:24px;min-width:2.6ch;
+  text-align:right;font-variant-numeric:tabular-nums}
+.logpanel textarea{width:100%;font-family:"Archivo",sans-serif;font-size:15px;line-height:1.5;
+  color:var(--ink);background:var(--bg);border:1px solid var(--rule);padding:10px 12px;
+  border-radius:0;resize:vertical}
+.logpanel textarea::placeholder{color:var(--faint)}
+.logpanel .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.wdate{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px;color:var(--ink);
+  background:var(--bg);border:1px solid var(--rule);padding:5px 9px;border-radius:0}
+.worn{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:10.5px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--faint)}
+
+.diary-note{font-family:"Archivo",sans-serif;font-size:15px;line-height:1.55;color:var(--ink)}
+.faintish{color:var(--faint);font-family:"IBM Plex Mono",monospace;font-size:12.5px}
+.diary-empty{padding:70px 0;text-align:center;color:var(--muted);font-size:15.5px}
+.diary-empty strong{color:var(--ink);font-weight:600}
+
+.react.verdict{flex-wrap:wrap}
+.react.verdict button{min-width:0}
+.react.verdict button[aria-pressed="true"].v-very-positive,
+.react.verdict button[aria-pressed="true"].v-positive{background:var(--want);border-color:var(--want);color:var(--bg)}
+.react.verdict button[aria-pressed="true"].v-neutral{background:var(--muted);border-color:var(--muted);color:var(--bg)}
+.react.verdict button[aria-pressed="true"].v-negative,
+.react.verdict button[aria-pressed="true"].v-very-negative{background:var(--nope);border-color:var(--nope);color:#fff}
+.wantbtn[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.tag.verdict-tag{font-weight:500}
+.tag.verdict-tag.v-very-positive,.tag.verdict-tag.v-positive{border-color:var(--want);color:var(--want);background:var(--accent-soft)}
+.tag.verdict-tag.v-neutral{border-color:var(--muted);color:var(--muted)}
+.tag.verdict-tag.v-negative,.tag.verdict-tag.v-very-negative{border-color:var(--nope);color:var(--nope)}
+
+@media (max-width:860px){
+  .wrap{padding:0 18px 90px}
+  .cat-head,.entry{grid-template-columns:1fr;gap:8px}
+  .side{justify-items:start}
+  .tags{justify-content:flex-start}
+  .mast{padding:32px 0 20px}
+  .status{margin-left:0;text-align:left;width:100%}
+  .tier{font-size:19px;padding:9px 16px 11px}
+  .logpanel{padding:14px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="mast">
+    <a class="backlink" href="./">← Perfume OS</a>
+    <h1>Trevor's <em>Perfume OS</em></h1>
+  </header>
+
+  <div class="tiers" role="tablist" id="tiers"></div>
+
+  <div class="toolbar" id="toolbar">
+    <input id="q" type="search" placeholder="Search house, name, note or character" autocomplete="off" spellcheck="false">
+    <div class="chips">
+      <button class="chip" data-f="all" aria-pressed="true">Everything</button>
+      <button class="chip" data-f="untried" aria-pressed="false">Untried</button>
+      <button class="chip" data-f="rated" aria-pressed="false">Kate approved</button>
+      <button class="chip" data-f="owns" aria-pressed="false">Already yours</button>
+      <button class="chip" data-f="want" aria-pressed="false">Want to try</button>
+      <button class="chip" data-f="verdict" aria-pressed="false">You've judged</button>
+      <button class="chip" data-f="yours" aria-pressed="false">You rated</button>
+      <div class="status"><span class="sync" id="sync">connecting…</span></div>
+    </div>
+  </div>
+
+  <main id="list"></main>
+  <p class="noresults" id="noresults" hidden>Nothing matches that.</p>
+
+</div>
+
+<script src="perfume-data.js"></script>
+<script>
+(function(){
+"use strict";
+
+/* ───────────────────────────────────────────────────────────────────────────
+   OVERRIDES — hand calls beat the rules. Match "House — Name" exactly.
+   ─────────────────────────────────────────────────────────────────────────── */
+const OVERRIDES = {
+  exclude: [
+    "DS & Durga — Steamed rainbow",
+    "Thin Wild Mercury — Girl of the Year",
+    "Puredistance — Sheiduna (No. 07)",
+    "Heretic — Ektoplasma",
+    "Ella K Parfums — Musc K",
+    "Maison d'Etto — Durban Jane",
+    "Maison Crivelli — Musc Nurāsana",
+    "Arquiste — L'Or de Louis",
+    "Ulrich Lang — 17 Nandan Road"
+  ],
+  include: [],
+  recategorize: {
+    "Arquiste — Peau": "Skin Musk & Ambergris",
+    "Pineward — Tome": "Leather",
+    "Marissa Zappas — Petrichor": "Animalic & Earth",
+    "Universal Flowering — Daddy": "Conifer & Forest Floor"
+  }
+};
+
+/* ───────────────────────────────────────────────────────────────────────────
+   HOUSE TIERS
+   designer — buyable at a department store, not a perfume house first
+   niche    — perfume specialist, but mass market and/or conglomerate-owned
+   indie    — boutique, independent, not owned by a conglomerate
+   Anything not listed below falls through to niche.
+   ─────────────────────────────────────────────────────────────────────────── */
+const DESIGNER = new Set(["Acqua di Parma","Balenciaga","Burberry","Bvlgari","Cacharel","Calvin Klein",
+"Carolina Herrera","Celine","Chanel","Chloé","Comme des Garçons","Dior","Dolce & Gabbana",
+"Dries Van Noten","Etro","Givenchy","Glossier","Gucci","Guerlain","Hanae Mori","Hermès","Issey Miyake",
+"Jean Patou","Josie Maran","Juicy Couture","Kenzo","Kiehl's","Loewe","Lolita Lempicka","Louis Vuitton",
+"Marc Jacobs","Merit","Miu Miu","Moroccanoil","Mugler","Narciso Rodriguez","Prada","Robert Piguet",
+"Sezane","Sisley Paris","The Body Shop","Tocca","Tom Ford","Van Cleef & Arpels","Versace","Viktor & Rolf",
+"Yves Saint Laurent","Zadig & Voltaire","Lake & Skye","Henry rose","By Rosie Jane","Violette Fr"]);
+
+const INDIE = new Set(["19-69","Aedes de Venustas","Affinessence","Akro","Anatole Lebreton","Andrea Maack",
+"Apoteker Tepe","Arquiste","BDK","BDK Parfums","Bienaimé","Black Phoenix Alchemy Lab","Bogue","Bohoboco",
+"Boy Smells","Chris Collins","Clue","D'Annam","Danner & Flemming","Discothèque","DS & Durga","ds & durga",
+"Ella K Parfums","Essential Parfums","Etat Libre d'Orange","Ffern","French Cowboy","Fugazzi","Fzotic",
+"Grandiflora","Gumamina","Heeley","Hellenist","Heretic","Hiram Green","Histoires de Parfums","House of Bo",
+"Imaginary Authors","Indult","J-Scent","Jorum Studio","Keiko Mecheri","Kerosene","Laboratoria Olfattivo",
+"Le Jardin Retrouvé","Ledda","Les Bains Guerbois","Liis","Lorenzo Villoresi","M. Micallef","Madame Grey",
+"Maison Crivelli","Maison Mataha","Maison Tahite","Maison Violet","Maison d'Etto","Marc-Antoine Barrois",
+"Marissa Zappas","Masque Milano","Matière Première","Meo Fusciuni","Mind Games","Naomi Goodsir","Nasomatto",
+"New Notes","Nicolai","Parfums de Nicolaï","Nobile 1942","Octavia Morgan","Oddity","Onsen Saru",
+"Oriza L. Legrand","Ormonde Jayne","Papillon artisan perfumes","Parfum d'Empire","Parfums Dusita",
+"Perfumer H","Pierre Guillaume","Pineward","Puredistance","Rania J.","Régime des Fleurs","Rhizome",
+"Rogue Perfumery","Room 1015","Rundholz","Sammarco","Sentier","The Perfumer's Story","Thin Wild Mercury",
+"Ulrich Lang","Une Nuit Nomade","Universal Flowering","Viktoria Minya","Vilhelm Parfumerie","Violet",
+"Zeromolecule","les indemodables"]);
+
+const tierOf = h => DESIGNER.has(h) ? "designer" : (INDIE.has(h) ? "indie" : "niche");
+
+/* ───────────────────────────────────────────────────────────────────────────
+   THE FILTER — truly leans masculine, not merely unisex.
+   Sweetness is not disqualifying: pipe-shop vanilla, boozy amber and
+   cocoa-and-patchouli all read masculine. Florals, powder and fruit are what
+   pull a fragrance to the other side.
+   ─────────────────────────────────────────────────────────────────────────── */
+const MASC = ["fougere","fougère","lavender","lavandin","artemisia","wormwood","absinthe","fern",
+"coumarin","tonka","hay","clary sage","sage","rosemary","thyme","basil","mint","peppermint","juniper",
+"gin","galbanum","tomato leaf","fig leaf","violet leaf","cannabis","turpentine","tobacco","tobacco leaf",
+"pipe","cigarette","rum","cognac","whiskey","whisky","bourbon","boozy","wine lees","leather","leathery",
+"cuir","birch tar","cade","tar","suede","hide","tanned","oud","agarwood","incense","olibanum",
+"frankincense","myrrh","opoponax","labdanum","cistus","styrax","benzoin","elemi","balsam","resin",
+"resinous","smoke","smoky","smouldering","smoldering","lapsang","copal","vetiver","vetyver","cedar",
+"cedarwood","sandalwood","guaiac","gaiac","akigalawood","amyris","mahogany","papyrus","cypriol",
+"nagarmotha","oakmoss","moss","mossy","chypre","patchouli","earth","soil","petrichor","mushroom","porcini",
+"morel","truffle","pine","fir","spruce","larch","cypress","hinoki","conifer","coniferous","sandarac",
+"black pepper","pink pepper","peppercorn","white pepper","timur","sichuan pepper","cardamom","saffron",
+"clove","nutmeg","cinnamon","coriander","caraway","anise","star anise","licorice","liquorice","fennel",
+"ginger","turmeric","rooibos","tea","mate","maté","coffee","cocoa","cacao","chocolate","amber","ambergris",
+"ambroxan","ambrox","ambrofix","ambrette","ambrettolide","iso e super","cashmeran","cetalox","orcanox",
+"timbersilk","amberwood","muscone","sea salt","salt","salted","marine","seaweed","algae","aquatic",
+"ozonic","mineral","flint","limestone","lava","cold metal","metallic","driftwood","seashell","grapefruit",
+"pomelo","bergamot","petitgrain","bigarade","bitter orange","yuzu","citron","cedrat","cédrat","lime",
+"hesperidic","cologne","animalic","civet","castoreum","hyraceum","costus","cumin","gunpowder","concrete",
+"gasoline","petrol","rubber","vinyl","ink","parchment","sawdust","eucalyptus","camphor","shiso","vanilla",
+"aromatic","woods","woody","spices","resins","earthy","herbal","green","chypre","fresh","mineral notes"];
+
+const FEM = ["rose","jasmine","tuberose","gardenia","ylang","ylang-ylang","orange blossom","peony","lily",
+"lily-of-the-valley","muguet","freesia","magnolia","mimosa","osmanthus","heliotrope","narcissus","hyacinth",
+"lilac","champaca","frangipani","carnation","honeysuckle","lotus","water lily","white floral",
+"white flowers","floral","florals","soliflore","powdery","powder","rice powder","aldehydes","aldehydic",
+"lipstick","fur","peach","apricot","cherry","raspberry","strawberry","blueberry","blackberry",
+"lychee","plum","melon","pineapple","mango","guava","passionfruit","coconut","marshmallow","meringue",
+"cotton candy","bubble gum","candy","sugared","praline","caramel","whipped","cream","creamy","milk","milky",
+"butter","honey","jam","sweet floral","fresh floral","soft floral","tropical floral"];
+
+// Non-negotiable feminine signatures — one of these anywhere and it's out.
+const FEM_STOP = ["tuberose","gardenia","white floral","white flowers","lipstick","cotton candy",
+"bubble gum","marshmallow","meringue","soliflore","soft floral","sweet floral","fresh floral",
+"tropical floral","powdery floral","rice powder","muguet","lily-of-the-valley","peony","honeysuckle",
+"fur","frangipani","champaca","hyacinth","lilac","white blossom","white blossoms","white flowers"];
+
+const norm = s => (s||"").toLowerCase();
+function hasWord(hay, needle){
+  let from = 0;
+  for(;;){
+    const i = hay.indexOf(needle, from);
+    if(i === -1) return false;
+    const before = i === 0 ? " " : hay[i-1];
+    const after  = i + needle.length >= hay.length ? " " : hay[i + needle.length];
+    if(!/[a-z]/.test(before) && !/[a-z]/.test(after)) return true;
+    from = i + 1;
+  }
+}
+
+function profile(p){
+  const name  = norm(p.n);
+  const fam   = norm(p.f);
+  const notes = norm(p.no);
+  const tags  = (p.tg||[]).map(norm).join(" · ");
+  return {name, fam, notes, tags, all:[name, fam, notes, tags].join(" · ")};
+}
+
+function score(p){
+  const pr = profile(p);
+  let masc = 0, fem = 0, stop = false;
+  for(const w of MASC) if(hasWord(pr.all, w)) masc++;
+  for(const w of FEM)  if(hasWord(pr.all, w)) fem++;
+  for(const w of FEM_STOP) if(hasWord(pr.all, w)) stop = true;
+  const famSoft = /floral|rose|powder|aldehyd/.test(pr.fam);
+  return {masc, fem, stop, famSoft, pr};
+}
+
+function leansMasculine(p, s){
+  if(p.g === "masculine") return true;
+  if(p.g === "feminine")  return false;
+  if(s.stop) return false;
+  if(s.famSoft) return false;      // the house's own family field puts it on the other side
+  if(s.fem > 2) return false;
+  // A clean short note list counts; every feminine marker costs two masculine ones.
+  return s.masc >= 6 + s.fem * 3;
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+   CHARACTERS — coldest to darkest. prio breaks ties toward the more
+   diagnostic character.
+   ─────────────────────────────────────────────────────────────────────────── */
+const CATEGORIES = [
+ {name:"Salt, Stone & Cold Water", prio:4,
+  gloss:"Sea salt, wet rock, ozone, cold metal.",
+  keys:{"sea salt":6,"salt":5,"salted":5,"marine":6,"seaweed":5,"algae":5,"samphire":5,"sargassum":5,
+        "aquatic":5,"ozonic":4,"ocean":5,"sea water":6,"mineral":6,"lava":6,"limestone":5,"flint":4,
+        "petrichor":5,"cold metal":6,"metallic":4,"driftwood":3,"seashell":5,"kelp":5,"pacific":4,
+        "coastal":4,"rain":3,"wet lava rock":6}},
+
+ {name:"Conifer & Forest Floor", prio:3,
+  gloss:"Fir, pine resin, damp moss, soil, mushroom.",
+  keys:{"fir":7,"balsam fir":7,"douglas fir":7,"silver fir":7,"pine":6,"pine needle":7,"spruce":7,
+        "larch":7,"tamarack":7,"cypress":4,"hinoki":6,"coniferous":7,"conifer":7,"sandarac":5,"lichen":6,
+        "forest floor":8,"wet soil":5,"mushroom":6,"morel":8,"porcini":8,"bamboo":3,"sawdust":5,
+        "cedar planks":5,"terebinth":3,"fern":2,"moss":1,"mossy":1}},
+
+ {name:"Green, Herbal & Fougère", prio:8,
+  gloss:"Lavender, artemisia, fern, basil, crushed stems.",
+  keys:{"fougere":8,"fougère":8,"lavender":6,"lavandin":6,"artemisia":6,"wormwood":6,"absinthe":6,
+        "fern":5,"galbanum":4,"thyme":4,"rosemary":4,"clary sage":4,"sage":3,"basil":5,"mint":4,
+        "peppermint":4,"spearmint":4,"shiso":4,"verbena":4,"tarragon":4,"cannabis":7,"turpentine":7,
+        "celery":5,"fennel":3,"hay":5,"clover":4,"sweet grass":4,"green tea":3,"herbal":5,"camphor":4,
+        "eucalyptus":3,"fig leaf":4,"tomato leaf":5,"gentiana":4,"green":1}},
+
+ {name:"Bitter Citrus & Cologne", prio:9,
+  gloss:"Grapefruit rind, yuzu, petitgrain, oakmoss.",
+  keys:{"grapefruit":6,"pomelo":6,"yuzu":6,"petitgrain":6,"bigarade":6,"bitter orange":6,"citron":5,
+        "cedrat":7,"cédrat":7,"cologne":7,"hesperidic":5,"citrus":4,"bergamot":2,"lemon":2,"lime":2,
+        "mandarin":1,"myrtle":3,"blood orange":2,"orange peel":2}},
+
+ {name:"Dry Iris & Suede", prio:6,
+  gloss:"Iris as a root — carrot, cold earth, raw suede.",
+  keys:{"orris":7,"orris butter":8,"iris":6,"iris pallida":8,"iris germanica":8,"orris concrete":8,
+        "carrot seed":5,"carrot":4,"suede":6,"buchu":4,"lentisk":4,"mastic":3}},
+
+ {name:"Skin Musk & Ambergris", prio:10,
+  gloss:"Ambrette, Iso E, ambroxan, sandalwood. Barely a perfume.",
+  keys:{"skin musk":9,"ambrette":5,"ambrettolide":6,"muscone":6,"muscenone":6,"ambroxan":4,"ambrox":4,
+        "ambergris":5,"ambrofix":4,"iso e super":6,"orcanox":5,"cetalox":5,"timbersilk":5,"ambermax":5,
+        "civettone":3,"white musk":2,"musk":1,"skin":4}},
+
+ {name:"Dry Woods & Vetiver", prio:12,
+  gloss:"Cedar, sandalwood, guaiac, vetiver root.",
+  keys:{"vetiver":6,"vetyver":6,"sandalwood":5,"cedarwood":4,"cedar":3,"guaiac":5,"gaiac":5,
+        "akigalawood":5,"amyris":4,"mahogany":6,"maplewood":6,"okoumé":6,"okoume":6,"sequoia":6,
+        "rosewood":4,"blond woods":4,"blonde woods":4,"siam wood":4,"hiba":4,"ho wood":4,"palo santo":4,
+        "varnish":7,"patchouli":2,"cashmeran":2,"cashmere wood":2,"woody":1}},
+
+ {name:"Pepper & Spice", prio:11,
+  gloss:"Black and pink pepper, cardamom, saffron, clove.",
+  keys:{"black pepper":5,"pink pepper":5,"peppercorn":5,"timur":6,"sichuan pepper":6,"szechuan":6,
+        "pepper wood":6,"white pepper":5,"cardamom":4,"saffron":4,"clove":4,"nutmeg":4,"cinnamon":3,
+        "cassia":4,"turmeric":4,"coriander":4,"caraway":4,"ginger":2,"star anise":3,"anise":3,
+        "licorice":4,"liquorice":4,"rooibos":5,"wasabi":6,"spicy":1,"spices":1}},
+
+ {name:"Smoke & Incense", prio:5,
+  gloss:"Frankincense, myrrh, labdanum, burning wood.",
+  keys:{"incense":5,"olibanum":6,"frankincense":6,"myrrh":5,"opoponax":4,"copal":7,"smoke":6,"smoky":6,
+        "wood smoke":8,"pine smoke":8,"firewood smoke":8,"smouldering":6,"smoldering":6,"lapsang":7,
+        "cypriol":4,"papyrus":4,"oud":4,"agarwood":4,"dukhan":6,"torrefied":6,"candlewax":4,
+        "melted wax":4,"church incense":8,"nag champa":5,"gunpowder":4,"resinous":2,"labdanum":1}},
+
+ {name:"Leather", prio:2,
+  gloss:"Birch tar, cade, suede, saffron and hide.",
+  keys:{"leather":8,"leathery":8,"birch tar":9,"cade":8,"cade oil":9,"tanned":7,"morocco leather":9,
+        "tuscan leather":9,"saffiano":9,"smoked leather":9,"black leather":9,"white leather":7,"cuir":9,
+        "hide":6,"parchment":7,"binding glue":7,"vintage book":7,"rubber":5,"vinyl":6,"ink":4,
+        "stained woods":5,"birch":3,"styrax":1}},
+
+ {name:"Tobacco, Booze & Amber", prio:7,
+  gloss:"Cured leaf, rum, cognac, warm resin. Sweetness allowed.",
+  keys:{"tobacco":9,"tobacco leaf":10,"white tobacco":10,"tobacco blossom":9,"cigarette":9,"pipe":8,
+        "rum":6,"cognac":7,"whiskey":7,"whisky":7,"bourbon":6,"boozy":7,"wine lees":6,"sake":5,
+        "maraschino":5,"havanawood":7,"tonka":3,"benzoin":3,"tolu":4,"peru balsam":4,"amber":2,
+        "vanilla":2,"cocoa":4,"cacao":4,"coffee":4,"immortelle":2,"dried fruits":3,"dates":3}},
+
+ {name:"Animalic & Earth", prio:1,
+  gloss:"Civet, castoreum, cumin, wet plaster, soil.",
+  keys:{"civet":9,"castoreum":9,"hyraceum":9,"costus":7,"cumin":7,"animalic":8,"indolic":7,"skatole":9,
+        "wet plaster":9,"concrete":7,"gasoline":9,"petrol":9,"kombucha":7,"beetroot":7,"lovage":7,
+        "pencil":6,"antique iron":7,"snake plant":6,"clay":4,"soil":3,"wet earth":5}}
+];
+
+/* ───────────────────────────────────────────────────────────────────────────
+   BUILD THE INDEX
+   ─────────────────────────────────────────────────────────────────────────── */
+const keyOf = p => p.h + " — " + p.n;
+
+function categorize(p, pr){
+  const forced = OVERRIDES.recategorize[keyOf(p)];
+  if(forced) return forced;
+  let best = null, bestScore = 0, bestPrio = 99;
+  for(const cat of CATEGORIES){
+    let s = 0;
+    for(const word in cat.keys){
+      const w = cat.keys[word];
+      if(hasWord(pr.all, word)) s += w;
+      if(hasWord(pr.fam, word)) s += w;
+    }
+    if(s > bestScore || (s === bestScore && s > 0 && cat.prio < bestPrio)){
+      bestScore = s; best = cat.name; bestPrio = cat.prio;
+    }
+  }
+  return bestScore >= 5 ? best : "Dry Woods & Vetiver";
+}
+
+const RAW = (window.PERFUME_RAW_DATA && window.PERFUME_RAW_DATA.perfumes) || [];
+const excludeSet = new Set(OVERRIDES.exclude);
+const includeSet = new Set(OVERRIDES.include);
+const ITEMS = [];
+
+for(const p of RAW){
+  const k = keyOf(p);
+  if(excludeSet.has(k)) continue;
+  const s = score(p);
+  if(!includeSet.has(k) && !leansMasculine(p, s)) continue;
+  ITEMS.push({
+    key:k, id:p.i, tier:tierOf(p.h), house:p.h, name:p.n, family:p.f || "",
+    seedVerdict:(p.sr || ""), seedReview:(p.srv || ""),
+    notes:(p.no || (p.tg||[]).join("; ") || "").replace(/\s*[;,]\s*/g, " · "),
+    rating:(typeof p.r === "number" ? p.r : null),
+    gender:p.g || null,
+    loc:p.loc || null,
+    owns:/^trevor$/i.test((p.loc||"").trim()),
+    cat:categorize(p, s.pr)
+  });
+}
+
+// A numeric rating is the source of truth — the tried flag in the data is unreliable.
+const kateState = it => it.rating === null ? "untried" : (it.rating >= 7 ? "rated" : "mixed");
+
+const TIERS = [{id:"indie",label:"Indie"},{id:"niche",label:"Niche"},
+               {id:"designer",label:"Designer"},{id:"diary",label:"Diary"}];
+
+/* ───────────────────────────────────────────────────────────────────────────
+   TREVOR'S DATA — Supabase row id="trevor", localStorage fallback.
+   Shape mirrors Kate's own file: wearLog entries are
+   {id, date, perfume, house, perfumeId, rating, notes}
+   ─────────────────────────────────────────────────────────────────────────── */
+const SUPA = {
+  url:"https://oxmcgryusgchdodbarhn.supabase.co",
+  key:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im94bWNncnl1c2djaGRvZGJhcmhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2ODg2NDksImV4cCI6MjA5ODI2NDY0OX0.4hK_nBi0nXhs0sKb_O12jfc2V5fdYFCJI48D6PHszzw",
+  table:"perfume_state",
+  row:"trevor",
+  column:null
+};
+const LS_KEY = "trevorPerfumeOS";
+const syncEl = document.getElementById("sync");
+let state = {verdicts:{}, wants:{}, ratings:{}, reviews:{}, wearLog:[]};
+let saveTimer = null;
+
+const setSync = (t, err) => { syncEl.textContent = t; syncEl.classList.toggle("err", !!err); };
+const headers = () => ({"apikey":SUPA.key,"Authorization":"Bearer "+SUPA.key,"Content-Type":"application/json"});
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const today = () => new Date().toLocaleDateString("en-CA");   // YYYY-MM-DD, local
+
+function normalise(s){
+  s = s || {};
+  return {
+    verdicts:  s.verdicts  || {},
+    wants:     s.wants     || {},
+    ratings:   s.ratings   || {},
+    reviews:   s.reviews   || {},
+    wearLog:   Array.isArray(s.wearLog) ? s.wearLog.map(e => Object.assign({id:uid()}, e)) : []
+  };
+}
+function readLocal(){ try{ return normalise(JSON.parse(localStorage.getItem(LS_KEY) || "{}")); }catch(e){ return normalise(); } }
+function writeLocal(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }catch(e){} }
+
+function merge(remote, local){
+  const out = normalise(remote);
+  Object.assign(out.verdicts, local.verdicts);
+  Object.assign(out.wants,    local.wants);
+  Object.assign(out.ratings,  local.ratings);
+  Object.assign(out.reviews,   local.reviews);
+  const seen = new Set(out.wearLog.map(e => e.id));
+  for(const e of local.wearLog) if(!seen.has(e.id)) out.wearLog.push(e);
+  out.wearLog.sort((a,b) => (b.date||"").localeCompare(a.date||""));
+  return out;
+}
+
+// Find which column Kate's app keeps its JSON in, so Trevor's row matches the shape.
+async function discoverColumn(){
+  const res = await fetch(SUPA.url+"/rest/v1/"+SUPA.table+"?select=*&limit=5", {headers:headers()});
+  if(!res.ok) throw new Error("read "+res.status);
+  const rows = await res.json();
+  const candidates = ["data","state","payload","json","content","value"];
+  for(const row of rows){
+    for(const c of candidates) if(c in row) return c;
+    for(const k in row){
+      if(k === "id" || k === "updated_at" || k === "created_at") continue;
+      const v = row[k];
+      if(v && (typeof v === "object" || typeof v === "string")) return k;
+    }
+  }
+  return "data";
+}
+
+async function loadState(){
+  state = readLocal();
+  try{
+    SUPA.column = await discoverColumn();
+    const url = SUPA.url+"/rest/v1/"+SUPA.table+"?id=eq."+encodeURIComponent(SUPA.row)+"&select="+SUPA.column;
+    const res = await fetch(url, {headers:headers()});
+    if(!res.ok) throw new Error("read "+res.status);
+    const rows = await res.json();
+    if(rows.length){
+      let blob = rows[0][SUPA.column];
+      if(typeof blob === "string"){ try{ blob = JSON.parse(blob); }catch(e){ blob = {}; } }
+      state = merge(blob, state);
+    }
+    writeLocal();
+    setSync("synced");
+  }catch(err){
+    setSync("offline — saved on this device", true);
+  }
+}
+
+async function pushState(){
+  if(!SUPA.column){ writeLocal(); return; }
+  const body = {id:SUPA.row};
+  body[SUPA.column] = Object.assign({}, state, {updated:new Date().toISOString()});
+  try{
+    const res = await fetch(SUPA.url+"/rest/v1/"+SUPA.table+"?on_conflict=id", {
+      method:"POST",
+      headers:Object.assign(headers(), {"Prefer":"resolution=merge-duplicates,return=minimal"}),
+      body:JSON.stringify(body)
+    });
+    if(!res.ok) throw new Error("write "+res.status);
+    setSync("saved");
+  }catch(err){
+    setSync("offline — saved on this device", true);
+  }
+}
+
+function queueSave(){
+  writeLocal();
+  setSync("saving…");
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(pushState, 800);
+}
+
+
+/* Kate's app stores Trevor's verdict as `sr` on a five-tier scale and his words
+   as `srv`. Writing those two fields back into her `perfumeEdits` map is what
+   makes her Trevor tab reflect what he actually entered. */
+const VERDICTS = [
+  {v:"very positive", label:"Love"},
+  {v:"positive",      label:"Like"},
+  {v:"neutral",       label:"Neutral"},
+  {v:"negative",      label:"Dislike"},
+  {v:"very negative", label:"Hate"}
+];
+const verdictOf = it => (state.verdicts[it.key] !== undefined ? state.verdicts[it.key] : it.seedVerdict) || "";
+const reviewOf  = it => (state.reviews[it.key]  !== undefined ? state.reviews[it.key]  : it.seedReview)  || "";
+
+
+/* ── writing Trevor's verdict into Kate's own record ──────────────────────────
+   Read-modify-write on row id="main". Only ever touches
+   data.perfumeEdits[<perfume id>].safeReaction / .safeReview — every other key
+   in her blob is carried through untouched. Refuses to write if the row does
+   not look like her real data, so a bad read can never overwrite it. */
+let mainQueue = {};        // id -> {safeReaction, safeReview}
+let mainTimer = null;
+let mainEdits = {};        // what her row already holds, for initial display
+
+function looksLikeKate(d){
+  return !!d && (Array.isArray(d.wearLog) || Array.isArray(d.userPerfumes) ||
+                 (d.perfumeEdits && typeof d.perfumeEdits === "object"));
+}
+
+async function readMain(){
+  const res = await fetch(SUPA.url+"/rest/v1/perfume_state?id=eq.main&select=data", {headers:headers()});
+  if(!res.ok) throw new Error("read main "+res.status);
+  const rows = await res.json();
+  if(!rows.length) throw new Error("no main row");
+  let d = rows[0].data;
+  if(typeof d === "string"){ try{ d = JSON.parse(d); }catch(e){ throw new Error("main not json"); } }
+  if(!looksLikeKate(d)) throw new Error("main does not look like the collection");
+  return d;
+}
+
+async function flushMain(){
+  const pending = mainQueue; mainQueue = {};
+  if(!Object.keys(pending).length) return;
+  try{
+    const data = await readMain();                     // re-read immediately before writing
+    data.perfumeEdits = data.perfumeEdits || {};
+    for(const id in pending){
+      const cur = data.perfumeEdits[id] || {};
+      const upd = pending[id];
+      if("safeReaction" in upd){
+        if(upd.safeReaction) cur.safeReaction = upd.safeReaction; else delete cur.safeReaction;
+      }
+      if("safeReview" in upd){
+        if(upd.safeReview) cur.safeReview = upd.safeReview; else delete cur.safeReview;
+      }
+      if(Object.keys(cur).length) data.perfumeEdits[id] = cur;
+      else delete data.perfumeEdits[id];
+      mainEdits[id] = Object.assign({}, cur);
+    }
+    data._updatedAt = new Date().toISOString();
+    const res = await fetch(SUPA.url+"/rest/v1/perfume_state?on_conflict=id", {
+      method:"POST",
+      headers:Object.assign(headers(), {"Prefer":"resolution=merge-duplicates,return=minimal"}),
+      body:JSON.stringify({id:"main", data:data})
+    });
+    if(!res.ok) throw new Error("write main "+res.status);
+    setSync("shared with Kate");
+  }catch(err){
+    Object.assign(mainQueue, pending);                 // keep it for the next attempt
+    setSync("saved here — not shared yet", true);
+  }
+}
+
+function queueMain(it){
+  const v = verdictOf(it), r = reviewOf(it);
+  mainQueue[it.id] = {safeReaction:v, safeReview:r};
+  clearTimeout(mainTimer);
+  mainTimer = setTimeout(flushMain, 1200);
+}
+
+async function loadMainEdits(){
+  try{
+    const d = await readMain();
+    mainEdits = d.perfumeEdits || {};
+    for(const it of ITEMS){
+      const e = mainEdits[it.id];
+      if(!e) continue;
+      if(e.safeReaction && state.verdicts[it.key] === undefined) it.seedVerdict = e.safeReaction;
+      if(e.safeReview   && state.reviews[it.key]  === undefined) it.seedReview  = e.safeReview;
+    }
+  }catch(err){ /* her row unreadable — his page still works on its own */ }
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+   RENDER
+   ─────────────────────────────────────────────────────────────────────────── */
+const listEl    = document.getElementById("list");
+const tiersEl   = document.getElementById("tiers");
+const noResEl   = document.getElementById("noresults");
+const toolbarEl = document.getElementById("toolbar");
+const qEl       = document.getElementById("q");
+let tier = "indie", filter = "all";
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const byKey = {};
+for(const it of ITEMS) byKey[it.key] = it;
+
+function tagsFor(it){
+  const out = [];
+  const mine = state.ratings[it.key];
+  if(it.gender === "masculine") out.push('<span class="tag soft">labelled masc</span>');
+  if(it.owns) out.push('<span class="tag owns">yours</span>');
+  if(typeof mine === "number") out.push('<span class="tag mine">you '+mine+'/10</span>');
+  const v = verdictOf(it);
+  if(v){
+    const meta = VERDICTS.find(x => x.v === v);
+    out.push('<span class="tag verdict-tag v-'+v.replace(/ /g,"-")+'">'+(meta ? meta.label : v)+'</span>');
+  }
+  const st = kateState(it);
+  if(st === "rated")      out.push('<span class="tag '+(it.rating >= 8 ? "top" : "rated")+'">Kate '+it.rating+'/10</span>');
+  else if(st === "mixed") out.push('<span class="tag mixed">Kate '+it.rating+'/10</span>');
+  else                    out.push('<span class="tag">untried</span>');
+  if(it.loc && !it.owns)  out.push('<span class="tag soft">'+esc(it.loc)+'</span>');
+  return out.join("");
+}
+
+function reactFor(it){
+  const cur = verdictOf(it);
+  const want = !!state.wants[it.key];
+  const btns = VERDICTS.map(x =>
+    '<button class="v-'+x.v.replace(/ /g,"-")+'" data-act="verdict" data-key="'+esc(it.key)+'" '+
+    'data-val="'+x.v+'" aria-pressed="'+(cur===x.v)+'">'+x.label+'</button>').join("");
+  return '<div class="react verdict">'+btns+'</div>'+
+    '<button class="mini wantbtn" data-act="want" data-key="'+esc(it.key)+'" aria-pressed="'+want+'">'+
+    (want ? "On your list" : "Want to try")+'</button>';
+}
+
+function panelFor(it){
+  const rating = state.ratings[it.key];
+  const review = reviewOf(it);
+  const wears  = state.wearLog.filter(e => e.key === it.key).length;
+  return '<div class="logpanel" hidden>'+
+    '<div class="rate">'+
+      '<label for="r-'+esc(it.key)+'">Your rating</label>'+
+      '<input id="r-'+esc(it.key)+'" type="range" min="0" max="10" step="0.5" '+
+        'value="'+(typeof rating === "number" ? rating : 0)+'" data-act="rate" data-key="'+esc(it.key)+'">'+
+      '<span class="val">'+(typeof rating === "number" ? rating : "—")+'</span>'+
+      '<button class="mini" data-act="clearrate" data-key="'+esc(it.key)+'">Clear</button>'+
+    '</div>'+
+    '<textarea data-act="review" data-key="'+esc(it.key)+'" rows="3" '+
+      'placeholder="What does it smell like on you?">'+esc(review)+'</textarea>'+
+    '<div class="row">'+
+      '<input type="date" class="wdate" value="'+today()+'" data-key="'+esc(it.key)+'">'+
+      '<button class="mini solid" data-act="wear" data-key="'+esc(it.key)+'">Log a wear</button>'+
+      (wears ? '<span class="worn">worn '+wears+(wears===1?" time":" times")+'</span>' : '')+
+    '</div>'+
+  '</div>';
+}
+
+function entryHTML(it, catName){
+  return '<article class="entry" data-key="'+esc(it.key)+'" data-kate="'+kateState(it)+'" data-owns="'+it.owns+'" '+
+    'data-search="'+esc((it.house+" "+it.name+" "+it.family+" "+it.notes+" "+catName).toLowerCase())+'">'+
+    '<div class="name"><span class="house">'+esc(it.house)+'</span><span class="title">'+esc(it.name)+'</span></div>'+
+    '<div class="notes">'+esc(it.notes)+'</div>'+
+    '<div class="side"><div class="tags">'+tagsFor(it)+'</div>'+reactFor(it)+
+      '<button class="mini toggle" data-act="toggle" aria-expanded="false">Rate &amp; log</button></div>'+
+    panelFor(it)+
+  '</article>';
+}
+
+function buildList(){
+  const mine = ITEMS.filter(i => i.tier === tier);
+  const byCat = new Map();
+  for(const it of mine){
+    if(!byCat.has(it.cat)) byCat.set(it.cat, []);
+    byCat.get(it.cat).push(it);
+  }
+  for(const arr of byCat.values())
+    arr.sort((a,b) => (b.rating||0) - (a.rating||0) || a.house.localeCompare(b.house));
+
+  let html = "";
+  for(const cat of CATEGORIES){
+    const arr = byCat.get(cat.name) || [];
+    if(!arr.length) continue;
+    html += '<section class="cat"><div class="cat-head"><h2>'+esc(cat.name)+'</h2>'+
+            '<p class="gloss">'+cat.gloss+'</p></div><div class="entries">'+
+            arr.map(it => entryHTML(it, cat.name)).join("")+
+            '</div><p class="empty" hidden>Nothing in this character matches.</p></section>';
+  }
+  listEl.innerHTML = html;
+}
+
+function buildDiary(){
+  const log = state.wearLog.slice().sort((a,b) => (b.date||"").localeCompare(a.date||""));
+  if(!log.length){
+    listEl.innerHTML = '<p class="diary-empty">Nothing logged yet. Open any fragrance, '+
+      'hit <strong>Rate &amp; log</strong>, and log a wear — it&rsquo;ll show up here.</p>';
+    return;
+  }
+  const byMonth = new Map();
+  for(const e of log){
+    const m = (e.date || "").slice(0, 7) || "undated";
+    if(!byMonth.has(m)) byMonth.set(m, []);
+    byMonth.get(m).push(e);
+  }
+  let html = "";
+  for(const [m, entries] of byMonth){
+    const label = m === "undated" ? "Undated"
+      : new Date(m + "-02").toLocaleDateString(undefined, {month:"long", year:"numeric"});
+    html += '<section class="cat diary"><div class="cat-head"><h2>'+esc(label)+'</h2></div><div class="entries">'+
+      entries.map(e =>
+        '<article class="entry diary-entry" data-id="'+esc(e.id)+'">'+
+          '<div class="name"><span class="house">'+esc(e.date || "")+' · '+esc(e.house || "")+'</span>'+
+            '<span class="title">'+esc(e.perfume || "")+'</span></div>'+
+          '<div class="notes diary-note">'+(e.notes ? esc(e.notes) : '<span class="faintish">No note</span>')+'</div>'+
+          '<div class="side">'+
+            (typeof e.rating === "number" ? '<div class="tags"><span class="tag mine">'+e.rating+'/10</span></div>' : '')+
+            '<button class="mini" data-act="unlog" data-id="'+esc(e.id)+'">Remove</button>'+
+          '</div>'+
+        '</article>'
+      ).join("")+'</div></section>';
+  }
+  listEl.innerHTML = html;
+}
+
+function buildTabs(){
+  tiersEl.innerHTML = TIERS.map(t =>
+    '<button class="tier" role="tab" data-tier="'+t.id+'" aria-selected="'+(t.id===tier)+'">'+t.label+'</button>'
+  ).join("");
+}
+
+function render(){
+  const diary = tier === "diary";
+  toolbarEl.hidden = diary;
+  if(diary) buildDiary(); else buildList();
+  apply();
+}
+
+function apply(){
+  if(tier === "diary"){ noResEl.hidden = true; return; }
+  const q = qEl.value.trim().toLowerCase();
+  const terms = q ? q.split(/\s+/) : [];
+  let shown = 0;
+  document.querySelectorAll("section.cat").forEach(sec => {
+    let vis = 0;
+    sec.querySelectorAll(".entry").forEach(row => {
+      const key = row.dataset.key;
+      let ok = true;
+      if(filter === "untried")      ok = row.dataset.kate === "untried";
+      else if(filter === "rated")   ok = row.dataset.kate === "rated";
+      else if(filter === "owns")    ok = row.dataset.owns === "true";
+      else if(filter === "want")    ok = !!state.wants[key];
+      else if(filter === "verdict") ok = !!verdictOf(byKey[key]);
+      else if(filter === "yours")   ok = typeof state.ratings[key] === "number" || !!reviewOf(byKey[key]);
+      if(ok && terms.length) ok = terms.every(t => row.dataset.search.includes(t));
+      row.hidden = !ok;
+      if(ok){ vis++; shown++; }
+    });
+    const empty = sec.querySelector(".empty");
+    if(empty) empty.hidden = vis > 0;
+    sec.hidden = vis === 0 && (terms.length > 0 || filter !== "all");
+  });
+  noResEl.hidden = shown > 0;
+}
+
+/* ── interaction ─────────────────────────────────────────────────────────── */
+
+tiersEl.addEventListener("click", e => {
+  const btn = e.target.closest(".tier");
+  if(!btn) return;
+  tier = btn.dataset.tier;
+  tiersEl.querySelectorAll(".tier").forEach(b => b.setAttribute("aria-selected", String(b === btn)));
+  render();
+  window.scrollTo({top:0, behavior:"smooth"});
+});
+
+listEl.addEventListener("click", e => {
+  const btn = e.target.closest("button[data-act]");
+  if(!btn) return;
+  const act = btn.dataset.act;
+  const key = btn.dataset.key;
+  const entry = btn.closest(".entry");
+
+  if(act === "toggle"){
+    const panel = entry.querySelector(".logpanel");
+    const open = panel.hidden;
+    panel.hidden = !open;
+    btn.setAttribute("aria-expanded", String(open));
+    btn.textContent = open ? "Close" : "Rate & log";
+    return;
+  }
+
+  if(act === "verdict"){
+    const it = byKey[key], val = btn.dataset.val;
+    state.verdicts[key] = (verdictOf(it) === val) ? "" : val;
+    entry.querySelectorAll('.verdict button').forEach(b =>
+      b.setAttribute("aria-pressed", String(state.verdicts[key] === b.dataset.val)));
+    entry.querySelector(".tags").innerHTML = tagsFor(it);
+    queueSave();
+    queueMain(it);
+    if(filter === "verdict") apply();
+    return;
+  }
+
+  if(act === "want"){
+    if(state.wants[key]) delete state.wants[key]; else state.wants[key] = true;
+    const on = !!state.wants[key];
+    btn.setAttribute("aria-pressed", String(on));
+    btn.textContent = on ? "On your list" : "Want to try";
+    queueSave();
+    if(filter === "want") apply();
+    return;
+  }
+
+  if(act === "clearrate"){
+    delete state.ratings[key];
+    const slider = entry.querySelector('input[data-act="rate"]');
+    slider.value = 0;
+    entry.querySelector(".rate .val").textContent = "—";
+    entry.querySelector(".tags").innerHTML = tagsFor(byKey[key]);
+    queueSave();
+    return;
+  }
+
+  if(act === "wear"){
+    const it = byKey[key];
+    const dateInput = entry.querySelector(".wdate");
+    const note = (entry.querySelector('textarea[data-act="review"]').value || "").trim();
+    state.wearLog.push({
+      id: uid(),
+      key: key,
+      date: dateInput.value || today(),
+      perfume: it.name,
+      house: it.house,
+      perfumeId: it.id,
+      rating: typeof state.ratings[key] === "number" ? state.ratings[key] : null,
+      notes: note
+    });
+    const worn = entry.querySelector(".worn");
+    const n = state.wearLog.filter(x => x.key === key).length;
+    if(worn) worn.textContent = "worn " + n + (n === 1 ? " time" : " times");
+    else entry.querySelector(".logpanel .row").insertAdjacentHTML("beforeend",
+      '<span class="worn">worn ' + n + (n === 1 ? " time" : " times") + '</span>');
+    btn.textContent = "Logged ✓";
+    setTimeout(() => { btn.textContent = "Log a wear"; }, 1400);
+    queueSave();
+    return;
+  }
+
+  if(act === "unlog"){
+    const id = btn.dataset.id;
+    state.wearLog = state.wearLog.filter(x => x.id !== id);
+    queueSave();
+    buildDiary();
+    return;
+  }
+});
+
+listEl.addEventListener("input", e => {
+  const el = e.target;
+  const key = el.dataset.key;
+  if(el.dataset.act === "rate"){
+    const v = parseFloat(el.value);
+    const entry = el.closest(".entry");
+    if(v === 0){ delete state.ratings[key]; entry.querySelector(".rate .val").textContent = "—"; }
+    else { state.ratings[key] = v; entry.querySelector(".rate .val").textContent = v; }
+    entry.querySelector(".tags").innerHTML = tagsFor(byKey[key]);
+    queueSave();
+  } else if(el.dataset.act === "review"){
+    state.reviews[key] = el.value;
+    queueSave();
+    queueMain(byKey[key]);
+  }
+});
+
+document.querySelectorAll(".chip").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".chip").forEach(b => b.setAttribute("aria-pressed", String(b === btn)));
+    filter = btn.dataset.f;
+    apply();
+  });
+});
+
+let qTimer = null;
+qEl.addEventListener("input", () => { clearTimeout(qTimer); qTimer = setTimeout(apply, 120); });
+
+buildTabs();
+render();
+loadState().then(loadMainEdits).then(render);
+
+})();
+</script>
+</body>
+</html>
