@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>Trevor's Perfume OS</title>
+<title>iSmell</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -66,7 +66,15 @@ h1 em{font-style:italic;color:var(--accent)}
 .status .sync{display:block;font-size:10px;letter-spacing:.08em;text-transform:uppercase}
 .status .sync.err{color:var(--nope)}
 
-section.cat{padding:44px 0 6px;border-top:1px solid var(--rule)}
+.catnav{display:flex;flex-wrap:wrap;gap:6px;padding:16px 0 0}
+.catnav:empty{padding:0}
+.catlink{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:10.5px;letter-spacing:.06em;
+  padding:6px 11px;border:1px solid var(--rule);background:transparent;color:var(--muted);cursor:pointer;
+  transition:background .15s,color .15s,border-color .15s}
+.catlink:hover{border-color:var(--accent);color:var(--ink)}
+.catlink .n{color:var(--faint);margin-left:5px}
+
+section.cat{padding:44px 0 6px;border-top:1px solid var(--rule);scroll-margin-top:96px}
 section.cat:first-of-type{border-top:none;padding-top:34px}
 .cat-head{display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr);gap:10px 48px;
   align-items:baseline;margin-bottom:22px}
@@ -173,7 +181,7 @@ section.cat:first-of-type{border-top:none;padding-top:34px}
 
   <header class="mast">
     <a class="backlink" href="./">← Perfume OS</a>
-    <h1>Trevor's <em>Perfume OS</em></h1>
+    <h1><em>iSmell</em></h1>
   </header>
 
   <div class="tiers" role="tablist" id="tiers"></div>
@@ -191,6 +199,8 @@ section.cat:first-of-type{border-top:none;padding-top:34px}
       <div class="status"><span class="sync" id="sync">connecting…</span></div>
     </div>
   </div>
+
+  <nav class="catnav" id="catnav"></nav>
 
   <main id="list"></main>
   <p class="noresults" id="noresults" hidden>Nothing matches that.</p>
@@ -217,10 +227,13 @@ const OVERRIDES = {
     "Arquiste — L'Or de Louis",
     "Ulrich Lang — 17 Nandan Road"
   ],
-  include: [],
+  include: [
+    "Le Labo — Another 13"
+  ],
   recategorize: {
     "Guerlain — Tobacco Honey": "Tobacco, Booze & Amber",
     "Yves Saint Laurent — Babycat": "Tobacco, Booze & Amber",
+    "Penhaligon's — Lord George": "Tobacco, Booze & Amber",
     "Arquiste — Peau": "Skin Musk & Ambergris",
     "Pineward — Tome": "Leather",
     "Marissa Zappas — Petrichor": "Animalic & Earth",
@@ -444,7 +457,6 @@ function categorize(p, pr){
     for(const word in cat.keys){
       const w = cat.keys[word];
       if(hasWord(pr.all, word)) s += w;
-      if(hasWord(pr.fam, word)) s += w;
     }
     if(s > bestScore || (s === bestScore && s > 0 && cat.prio < bestPrio)){
       bestScore = s; best = cat.name; bestPrio = cat.prio;
@@ -689,8 +701,11 @@ const listEl    = document.getElementById("list");
 const tiersEl   = document.getElementById("tiers");
 const noResEl   = document.getElementById("noresults");
 const toolbarEl = document.getElementById("toolbar");
+const catnavEl  = document.getElementById("catnav");
 const qEl       = document.getElementById("q");
 let tier = "indie", filter = "all";
+
+const slugify = s => "cat-" + s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const byKey = {};
@@ -769,16 +784,20 @@ function buildList(){
   for(const arr of byCat.values())
     arr.sort((a,b) => (b.rating||0) - (a.rating||0) || a.house.localeCompare(b.house));
 
-  let html = "";
+  let html = "", navHtml = "";
   for(const cat of CATEGORIES){
     const arr = byCat.get(cat.name) || [];
     if(!arr.length) continue;
-    html += '<section class="cat"><div class="cat-head"><h2>'+esc(cat.name)+'</h2>'+
+    const id = slugify(cat.name);
+    html += '<section class="cat" id="'+id+'"><div class="cat-head"><h2>'+esc(cat.name)+'</h2>'+
             '<p class="gloss">'+cat.gloss+'</p></div><div class="entries">'+
             arr.map(it => entryHTML(it, cat.name)).join("")+
             '</div><p class="empty" hidden>Nothing in this character matches.</p></section>';
+    navHtml += '<button class="catlink" data-target="'+id+'">'+esc(cat.name)+
+               '<span class="n">'+arr.length+'</span></button>';
   }
   listEl.innerHTML = html;
+  catnavEl.innerHTML = navHtml;
 }
 
 function buildDiary(){
@@ -823,9 +842,17 @@ function buildTabs(){
 function render(){
   const diary = tier === "diary";
   toolbarEl.hidden = diary;
-  if(diary) buildDiary(); else buildList();
+  catnavEl.hidden = diary;
+  if(diary){ catnavEl.innerHTML = ""; buildDiary(); } else buildList();
   apply();
 }
+
+catnavEl.addEventListener("click", e => {
+  const btn = e.target.closest(".catlink");
+  if(!btn) return;
+  const target = document.getElementById(btn.dataset.target);
+  if(target) target.scrollIntoView({behavior:"smooth", block:"start"});
+});
 
 function apply(){
   if(tier === "diary"){ noResEl.hidden = true; return; }
