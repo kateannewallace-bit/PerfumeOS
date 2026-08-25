@@ -152,6 +152,29 @@ section.cat:first-of-type{border-top:none;padding-top:34px}
 .diary-empty{padding:70px 0;text-align:center;color:var(--muted);font-size:15.5px}
 .diary-empty strong{color:var(--ink);font-weight:600}
 
+.today-ctx{display:grid;gap:18px;padding:28px 0 8px}
+.today-ctx-group{display:grid;gap:8px}
+.today-ctx-label{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:10.5px;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--faint)}
+.today-ctx-chips{display:flex;flex-wrap:wrap;gap:8px}
+.today-ctx-chips .chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+
+.today-hero{margin-top:32px;padding:28px 24px;background:var(--surface);border:1px solid var(--rule);
+  text-align:center;display:grid;gap:8px;justify-items:center}
+.today-hero-label{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:10.5px;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--accent)}
+.today-hero-house{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:11px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--faint)}
+.today-hero-name{font-family:"Instrument Serif",Georgia,serif;font-size:34px;line-height:1.05}
+.today-hero-quote{font-family:"Archivo",sans-serif;font-style:italic;font-size:14.5px;color:var(--muted);
+  max-width:52ch;margin-top:4px}
+
+.today-list{margin-top:28px}
+.today-entry .name{display:flex;align-items:baseline;gap:10px;min-width:0}
+.today-rank{font-family:"Instrument Serif",Georgia,serif;font-size:20px;color:var(--accent);flex-shrink:0}
+.today-why{display:block;margin-top:4px;font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:11px;
+  letter-spacing:.06em;color:var(--accent)}
+
 .react.verdict{flex-wrap:wrap}
 .react.verdict button{min-width:0}
 .react.verdict button[aria-pressed="true"].v-very-positive,
@@ -342,7 +365,25 @@ const OVERRIDES = {
     "Liis — Of True Minds",
     "Liis — Studied",
     "Jo Malone — Scarlet Beetroot",
-    "Pierre Guillaume — Intime extime"
+    "Pierre Guillaume — Intime extime",
+    // Truly-unisex pass: strong presence on both sides, not just low-feminine
+    // (2026-08-25, calibrated against CK One / Eau des Sens as Trevor's
+    // known reference points)
+    "BDK — Sel d'argent",
+    "Arquiste — Sydney rock pool",
+    "Comme des Garçons — Cdg 2",
+    "Le Labo — Violette 30",
+    "Aesop — Rōzu",
+    "Rundholz — Feb. 14, 1912",
+    "Boy Smells — Citrush*",
+    "Heretic — Midnight Toker",
+    "Henry rose — Windows Down",
+    "Fzotic — Five Squared",
+    "les indemodables — Cuir de Chine",
+    "Chanel — Paris-Venice",
+    "Diptyque — Eau des Sens",
+    "Diptyque — 34 Boulevard Saint Germain",
+    "Calvin Klein — CK One"
   ],
   recategorize: {
     "Guerlain — Tobacco Honey": "Tobacco, Booze & Amber",
@@ -591,7 +632,7 @@ for(const p of RAW){
   if(!includeSet.has(k) && !leansMasculine(p, s)) continue;
   ITEMS.push({
     key:k, id:p.i, tier:tierOf(p.h), house:p.h, name:p.n, family:p.f || "",
-    conc:p.c || "",
+    conc:p.c || "", mood:p.m || "Classic",
     seedVerdict:(p.sr || ""), seedReview:(p.srv || ""),
     notes:(p.no || (p.tg||[]).join("; ") || "").replace(/\s*[;,]\s*/g, " · "),
     rating:(typeof p.r === "number" ? p.r : null),
@@ -625,9 +666,72 @@ for(const p of RAW){
 // A numeric rating is the source of truth — the tried flag in the data is unreliable.
 const kateState = it => it.rating === null ? "untried" : (it.rating >= 7 ? "rated" : "mixed");
 
-const TIERS = [{id:"indie",label:"Indie"},{id:"niche",label:"Niche"},
+const TIERS = [{id:"today",label:"Wear Today"},{id:"indie",label:"Indie"},{id:"niche",label:"Niche"},
                {id:"designer",label:"Designer"},{id:"all",label:"All"},{id:"diary",label:"Diary"}];
 const TIER_LABEL = {indie:"Indie", niche:"Niche", designer:"Designer"};
+
+/* ───────────────────────────────────────────────────────────────────────────
+   WEAR TODAY — context-ranked picks, mirroring Kate's own "What to Wear
+   Today". No sigScore/balScore/intScore here, so quality leans on his own
+   rating (falling back to Kate's), his verdict, and his want-to-try flag;
+   "forgotten love" and "overworn" read straight off his wear log.
+   ─────────────────────────────────────────────────────────────────────────── */
+const SEASONS = ["Spring","Summer","Autumn","Winter"];
+const OCCASIONS = ["Casual","Work","Evening","Date Night","Outdoors","Weekend"];
+const VIBES = ["Fresh","Cozy","Romantic","Bold","Soft","Energizing"];
+
+function contextScore(it, ctx){
+  const hay = (it.notes + " · " + it.family).toLowerCase();
+  const has = (...words) => words.some(w => hasWord(hay, w));
+  let bonus = 0;
+
+  if(ctx.season === "Spring"){
+    if(has("floral","violet","iris","rose","green","citrus","cherry blossom","lily of the valley","muguet")) bonus += 3;
+    if(it.mood === "Air") bonus += 1;
+  } else if(ctx.season === "Summer"){
+    if(has("citrus","aquatic","mint","herbal fresh","grapefruit","bergamot","lemon","green")) bonus += 3;
+    if(it.mood === "Air") bonus += 2;
+    if(has("resinous","oud","leather","smoky")) bonus -= 2;
+  } else if(ctx.season === "Autumn"){
+    if(has("woody","resinous","amber","spicy","leather","vetiver","patchouli","tobacco")) bonus += 3;
+    if(it.mood === "Resin" || it.mood === "Classic") bonus += 1;
+  } else if(ctx.season === "Winter"){
+    if(has("resinous","gourmand","vanilla","musk","oud","amber","smoky","incense")) bonus += 3;
+    if(it.mood === "Resin") bonus += 2;
+    if(has("citrus","aquatic")) bonus -= 1;
+  }
+
+  if(ctx.occasion === "Work"){
+    if(has("smoky","tobacco","oud")) bonus -= 1;
+  } else if(ctx.occasion === "Evening"){
+    if(it.mood === "Resin" || it.mood === "Classic") bonus += 2;
+  } else if(ctx.occasion === "Date Night"){
+    if(has("rose","jasmine","musk","gardenia")) bonus += 2;
+    if(has("vanilla","tonka")) bonus += 1;
+  } else if(ctx.occasion === "Outdoors"){
+    if(has("citrus","green","herbal fresh","mint","aquatic","bergamot")) bonus += 3;
+    if(it.mood === "Air") bonus += 2;
+  } else if(ctx.occasion === "Casual"){
+    if(has("musk","sandalwood","cedar")) bonus += 1;
+  }
+
+  if(ctx.vibe === "Fresh"){
+    if(has("citrus","mint","green","aquatic","herbal fresh")) bonus += 3;
+  } else if(ctx.vibe === "Cozy"){
+    if(has("vanilla","tonka","amber","resinous","sandalwood","honey","cream")) bonus += 3;
+  } else if(ctx.vibe === "Romantic"){
+    if(has("rose","jasmine","musk","gardenia","peony","iris")) bonus += 3;
+  } else if(ctx.vibe === "Bold"){
+    if(has("oud","leather","smoky","incense")) bonus += 2;
+  } else if(ctx.vibe === "Soft"){
+    if(has("musk","powdery","floral","iris","violet")) bonus += 3;
+  } else if(ctx.vibe === "Energizing"){
+    if(has("citrus","grapefruit","bergamot","mint","cardamom","pepper")) bonus += 3;
+    if(it.mood === "Air") bonus += 1;
+  }
+
+  return bonus;
+}
 
 /* ───────────────────────────────────────────────────────────────────────────
    TREVOR'S DATA — Supabase row id="trevor", localStorage fallback.
@@ -840,8 +944,11 @@ const toolbarEl = document.getElementById("toolbar");
 const catnavEl  = document.getElementById("catnav");
 const qEl       = document.getElementById("q");
 let tier = "indie", filter = "all";
+let wtSeason = (m => m>=2&&m<=4 ? "Spring" : m>=5&&m<=7 ? "Summer" : m>=8&&m<=10 ? "Autumn" : "Winter")(new Date().getMonth());
+let wtOccasion = "Casual", wtVibe = "Fresh", wtRotate = true;
 
 const slugify = s => "cat-" + s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+const stripAccents = s => String(s).normalize("NFD").replace(/[̀-ͯ]/g, "");
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const byKey = {};
@@ -850,7 +957,7 @@ for(const it of ITEMS) byKey[it.key] = it;
 function tagsFor(it){
   const out = [];
   const mine = state.ratings[it.key];
-  if(tier === "all") out.push('<span class="tag tier">'+TIER_LABEL[it.tier]+'</span>');
+  if(tier === "all" || tier === "today") out.push('<span class="tag tier">'+TIER_LABEL[it.tier]+'</span>');
   if(it.gender === "masculine") out.push('<span class="tag soft">labelled masc</span>');
   if(typeof mine === "number") out.push('<span class="tag mine">you '+mine+'/10</span>');
   const v = verdictOf(it);
@@ -900,13 +1007,95 @@ function panelFor(it){
 
 function entryHTML(it, catName){
   return '<article class="entry" data-key="'+esc(it.key)+'" data-kate="'+kateState(it)+'" '+
-    'data-search="'+esc((it.house+" "+it.name+" "+it.family+" "+it.notes+" "+catName).toLowerCase())+'">'+
+    'data-search="'+esc(stripAccents((it.house+" "+it.name+" "+it.family+" "+it.notes+" "+catName).toLowerCase()))+'">'+
     '<div class="name"><span class="house">'+esc(it.house)+'</span><span class="title">'+esc(it.displayName)+'</span></div>'+
     '<div class="notes">'+esc(it.notes)+'</div>'+
     '<div class="side"><div class="tags">'+tagsFor(it)+'</div>'+reactFor(it)+
       '<button class="mini toggle" data-act="toggle" aria-expanded="false">Rate &amp; log</button></div>'+
     panelFor(it)+
   '</article>';
+}
+
+function todayEntryHTML(it, rank, why){
+  return '<article class="entry today-entry" data-key="'+esc(it.key)+'" data-kate="'+kateState(it)+'">'+
+    '<div class="name"><span class="today-rank">'+rank+'</span><span class="house">'+esc(it.house)+'</span>'+
+      '<span class="title">'+esc(it.displayName)+'</span></div>'+
+    '<div class="notes">'+esc(it.notes)+(why ? '<span class="today-why">'+esc(why)+'</span>' : '')+'</div>'+
+    '<div class="side"><div class="tags">'+tagsFor(it)+'</div>'+reactFor(it)+
+      '<button class="mini toggle" data-act="toggle" aria-expanded="false">Rate &amp; log</button></div>'+
+    panelFor(it)+
+  '</article>';
+}
+
+function rankForToday(){
+  const ctx = {season:wtSeason, occasion:wtOccasion, vibe:wtVibe};
+  const eligible = ITEMS.filter(it => {
+    const v = verdictOf(it);
+    return v !== "negative" && v !== "very negative";
+  });
+  return eligible.map(it => {
+    const wears = state.wearLog.filter(e => e.key === it.key);
+    const lastDate = wears.length ? wears.reduce((a,b) => (b.date||"") > (a.date||"") ? b : a).date : null;
+    const daysAgo = lastDate ? Math.floor((Date.now() - new Date(lastDate+"T00:00:00").getTime()) / 86400000) : null;
+    const myRating = state.ratings[it.key];
+    const effRating = typeof myRating === "number" ? myRating : (it.rating || 0);
+    const v = verdictOf(it);
+    const ctxBonus = contextScore(it, ctx);
+    const qualityBase = effRating * 0.4;
+    const verdictBonus = v === "very positive" ? 2 : v === "positive" ? 1 : 0;
+    const wantBonus = state.wants[it.key] ? 1 : 0;
+    const overwornPenalty = (wears.length >= 3 && daysAgo != null && daysAgo < 7) ? -3 : 0;
+    let rotationBonus = 0, forgotten = false;
+    if(wtRotate){
+      if(v === "very positive" && daysAgo != null && daysAgo > 60){ rotationBonus += 4; forgotten = true; }
+      else if(daysAgo != null && daysAgo > 60 && effRating >= 8) rotationBonus += 2;
+    }
+    const total = ctxBonus*2 + qualityBase + verdictBonus + wantBonus + overwornPenalty + rotationBonus;
+    return {it, total, ctxBonus, forgotten, wearCount:wears.length, daysAgo};
+  }).sort((a,b) => b.total - a.total);
+}
+
+function ctxGroup(label, options, current, kind){
+  return '<div class="today-ctx-group"><div class="today-ctx-label">'+label+'</div><div class="today-ctx-chips">'+
+    options.map(o => '<button class="chip" data-act="ctx" data-kind="'+kind+'" data-val="'+o+'" '+
+      'aria-pressed="'+(o===current)+'">'+o+'</button>').join("")+
+    '</div></div>';
+}
+
+function buildWearToday(){
+  let html = '<div class="today-ctx">'+
+    ctxGroup("Season", SEASONS, wtSeason, "season")+
+    ctxGroup("Occasion", OCCASIONS, wtOccasion, "occasion")+
+    ctxGroup("Vibe", VIBES, wtVibe, "vibe")+
+    '<div class="today-ctx-group"><div class="today-ctx-label">Rotation</div><div class="today-ctx-chips">'+
+      '<button class="chip" data-act="rotate" aria-pressed="'+wtRotate+'">↩ Favor neglected &amp; forgotten loves</button>'+
+    '</div></div>'+
+  '</div>';
+
+  const ranked = rankForToday().slice(0, 5);
+  if(!ranked.length){
+    html += '<p class="diary-empty">Nothing eligible right now — everything left is marked dislike or hate.</p>';
+  } else {
+    const top = ranked[0];
+    const review = reviewOf(top.it);
+    html += '<div class="today-hero">'+
+      '<div class="today-hero-label">Top pick for '+wtSeason+' · '+wtOccasion+' · '+wtVibe+'</div>'+
+      '<div class="today-hero-house">'+esc(top.it.house)+'</div>'+
+      '<div class="today-hero-name">'+esc(top.it.displayName)+'</div>'+
+      '<div class="tags">'+tagsFor(top.it)+'</div>'+
+      (review ? '<div class="today-hero-quote">“'+esc(review)+'”</div>' : '')+
+    '</div>';
+    html += '<div class="entries today-list">'+
+      ranked.map((r,i) => {
+        let why = null;
+        if(i === 0) why = "✦ Today's pick";
+        else if(r.forgotten) why = "↩ Forgotten favorite";
+        else if(r.ctxBonus >= 5) why = "Great fit for the context";
+        return todayEntryHTML(r.it, i+1, why);
+      }).join("")+
+    '</div>';
+  }
+  listEl.innerHTML = html;
 }
 
 function buildList(){
@@ -975,9 +1164,12 @@ function buildTabs(){
 
 function render(){
   const diary = tier === "diary";
-  toolbarEl.hidden = diary;
-  catnavEl.hidden = diary;
-  if(diary){ catnavEl.innerHTML = ""; buildDiary(); } else buildList();
+  const today = tier === "today";
+  toolbarEl.hidden = diary || today;
+  catnavEl.hidden = diary || today;
+  if(diary){ catnavEl.innerHTML = ""; buildDiary(); }
+  else if(today){ catnavEl.innerHTML = ""; buildWearToday(); }
+  else buildList();
   apply();
 }
 
@@ -989,8 +1181,8 @@ catnavEl.addEventListener("click", e => {
 });
 
 function apply(){
-  if(tier === "diary"){ noResEl.hidden = true; return; }
-  const q = qEl.value.trim().toLowerCase();
+  if(tier === "diary" || tier === "today"){ noResEl.hidden = true; return; }
+  const q = stripAccents(qEl.value.trim().toLowerCase());
   const terms = q ? q.split(/\s+/) : [];
   let shown = 0;
   document.querySelectorAll("section.cat").forEach(sec => {
@@ -1038,6 +1230,21 @@ listEl.addEventListener("click", e => {
   const act = btn.dataset.act;
   const key = btn.dataset.key;
   const entry = btn.closest(".entry");
+
+  if(act === "ctx"){
+    const kind = btn.dataset.kind, val = btn.dataset.val;
+    if(kind === "season") wtSeason = val;
+    else if(kind === "occasion") wtOccasion = val;
+    else if(kind === "vibe") wtVibe = val;
+    buildWearToday();
+    return;
+  }
+
+  if(act === "rotate"){
+    wtRotate = !wtRotate;
+    buildWearToday();
+    return;
+  }
 
   if(act === "toggle"){
     const panel = entry.querySelector(".logpanel");
