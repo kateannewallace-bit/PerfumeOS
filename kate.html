@@ -5,27 +5,27 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>iSmell — Kate</title>
+<title>By Genre — Kate</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Michroma&family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
 :root{
-  --bg:#E7E8E1; --surface:#F3F4EE; --ink:#171A16; --muted:#5D6357; --faint:#868B7B;
-  --rule:#C7CABE; --accent:#2F4F45; --accent-soft:#D8E0D9; --brass:#8A6624; --brass-soft:#E6DCC4;
-  --want:#2F4F45; --nope:#8C3B2F;
+  --bg:#E1EEE4; --surface:#EDF5EF; --ink:#16241D; --muted:#4C6357; --faint:#7E9689;
+  --rule:#C3D9C8; --accent:#3D8B6C; --accent-soft:#CFE6D6; --deep:#1F4A3A;
+  --rosso:#9C2E22; --rosso-soft:#F0D2CB; --want:#3D8B6C; --nope:#9C2E22;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --bg:#121410; --surface:#1B1E17; --ink:#E5E7DC; --muted:#9AA08E; --faint:#767C6B;
-    --rule:#2F3429; --accent:#86AC9A; --accent-soft:#1F2A25; --brass:#C9A45E; --brass-soft:#2A2418;
-    --want:#86AC9A; --nope:#D08B7C;
+    --bg:#10201A; --surface:#16261F; --ink:#EAF3ED; --muted:#9DB5A8; --faint:#71897C;
+    --rule:#24382E; --accent:#6FC6A3; --accent-soft:#1C332A; --deep:#2A5646;
+    --rosso:#D9695A; --rosso-soft:#3A2019; --want:#6FC6A3; --nope:#D9695A;
   }
 }
 :root[data-theme="dark"]{
-  --bg:#121410; --surface:#1B1E17; --ink:#E5E7DC; --muted:#9AA08E; --faint:#767C6B;
-  --rule:#2F3429; --accent:#86AC9A; --accent-soft:#1F2A25; --brass:#C9A45E; --brass-soft:#2A2418;
-  --want:#86AC9A; --nope:#D08B7C;
+  --bg:#10201A; --surface:#16261F; --ink:#EAF3ED; --muted:#9DB5A8; --faint:#71897C;
+  --rule:#24382E; --accent:#6FC6A3; --accent-soft:#1C332A; --deep:#2A5646;
+  --rosso:#D9695A; --rosso-soft:#3A2019; --want:#6FC6A3; --nope:#D9695A;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--ink);font-family:"Archivo","Helvetica Neue",Arial,sans-serif;
@@ -38,9 +38,11 @@ a{color:inherit}
 .backlink{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:11px;letter-spacing:.16em;
   text-transform:uppercase;color:var(--faint);text-decoration:none;justify-self:start}
 .backlink:hover{color:var(--accent)}
-h1{font-family:"Instrument Serif",Georgia,serif;font-weight:400;font-size:clamp(42px,7vw,76px);
-  line-height:.98;letter-spacing:-.01em;text-wrap:balance}
-h1 em{font-style:italic;color:var(--accent)}
+h1{font-family:"Michroma","Archivo",sans-serif;font-weight:400;font-size:clamp(22px,3.4vw,38px);
+  line-height:1.3;letter-spacing:.01em;text-wrap:balance;text-transform:uppercase}
+h1 em{font-style:normal;color:var(--accent)}
+.mast-rule{height:3px;background:linear-gradient(90deg,var(--accent) 0 65%,var(--rosso) 65% 100%);
+  margin-top:6px;max-width:220px}
 
 .tiers{display:flex;border-bottom:1px solid var(--rule);margin-top:6px;overflow-x:auto}
 .tier{font-family:"Instrument Serif",Georgia,serif;font-size:22px;padding:10px 22px 12px;
@@ -61,7 +63,7 @@ h1 em{font-style:italic;color:var(--accent)}
   padding:6px 12px;border:1px solid var(--rule);background:transparent;color:var(--muted);cursor:pointer;
   transition:background .15s,color .15s,border-color .15s}
 .chip:hover{border-color:var(--accent);color:var(--ink)}
-.chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.chip[aria-pressed="true"]{background:var(--deep);border-color:var(--deep);color:#fff}
 .status{margin-left:auto;font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:11px;
   color:var(--faint);font-variant-numeric:tabular-nums;text-align:right}
 .status .sync{display:block;font-size:10px;letter-spacing:.08em;text-transform:uppercase}
@@ -74,7 +76,7 @@ h1 em{font-style:italic;color:var(--accent)}
   padding:6px 11px;border:1px solid var(--rule);background:transparent;color:var(--muted);cursor:pointer;
   transition:background .15s,color .15s,border-color .15s}
 .catlink:hover{border-color:var(--accent);color:var(--ink)}
-.catlink.active{border-color:var(--accent);background:var(--accent);color:#fff}
+.catlink.active{border-color:var(--rosso);background:var(--rosso);color:#fff}
 
 section.cat{padding:44px 0 6px;border-top:1px solid var(--rule);scroll-margin-top:96px}
 section.cat:first-of-type{border-top:none;padding-top:34px}
@@ -101,7 +103,7 @@ section.cat:first-of-type{border-top:none;padding-top:34px}
 .tags{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
 .tag{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:10px;letter-spacing:.1em;
   text-transform:uppercase;padding:4px 8px;white-space:nowrap;border:1px solid var(--rule);color:var(--faint)}
-.tag.rated{border-color:var(--brass);color:var(--brass);background:var(--brass-soft)}
+.tag.rated{border-color:var(--rosso);color:var(--rosso);background:var(--rosso-soft)}
 .tag.top{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
 .tag.mixed{border-style:dashed}
 .tag.soft{opacity:.7}
@@ -177,7 +179,8 @@ section.cat:first-of-type{border-top:none;padding-top:34px}
 
   <header class="mast">
     <a class="backlink" href="./">← Perfume OS</a>
-    <h1><em>iSmell</em> — Kate</h1>
+    <h1><em>By Genre</em> — Kate</h1>
+    <div class="mast-rule"></div>
   </header>
 
   <div class="tiers" role="tablist" id="tiers"></div>
