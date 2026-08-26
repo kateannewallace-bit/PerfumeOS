@@ -301,6 +301,18 @@ const CATEGORIES = [
   gloss:"Vetiver root braced with citrus — dry, not juicy.",
   keys:{"vetiver":7,"vetyver":7,"bergamot":3,"grapefruit":2,"lemon":2,"citrus":2,"lime":2}},
 
+ {name:"Saffron", prio:6.5,
+  gloss:"Saffron as the star, not a supporting spice.",
+  keys:{"saffron":9,"saffron accord":9}},
+
+ {name:"Fig", prio:7.4,
+  gloss:"Green fig, milky sap — not the leaf, the fruit.",
+  keys:{"fig":8,"fig accord":8,"green fig":9,"fig leaf":1}},
+
+ {name:"Geranium", prio:7.6,
+  gloss:"Geranium as the anchor, rosy-green and slightly minty.",
+  keys:{"geranium":8,"geranium leaf":8}},
+
  {name:"Conifer & Forest Floor", prio:8,
   gloss:"Fir, pine resin, damp moss, soil, mushroom.",
   keys:{"fir":7,"balsam fir":7,"douglas fir":7,"silver fir":7,"pine":6,"pine needle":7,"spruce":7,
@@ -343,10 +355,21 @@ const CATEGORIES = [
         "wet plaster":9,"concrete":7,"gasoline":9,"petrol":9,"kombucha":7,"beetroot":7,"lovage":7,
         "pencil":6,"antique iron":7,"snake plant":6,"clay":4,"soil":3,"wet earth":5}},
 
+ {name:"Pepper & Spice", prio:13.5,
+  gloss:"Black and pink pepper, cardamom, clove, nutmeg — dry spice, not gourmand.",
+  keys:{"black pepper":5,"pink pepper":5,"peppercorn":5,"timur":6,"sichuan pepper":6,"szechuan":6,
+        "pepper wood":6,"white pepper":5,"cardamom":4,"clove":4,"nutmeg":4,"cinnamon":3,
+        "cassia":4,"turmeric":4,"coriander":4,"caraway":4,"ginger":2,"star anise":3,"anise":3,
+        "licorice":4,"liquorice":4,"rooibos":5,"wasabi":6,"spicy":1,"spices":1}},
+
+ {name:"Amber", prio:14.5,
+  gloss:"Amber on its own — warm and resinous, without oud or tobacco leading.",
+  keys:{"amber":7,"amber accord":8,"ambered":6}},
+
  {name:"Sexy Resinous Powdery", prio:15,
   gloss:"Amber, oud, tobacco and powder together — opulent, boozy-warm.",
   keys:{"oud":6,"agarwood":5,"tobacco":5,"amber":3,"resin":3,"resinous":3,"benzoin":3,"styrax":3,
-        "powder":3,"powdery":3,"saffron":3,"vanilla":1,"boozy":3,"cognac":4,"rum":4}},
+        "powder":3,"powdery":3,"vanilla":1,"boozy":3,"cognac":4,"rum":4}},
 
  {name:"Smoke & Incense", prio:16,
   gloss:"Frankincense, myrrh, labdanum, burning wood.",
@@ -473,7 +496,26 @@ const RECATEGORIZE = {
   "Byredo — Vanille Antique": "Sweet Gourmand",
   "M. Micallef — Hypnotic Musk": "Sweet Gourmand",
   "Glossier — You Fleur": "Young Florals",
-  "Lake & Skye — 11 11 Lychee": "Young Florals"
+  "Lake & Skye — 11 11 Lychee": "Young Florals",
+  "Essential Parfums — Fig Infusion": "Tea",
+  "Byredo — Bal d'Afrique": "Violet",
+  "Byredo — Black Saffron": "Saffron",
+  "Diptyque — Geranium odorata": "Geranium",
+  "Frederic Malle — Eau de Magnolia": "Young Florals",
+  "Frederic Malle — Uncut gem": "Pepper & Spice",
+  "Jo Malone — Wild achillea": "Green, Herbal & Fougère",
+  "Xerjoff — Irisss": "Iris",
+  "Le Labo — Santal 33": "Dry Woods & Vetiver",
+  "Juliette Has a Gun — Lipstick Fever": "Violet",
+  "Byredo — Bibliotheque": "Tart Fruit",
+  "Penhaligon's — Artemisia": "Tart Fruit",
+  "Guerlain — Feve Gourmande": "Sweet Gourmand",
+  "Hermès — Eau de Mandarine Ambrée": "Amber",
+  "Chloé — Atelier des Fleurs Vert Soleil": "Geranium",
+  "Hermès — Hermessence Iris Ukiyoé": "Iris",
+  "Prada — Infusion de figue": "Fig",
+  "Tom Ford — Bitter Peach": "Peach",
+  "Tom Ford — Rose d'Amalfi": "Rose"
 };
 
 const keyOf = p => p.h + " — " + p.n;
