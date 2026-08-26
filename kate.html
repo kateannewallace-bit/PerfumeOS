@@ -74,6 +74,7 @@ h1 em{font-style:italic;color:var(--accent)}
   padding:6px 11px;border:1px solid var(--rule);background:transparent;color:var(--muted);cursor:pointer;
   transition:background .15s,color .15s,border-color .15s}
 .catlink:hover{border-color:var(--accent);color:var(--ink)}
+.catlink.active{border-color:var(--accent);background:var(--accent);color:#fff}
 
 section.cat{padding:44px 0 6px;border-top:1px solid var(--rule);scroll-margin-top:96px}
 section.cat:first-of-type{border-top:none;padding-top:34px}
@@ -896,7 +897,7 @@ const noResEl   = document.getElementById("noresults");
 const toolbarEl = document.getElementById("toolbar");
 const catnavEl  = document.getElementById("catnav");
 const qEl       = document.getElementById("q");
-let tier = "all", filter = "all";
+let tier = "all", filter = "all", activeCat = null;
 
 const slugify = s => "cat-" + s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 const stripAccents = s => String(s).normalize("NFD").replace(/[̀-ͯ]/g, "");
@@ -1042,8 +1043,9 @@ function render(){
 catnavEl.addEventListener("click", e => {
   const btn = e.target.closest(".catlink");
   if(!btn) return;
-  const target = document.getElementById(btn.dataset.target);
-  if(target) target.scrollIntoView({behavior:"smooth", block:"start"});
+  activeCat = activeCat === btn.dataset.target ? null : btn.dataset.target;
+  apply();
+  tiersEl.scrollIntoView({behavior:"smooth", block:"start"});
 });
 
 function apply(){
@@ -1052,6 +1054,7 @@ function apply(){
   const terms = q ? q.split(/\s+/) : [];
   let shown = 0;
   document.querySelectorAll("section.cat").forEach(sec => {
+    if(activeCat && sec.id !== activeCat){ sec.hidden = true; return; }
     let vis = 0;
     sec.querySelectorAll(".entry").forEach(row => {
       let ok = true;
@@ -1069,7 +1072,8 @@ function apply(){
   noResEl.hidden = shown > 0;
   catnavEl.querySelectorAll(".catlink").forEach(btn => {
     const sec = document.getElementById(btn.dataset.target);
-    btn.hidden = !sec || sec.hidden;
+    btn.hidden = !activeCat && (!sec || sec.hidden);
+    btn.classList.toggle("active", btn.dataset.target === activeCat);
   });
 }
 
