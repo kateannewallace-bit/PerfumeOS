@@ -410,7 +410,9 @@ const RECATEGORIZE = {
   "D'Annam — Vietnamese Coffee": "Sweet Gourmand",
   "Byredo — Velvet Haze": "Sweet Gourmand",
   "Juliette Has a Gun — Not a Perfume": "Skin Musk & Ambergris",
-  "Jo Malone — Mallow on the moor": "Skin Musk & Ambergris"
+  "Jo Malone — Mallow on the moor": "Skin Musk & Ambergris",
+  "Diptyque — Orphéon": "Dry Woods & Vetiver",
+  "Miu Miu — Miu Miu": "Young Florals"
 };
 
 const keyOf = p => p.h + " — " + p.n;
@@ -438,7 +440,11 @@ function categorize(p){
       bestScore = s; best = cat.name; bestPrio = cat.prio;
     }
   }
-  return bestScore >= 5 ? best : "Dry Woods & Vetiver";
+  let result = bestScore >= 5 ? best : "Dry Woods & Vetiver";
+  // A musk/musc-named fragrance that scored into Tart Fruit is riding a fruit
+  // note in the drydown, not defined by it — the name says what it actually is.
+  if(result === "Tart Fruit" && /\b(musc|musk)/i.test(p.n)) result = "Skin Musk & Ambergris";
+  return result;
 }
 
 /* ───────────────────────────────────────────────────────────────────────────
