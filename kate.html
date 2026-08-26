@@ -270,6 +270,13 @@ const CATEGORIES = [
   gloss:"White peach, fuzzy skin, a little powdery.",
   keys:{"white peach":9,"peach":7,"apricot":3,"peach skin":9}},
 
+ {name:"Tea", prio:2.7,
+  gloss:"Black tea, matcha, lapsang — the leaf itself, not a garnish.",
+  keys:{"tea":6,"black tea":8,"green tea":7,"white tea":7,"oolong":8,"oolong tea":8,"matcha":8,
+        "rooibos":7,"mate":6,"maté":6,"yerba mate":8,"chai":7,"masala chai":8,"earl grey":8,
+        "lapsang":8,"lapsang souchong":9,"darjeeling":8,"ceylon tea":8,"smoked tea":8,
+        "tea leaf":7,"tea leaves":7}},
+
  {name:"Dirty Sexy", prio:3,
   gloss:"Animalic and resinous in the same breath — feminine, not clean.",
   keys:{}},
@@ -319,7 +326,11 @@ const CATEGORIES = [
 
  {name:"Violet", prio:12,
   gloss:"Violet flower and leaf — powdery-green, not candied.",
-  keys:{"violet":9,"heliotrope":4,"violet leaf":2}},
+  keys:{"violet":9,"violet leaf":2}},
+
+ {name:"Heliotrope", prio:12.5,
+  gloss:"Almond-powder haze — heliotrope's own thing, not violet's.",
+  keys:{"heliotrope":9,"almond milk":5,"marzipan":4,"cherry pie":5}},
 
  {name:"Rose", prio:13,
   gloss:"Rose as the star, not a supporting note.",
@@ -419,7 +430,24 @@ const RECATEGORIZE = {
   "Miu Miu — Miu Miu": "Young Florals",
   "Liis — Floating": "Peach",
   "Keiko Mecheri — Peau de Peche": "Peach",
-  "Guerlain — Peche Mirage": "Peach"
+  "Guerlain — Peche Mirage": "Peach",
+  "Arquiste — Venice Rococo": "Dirty Sexy",
+  "Thin Wild Mercury — Chelsea Staircase": "Tea",
+  "Universal Flowering — Heliotrope Milkbath": "Heliotrope",
+  "Serge Lutens — La Religieuse": "Big, Sexy Tuberose & Jasmine",
+  "Serge Lutens — Sarrasins": "Big, Sexy Tuberose & Jasmine",
+  "Penhaligon's — Lord George": "Green, Herbal & Fougère",
+  // Already tagged "Tea" via categoryOverride in the main app
+  "Arquiste — Indigo Smoke": "Tea",
+  "D'Annam — Monsoon Tea": "Tea",
+  "D'Annam — Pomelo Oolong": "Tea",
+  "Ellis Brooklyn — Sci Fi": "Tea",
+  "Guerlain — Neroli Outrenoir": "Tea",
+  "Imaginary Authors — O, Unknown!": "Tea",
+  "Kerosene — Unknown Pleasures": "Tea",
+  "Liis — Ethereal Wave": "Tea",
+  "Penhaligon's — A Kiss of Bliss": "Tea",
+  "Nishane — Wūlóng Chá": "Tea"
 };
 
 const keyOf = p => p.h + " — " + p.n;
