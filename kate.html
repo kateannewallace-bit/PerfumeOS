@@ -350,8 +350,8 @@ const CATEGORIES = [
         "carrot seed":4,"orris concrete":9}},
 
  {name:"Violet", prio:12,
-  gloss:"Violet flower and leaf — powdery-green, not candied.",
-  keys:{"violet":9,"violet leaf":2}},
+  gloss:"Violet flower — powdery, not candied. Violet leaf alone reads green, not violet.",
+  keys:{"violet":9}},
 
  {name:"Heliotrope", prio:12.5,
   gloss:"Almond-powder haze — heliotrope's own thing, not violet's.",
@@ -430,7 +430,7 @@ const CATEGORIES = [
  {name:"Green, Herbal & Fougère", prio:23,
   gloss:"Lavender, artemisia, fern, basil, crushed stems.",
   keys:{"fougere":8,"fougère":8,"lavender":6,"lavandin":6,"artemisia":6,"wormwood":6,"absinthe":6,
-        "fern":5,"galbanum":4,"thyme":4,"rosemary":4,"clary sage":4,"sage":3,"basil":5,"mint":4,
+        "fern":5,"galbanum":4,"violetleaf":5,"thyme":4,"rosemary":4,"clary sage":4,"sage":3,"basil":5,"mint":4,
         "peppermint":4,"spearmint":4,"shiso":4,"verbena":4,"tarragon":4,"cannabis":7,"turpentine":7,
         "celery":5,"fennel":3,"hay":5,"clover":4,"sweet grass":4,"green tea":3,"herbal":5,"camphor":4,
         "eucalyptus":3,"fig leaf":4,"tomato leaf":5,"gentiana":4,"green":1}},
@@ -445,6 +445,13 @@ const CATEGORIES = [
 
 /* Hand placements — her exact calls, from the taxonomy conversation. */
 const RECATEGORIZE = {
+  "Frederic Malle — Acne Studios": "Peach",
+  "Byredo — Rodeo": "Leather",
+  "Byredo — Blanche": "Classic Floral Aldehyde",
+  "Diptyque — Tempo": "Pepper & Spice",
+  "Frederic Malle — Une Fleur de Cassie": "Classic Floral Aldehyde",
+  "Miller Harris — Peau Santal": "Saffron",
+  "Diptyque — Lilyphea": "Green, Herbal & Fougère",
   "Heeley — Note de Yuzu": "Bitter Citrus & Cologne",
   "Apoteker Tepe — After the Flood": "Conifer & Forest Floor",
   "Heeley — Palm (Coccobello)": "Solar",
@@ -643,7 +650,9 @@ function profileText(p){
   const notes = norm(p.no);
   const tags  = (p.tg||[]).map(norm).join(" · ");
   const ct    = (p.ct||[]).map(norm).join(" · ");
-  return [name, fam, notes, tags, ct].join(" · ");
+  // Violet leaf reads green, not floral-violet — merge it so the bare
+  // "violet" keyword doesn't false-match on it.
+  return [name, fam, notes, tags, ct].join(" · ").replace(/violet leaf/g, "violetleaf");
 }
 
 function categorize(p){
