@@ -1646,7 +1646,7 @@ const CONFIG = {
 
 // ═══════════════════════════════════════════════════════════════════════════
 
-const { useState, useEffect, useMemo, useCallback } = React;
+const { useState, useEffect, useMemo, useCallback, useRef } = React;
 
 const RAW_DATA = window.PERFUME_RAW_DATA;
 // ─── DATA NORMALIZATION ──────────────────────────────────────────────────────
@@ -4170,6 +4170,7 @@ function Modal({ p, onClose, onEdit, onResetToSeed, hasEdits, perfumes, onNaviga
       rawNotes: p.rawNotes || "",
       family: p.family || "",
       categoryOverride: p.categoryOverride || "",
+      genreOverride: p.genreOverride || "",
       primaryTags: (p.primary || []).join(", "),
       smellsLike: (p.smellsLike || []).join(", "),
       notLike: (p.notLike || []).join(", "),
@@ -4189,6 +4190,7 @@ function Modal({ p, onClose, onEdit, onResetToSeed, hasEdits, perfumes, onNaviga
       gender: editForm.gender || null,
       myNotes: editForm.myNotes,
       categoryOverride: editForm.categoryOverride || null,
+      genreOverride: editForm.genreOverride || null,
     };
     if (editForm.rawNotes !== (p.rawNotes || "") ||
         editForm.family !== (p.family || "") ||
@@ -4364,6 +4366,12 @@ function Modal({ p, onClose, onEdit, onResetToSeed, hasEdits, perfumes, onNaviga
                 <option value="">Auto (from notes)</option>
                 {CATEGORY_MAP.map(c => <option key={c.label} value={c.label}>{c.label}</option>)}
                 <option value="Other">Other</option>
+              </select>
+            </label>
+            <label><span className="mini-lbl">By Genre category {editForm.genreOverride ? "(override)" : "(auto)"}</span>
+              <select value={editForm.genreOverride || ""} onChange={e => ef("genreOverride", e.target.value)} style={{border:"1px solid #ddd",background:"#fff",padding:"10px 12px",fontSize:14,outline:"none",minHeight:44,width:"100%"}}>
+                <option value="">Auto (from notes)</option>
+                {BY_GENRE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </label>
             <label><span className="mini-lbl">Primary notes (comma separated)</span>
@@ -5223,6 +5231,20 @@ function WishlistView({ wishlist, onAdd, onRemove }) {
     {wishlist.length === 0 && <p className="empty">Wishlist empty.</p>}
   </div>;
 }
+
+// Category names from kate.html's "By Genre" page. Kept in sync by hand — if a
+// category is added/renamed there, mirror it here so the edit-form dropdown
+// (genreOverride) stays accurate.
+const BY_GENRE_CATEGORIES = [
+  "Rice","Solar","Peach","Tea","Dirty Sexy","Labdanum","Leather","Tart Fruit",
+  "Citrus-Vetiver","Saffron","Fig","Geranium","Green Vanilla","Classic Floral Aldehyde",
+  "Osmanthus","Cherry","Conifer & Forest Floor","Big, Sexy Tuberose & Jasmine",
+  "Lolita Lempicka–Adjacent Gourmands","Iris","Violet","Heliotrope","Rose","Earth",
+  "Pepper & Spice","Amber","Sexy Resinous Powdery","Smoke & Incense",
+  "Salt, Stone & Cold Water","Skin Musk & Ambergris","Young Florals","Spicy Dry Vanilla",
+  "Sweet Gourmand","Neroli & Orange Blossom","Bitter Citrus & Cologne","Juicy Citrus",
+  "Green, Herbal & Fougère","Dry Woods & Vetiver"
+];
 
 // ─── CHARTS VIEW ──────────────────────────────────────────────────────────────
 const CATEGORY_MAP = [
@@ -6788,6 +6810,18 @@ function App() {
   }, [userPerfumes, perfumeEdits, wearLog]);
   const [syncStatus, setSyncStatus] = useState("Local storage");
   const [loaded, setLoaded] = useState(false);
+
+  // Deep-link support: ?open=<id> opens that perfume's card once data is loaded
+  // (e.g. linked from kate.html's "By Genre" page). Fires once.
+  const openedFromUrl = useRef(false);
+  useEffect(() => {
+    if (!loaded || openedFromUrl.current) return;
+    const params = new URLSearchParams(window.location.search);
+    const openId = params.get("open");
+    if (openId == null) return;
+    const p = perfumes.find(pf => String(pf.id) === openId);
+    if (p) { setSelected(p); openedFromUrl.current = true; }
+  }, [loaded, perfumes]);
 
   const loadAll = useCallback(async () => {
     if (cloudConfigured()) {
