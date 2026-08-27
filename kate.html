@@ -332,9 +332,9 @@ const CATEGORIES = [
   keys:{"osmanthus":8,"osmanthus absolute":9}},
 
  {name:"Cherry", prio:7.8,
-  gloss:"Cherry up front — bitter almond, liqueur, blossom.",
+  gloss:"Cherry up front — bitter almond, liqueur, the fruit itself, not the blossom.",
   keys:{"cherry":8,"cherry accord":8,"cherry liqueur":9,"black cherry":8,"sour cherry":8,
-        "morello cherry":8,"cherry blossom":6,"cherry wine":7,"cherry liquor":9}},
+        "morello cherry":8,"cherry wine":7,"cherry liquor":9}},
 
  {name:"Conifer & Forest Floor", prio:8,
   gloss:"Fir, pine resin, damp moss, soil, mushroom.",
@@ -984,9 +984,12 @@ function profileText(p){
   const notes = norm(p.no);
   const tags  = (p.tg||[]).map(norm).join(" · ");
   const ct    = (p.ct||[]).map(norm).join(" · ");
-  // Violet leaf reads green, not floral-violet — merge it so the bare
-  // "violet" keyword doesn't false-match on it.
-  return [name, fam, notes, tags, ct].join(" · ").replace(/violet leaf/g, "violetleaf");
+  // Violet leaf reads green, not floral-violet, and cherry blossom is a
+  // floral (sakura), not the cherry fruit — merge both so the bare
+  // "violet"/"cherry" keywords don't false-match on them.
+  return [name, fam, notes, tags, ct].join(" · ")
+    .replace(/violet leaf/g, "violetleaf")
+    .replace(/cherry blossom/g, "cherryblossom");
 }
 
 function categorize(p){
