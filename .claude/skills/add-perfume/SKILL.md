@@ -1,6 +1,6 @@
 ---
 name: add-perfume
-description: Add new perfumes (or fix existing ones) in the PerfumeOS collection — research notes on Fragrantica/Parfumo, edit perfume-data.js safely, set genre and let chart category work automatically, verify live, then commit. Use whenever the user asks to add a perfume, add multiple perfumes, or correct an existing perfume's data.
+description: Add new perfumes (or fix existing ones) in the PerfumeOS collection — research notes on Fragrantica/Parfumo, edit perfume-data.js safely, set genre and let chart category work automatically, give Katie a taste-prediction "take" grounded in her rating history, verify live, then commit. Use whenever Katie asks to add a perfume, add multiple perfumes, correct an existing perfume's data, or says something like "add these, grab the note pyramids, and give me your take."
 ---
 
 # Add a perfume to PerfumeOS
@@ -43,6 +43,44 @@ perfumers with different pyramids, not the same juice at different strength.
 Confirm the *exact* product name and year against what you're about to write
 down. If the name Katie gives you is ambiguous, search for it as written
 before assuming which variant she means.
+
+## Step 1.5 — Give Katie a "take" (when asked, or by default)
+
+When Katie asks to add perfumes she'll often phrase it as "add these, grab
+the note pyramids, and give me your take" — that's a standing request for a
+taste prediction, not just a data entry. Default to giving one even if she
+doesn't say the word "take," since it's cheap once you've already pulled the
+note pyramid.
+
+**Ground it in her actual rating history, not vibes.** She has 1000+ items
+in `perfume-data.js` with real signal: `r` (rating), `pr` (preference —
+Love/Like/Neutral/Dislike/Avoid), `t` (tried), and — most valuable — `mn`
+(her own written reactions, e.g. *"Hate this, might sell it... Trevor made
+me scrub it"* or *"Peachy, fresh, green... not boring, but also not
+tremendously captivating. 6.5/10"*). That's real, specific evidence of what
+she likes and why, and is much stronger than reasoning from note lists alone.
+
+Process:
+1. For each note in the new perfume's pyramid (especially top/heart notes,
+   or whatever the reviews call defining), search `perfume-data.js` for
+   existing items sharing that note, filtered to ones with a rating, a
+   non-"Unrated" `pr`, or non-empty `mn` — untried/unrated items aren't
+   useful comparables.
+2. Pull 2–4 of the closest comparables on each side: things she's loved or
+   rated highly that share notes with the new perfume, and things she's
+   disliked/avoided/scrubbed that share notes with it. Quote her own `mn`
+   text where there is one — it's more convincing than a paraphrase.
+3. Also check her custom tags (`ct`) for patterns relevant to the new
+   perfume's character — e.g. she's flagged things "old lady" or "smells
+   cheap" before, and family/character overlap with those is worth a
+   mention.
+4. Synthesize a plain-language lean — "likely a love," "probably a
+   love-hate split like X," "closer to the things you've scrubbed" — tied to
+   *specific* overlapping or conflicting notes, not a fabricated numeric
+   score. Be honest that this is directional: note lists are a weak signal
+   for how something actually wears (drydown, projection, and execution
+   quality matter as much as the ingredient list), so frame it as a lean
+   she can weigh, not a verdict.
 
 ## Step 2 — Never hand-edit the file with sed/regex
 
