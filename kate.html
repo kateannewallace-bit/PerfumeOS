@@ -384,6 +384,10 @@ const CATEGORIES = [
   gloss:"Amber and its raw materials — rockrose, cistus, labdanum — warm and resinous, without oud or tobacco leading.",
   keys:{"amber":7,"amber accord":8,"ambered":6,"labdanum":8,"rockrose":8,"cistus":8,"ambery":2,"amber resin":3}},
 
+ {name:"Oud", prio:14.8,
+  gloss:"Agarwood as the lead — the note itself, not a supporting accord in someone else's oriental.",
+  keys:{"oud":9,"agarwood":9,"oudh":8,"agar wood":8}},
+
  {name:"Sexy Resinous Powdery", prio:15,
   gloss:"Amber, oud, tobacco and powder together — opulent, boozy-warm.",
   keys:{"oud":6,"agarwood":5,"tobacco":5,"amber":3,"resin":3,"resinous":3,"benzoin":3,"styrax":3,
@@ -455,11 +459,11 @@ const CATEGORIES = [
 /* Hand placements — her exact calls, from the taxonomy conversation. */
 const RECATEGORIZE = {
   "Essential Parfums — Ambre Latte": "Sweet Gourmand",
-  "Rania J. — Oud Assam": "Smoke & Incense",
-  "Hermès — Hermessence Agar Ebène": "Smoke & Incense",
+  "Rania J. — Oud Assam": "Oud",
   "Caron — Tabac Blond": "Leather",
   "Nicolai — Amber Oud": "Amber",
   "Nicolai — Rose Oud": "Rose",
+  "Carolina Herrera — Oud Couture": "Oud",
   "Mizensir — Original Oud": "Leather",
   "Thameen — Bravi": "Big, Sexy Tuberose & Jasmine",
   "Zeromolecole — Nèh": "Violet",
@@ -1049,8 +1053,7 @@ for(const p of RAW){
   };
   ITEMS.push(it);
   byId[it.id] = it;
-}
-// Same house + name shows up more than once (different concentrations) —
+}// Same house + name shows up more than once (different concentrations) —
 // disambiguate the title so they're not indistinguishable in the list.
 {
   const nameCounts = {};
