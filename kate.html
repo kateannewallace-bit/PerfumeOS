@@ -459,6 +459,9 @@ const CATEGORIES = [
 /* Hand placements — her exact calls, from the taxonomy conversation. */
 const RECATEGORIZE = {
   "Essential Parfums — Ambre Latte": "Sweet Gourmand",
+  "Etat Libre d'Orange — Divin'Enfant": "Leather",
+  "Matière Première — Oud Seven": "Oud",
+  "Serge Lutens — Daim Blond": "Leather",
   "Rania J. — Oud Assam": "Oud",
   "Caron — Tabac Blond": "Leather",
   "Nicolai — Amber Oud": "Amber",
@@ -1054,7 +1057,6 @@ for(const p of RAW){
   ITEMS.push(it);
   byId[it.id] = it;
 }
-
 // Same house + name shows up more than once (different concentrations) —
 // disambiguate the title so they're not indistinguishable in the list.
 {
