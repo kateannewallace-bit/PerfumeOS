@@ -459,6 +459,9 @@ const CATEGORIES = [
 /* Hand placements — her exact calls, from the taxonomy conversation. */
 const RECATEGORIZE = {
   "Essential Parfums — Ambre Latte": "Sweet Gourmand",
+  "Le Labo — Oud 27": "Oud",
+  "Diptyque — Oud Palao": "Oud",
+  "Gucci — Nocturnal whisper": "Oud",
   "Etat Libre d'Orange — Divin'Enfant": "Leather",
   "Matière Première — Oud Seven": "Oud",
   "Serge Lutens — Daim Blond": "Leather",
@@ -467,7 +470,8 @@ const RECATEGORIZE = {
   "Nicolai — Amber Oud": "Amber",
   "Nicolai — Rose Oud": "Rose",
   "Carolina Herrera — Oud Couture": "Oud",
-  "Mizensir — Original Oud": "Leather",
+  "Mizensir — Original Oud": "Oud",
+  "Maison Francis Kurkdjian — Oud Satin Mood": "Oud",
   "Thameen — Bravi": "Big, Sexy Tuberose & Jasmine",
   "Zeromolecole — Nèh": "Violet",
   "Parfums de Nicolaï — Cuir Cuba Intense": "Leather",
@@ -692,7 +696,6 @@ const RECATEGORIZE = {
   "Diptyque — Tam Dao": "Dry Woods & Vetiver",
   "Le Labo — Osmanthus 19": "Osmanthus",
   "Penhaligon's — Babylon": "Saffron",
-  "Le Labo — Oud 27": "Sexy Resinous Powdery",
   "Le Labo — Vetiver 46": "Dry Woods & Vetiver",
   "Universal Flowering — Poems One through Twelve": "Sweet Gourmand",
   "Clue — With the Candlestick": "Cherry",
@@ -905,7 +908,6 @@ const RECATEGORIZE = {
   "Guerlain — Aqua Allegoria Nerolia Vetiver Forte": "Dry Woods & Vetiver",
   "BDK — Citrus riviera": "Juicy Citrus",
   "Diptyque — Eau lierre": "Green, Herbal & Fougère",
-  "Gucci — Nocturnal whisper": "Sexy Resinous Powdery",
   "D'Annam — Kimono": "Rice",
   "D'Annam — White Rice": "Rice",
   "Diptyque — L’Eau Papier": "Rice",
@@ -1056,8 +1058,7 @@ for(const p of RAW){
   };
   ITEMS.push(it);
   byId[it.id] = it;
-}
-// Same house + name shows up more than once (different concentrations) —
+}// Same house + name shows up more than once (different concentrations) —
 // disambiguate the title so they're not indistinguishable in the list.
 {
   const nameCounts = {};
