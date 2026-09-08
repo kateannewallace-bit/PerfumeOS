@@ -1053,7 +1053,9 @@ for(const p of RAW){
   };
   ITEMS.push(it);
   byId[it.id] = it;
-}// Same house + name shows up more than once (different concentrations) —
+}
+
+// Same house + name shows up more than once (different concentrations) —
 // disambiguate the title so they're not indistinguishable in the list.
 {
   const nameCounts = {};
