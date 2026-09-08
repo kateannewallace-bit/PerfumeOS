@@ -291,8 +291,7 @@ const CATEGORIES = [
   gloss:"Birch tar, cade, suede, saffron and hide.",
   keys:{"leather":8,"leathery":8,"birch tar":9,"cade":8,"cade oil":9,"tanned":7,"morocco leather":9,
         "tuscan leather":9,"saffiano":9,"smoked leather":9,"black leather":9,"white leather":7,"cuir":9,
-        "hide":6,"parchment":7,"binding glue":7,"vintage book":7,"rubber":5,"vinyl":6,"ink":4,
-        "stained woods":5,"birch":3,"styrax":1}},
+        "hide":6,"rubber":5,"vinyl":6}},
 
  {name:"Tart Fruit", prio:6,
   gloss:"Grapefruit, rhubarb, sour berry — bright and puckering, not sweet.",
@@ -325,12 +324,12 @@ const CATEGORIES = [
 
  {name:"Osmanthus", prio:7.85,
   gloss:"Osmanthus as the lead — apricot-leather, tea-like, not just a supporting floral.",
-  keys:{"osmanthus":8,"osmanthus absolute":9}},
+  keys:{"osmanthus":8,"osmanthus absolute":9,"apricot":3,"nectarine":3}},
 
  {name:"Cherry", prio:7.8,
   gloss:"Cherry up front — bitter almond, liqueur, the fruit itself, not the blossom.",
   keys:{"cherry":8,"cherry accord":8,"cherry liqueur":9,"black cherry":8,"sour cherry":8,
-        "morello cherry":8,"cherry wine":7,"cherry liquor":9}},
+        "morello cherry":8,"cherry wine":7,"cherry liquor":9,"cherry pie":7}},
 
  {name:"Conifer & Forest Floor", prio:8,
   gloss:"Fir, pine resin, damp moss, soil, mushroom.",
@@ -348,7 +347,7 @@ const CATEGORIES = [
  {name:"Lolita Lempicka–Adjacent Gourmands", prio:10,
   gloss:"Anise, violet, powdered vanilla — candied and a little witchy.",
   keys:{"anise":6,"liquorice":6,"licorice":6,"star anise":5,"violet":3,"iris":2,"powder":3,
-        "powdery":3,"vanilla":2,"caramel":2,"almond":2}},
+        "powdery":3,"vanilla":2,"almond":2}},
 
  {name:"Iris", prio:11,
   gloss:"Iris root — cold, carroty, suede-adjacent powder.",
@@ -361,7 +360,7 @@ const CATEGORIES = [
 
  {name:"Heliotrope", prio:12.5,
   gloss:"Almond-powder haze — heliotrope's own thing, not violet's.",
-  keys:{"heliotrope":9,"almond milk":5,"marzipan":4,"cherry pie":5}},
+  keys:{"heliotrope":9,"marzipan":4}},
 
  {name:"Rose", prio:13,
   gloss:"Rose as the star, not a supporting note.",
@@ -370,8 +369,8 @@ const CATEGORIES = [
 
  {name:"Earth", prio:14,
   gloss:"Wet plaster, soil, petrichor — the ground itself, not the animal on it.",
-  keys:{"civet":9,"castoreum":9,"hyraceum":9,"costus":7,"cumin":7,"animalic":8,"indolic":7,"skatole":9,
-        "wet plaster":9,"concrete":7,"gasoline":9,"petrol":9,"kombucha":7,"beetroot":7,"lovage":7,
+  keys:{"civet":9,"castoreum":9,"hyraceum":9,"costus":7,"cumin":7,"indolic":7,"skatole":9,
+        "wet plaster":9,"concrete":7,"gasoline":9,"petrol":9,"kombucha":7,"lovage":7,
         "pencil":6,"antique iron":7,"snake plant":6,"clay":4,"soil":3,"wet earth":5}},
 
  {name:"Pepper & Spice", prio:13.5,
@@ -456,6 +455,12 @@ const CATEGORIES = [
 /* Hand placements — her exact calls, from the taxonomy conversation. */
 const RECATEGORIZE = {
   "Essential Parfums — Ambre Latte": "Sweet Gourmand",
+  "Rania J. — Oud Assam": "Smoke & Incense",
+  "Hermès — Hermessence Agar Ebène": "Smoke & Incense",
+  "Caron — Tabac Blond": "Leather",
+  "Nicolai — Amber Oud": "Amber",
+  "Nicolai — Rose Oud": "Rose",
+  "Mizensir — Original Oud": "Leather",
   "Thameen — Bravi": "Big, Sexy Tuberose & Jasmine",
   "Zeromolecole — Nèh": "Violet",
   "Parfums de Nicolaï — Cuir Cuba Intense": "Leather",
@@ -1045,7 +1050,6 @@ for(const p of RAW){
   ITEMS.push(it);
   byId[it.id] = it;
 }
-
 // Same house + name shows up more than once (different concentrations) —
 // disambiguate the title so they're not indistinguishable in the list.
 {
