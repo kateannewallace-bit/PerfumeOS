@@ -131,6 +131,9 @@ a.title:hover{color:var(--accent);text-decoration:underline}
   font-family:"IBM Plex Mono",monospace;font-size:13px}
 
 .tag.mine{border-color:var(--accent);color:var(--accent);background:var(--accent-soft);font-weight:500}
+.tag.oud-real{border-color:var(--accent);color:var(--accent)}
+.tag.oud-synth{color:var(--faint)}
+.tag.oud-mixed{border-style:dashed;border-color:var(--rosso);color:var(--rosso)}
 .mini{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:10px;letter-spacing:.1em;
   text-transform:uppercase;padding:5px 10px;border:1px solid var(--rule);background:transparent;
   color:var(--faint);cursor:pointer;transition:color .15s,border-color .15s,background .15s}
@@ -1054,11 +1057,14 @@ for(const p of RAW){
     myNotes:p.mn || "",
     tried:!!p.t,
     gender:p.g || null,
+    oud:p.oud || null,
     cat:categorize(p)
   };
   ITEMS.push(it);
   byId[it.id] = it;
-}// Same house + name shows up more than once (different concentrations) —
+}
+
+// Same house + name shows up more than once (different concentrations) —
 // disambiguate the title so they're not indistinguishable in the list.
 {
   const nameCounts = {};
@@ -1229,9 +1235,19 @@ const prefFromRating = r => r == null ? "Unrated" : r >= 9 ? "Love" : r >= 8 ? "
 // A numeric rating is the source of truth for "have I formed an opinion".
 const ratedState = it => it.rating === null ? "untried" : (it.rating >= 8 ? "rated" : "mixed");
 
+const OUD_TAG = {
+  real:  {cls:"oud-real",  label:"Real Oud"},
+  synth: {cls:"oud-synth", label:"Oud Accord"},
+  akiga: {cls:"oud-synth", label:"Oud Accord"},
+  mixed: {cls:"oud-mixed", label:"Real + Accord"}
+};
 function tagsFor(it){
   const out = [];
   if(tier === "all") out.push('<span class="tag tier">'+TIER_LABEL[it.tier]+'</span>');
+  if(it.oud && OUD_TAG[it.oud]){
+    const o = OUD_TAG[it.oud];
+    out.push('<span class="tag '+o.cls+'">'+o.label+'</span>');
+  }
   const v = it.preference;
   if(v && v !== "Unrated"){
     const meta = VERDICTS.find(x => x.v === v);
