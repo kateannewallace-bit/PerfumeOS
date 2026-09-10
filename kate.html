@@ -99,6 +99,7 @@ a.title:hover{color:var(--accent);text-decoration:underline}
 .notes{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12.5px;line-height:1.7;
   color:var(--muted);min-width:0;overflow-wrap:anywhere;cursor:pointer;
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.perfumer{font-size:11px;font-style:italic;color:var(--faint);margin-top:2px}
 .notes:hover{color:var(--ink)}
 .notes.expanded{-webkit-line-clamp:unset;display:block;overflow:visible}
 .side{display:grid;gap:8px;justify-items:end}
@@ -496,6 +497,7 @@ const RECATEGORIZE = {
   "Diptyque — Eau Rihla": "Leather",
   "Miller Harris — Myrica Muse": "Tart Fruit",
   "Penhaligon's — Changing Constance": "Sweet Gourmand",
+  "Penhaligon's — Changing Constance Intense": "Sweet Gourmand",
   "BDK — 312 Saint-Honore": "Skin Musk & Ambergris",
   "Guerlain — Mon Guerlain": "Sweet Gourmand",
   "Hermès — Hermessence Brin de Réglisse": "Green, Herbal & Fougère",
@@ -1058,6 +1060,7 @@ for(const p of RAW){
     tried:!!p.t,
     gender:p.g || null,
     oud:p.oud || null,
+    perfumer:p.pf || "",
     cat:categorize(p)
   };
   ITEMS.push(it);
@@ -1294,6 +1297,7 @@ function entryHTML(it, catName){
     '<div class="name"><span class="house">'+esc(it.house)+'</span>'+
       '<a class="title" href="index.html?open='+it.id+'" target="_blank" rel="noopener" title="Open editable card">'+esc(it.displayName)+'</a></div>'+
     '<div class="notes">'+esc(it.notes)+'</div>'+
+    (it.perfumer ? '<div class="perfumer">by '+esc(it.perfumer)+'</div>' : '')+
     '<div class="side"><div class="tags">'+tagsFor(it)+'</div>'+reactFor(it)+
       '<button class="mini toggle" data-act="toggle" aria-expanded="false">Rate &amp; log</button></div>'+
     panelFor(it)+

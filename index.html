@@ -2516,6 +2516,7 @@ function normalizePerfume(p) {
     // Gender: explicit field from data (p.g) → name inference → null (unknown)
     gender: p.g || inferGenderFromName(p.n || "") || null,
     oud: p.oud || null,
+    perfumer: p.pf || "",
     userAdded: p.userAdded || false,
   };
 }
@@ -4173,6 +4174,7 @@ function Modal({ p, onClose, onEdit, onResetToSeed, hasEdits, perfumes, onNaviga
       categoryOverride: p.categoryOverride || "",
       genreOverride: p.genreOverride || "",
       oud: p.oud || "",
+      perfumer: p.perfumer || "",
       primaryTags: (p.primary || []).join(", "),
       smellsLike: (p.smellsLike || []).join(", "),
       notLike: (p.notLike || []).join(", "),
@@ -4194,6 +4196,7 @@ function Modal({ p, onClose, onEdit, onResetToSeed, hasEdits, perfumes, onNaviga
       categoryOverride: editForm.categoryOverride || null,
       genreOverride: editForm.genreOverride || null,
       oud: editForm.oud || null,
+      perfumer: editForm.perfumer.trim() || null,
     };
     if (editForm.rawNotes !== (p.rawNotes || "") ||
         editForm.family !== (p.family || "") ||
@@ -4281,6 +4284,7 @@ function Modal({ p, onClose, onEdit, onResetToSeed, hasEdits, perfumes, onNaviga
         <div><span className="sec-lbl">Family</span> <span>{p.family || "—"}</span></div>
         {CONFIG.partnerName && <div><span className="sec-lbl">For {CONFIG.partnerName}</span> <span style={{color: p.trevorSelfScore >= 7 ? "var(--sage)" : p.trevorSelfScore <= 4 ? "var(--dusty-rose)" : "var(--fg-mute)"}}>{p.trevorSelfScore ?? "—"}/10</span></div>}
         {p.oud && <div><span className="sec-lbl">Oud</span> <span style={{fontSize:11,fontWeight:600,letterSpacing:"0.03em",padding:"3px 8px",borderRadius:10,background:p.oud==="real"?"#e6f3ea":p.oud==="mixed"?"#f7e8e0":"#eef0f2",color:p.oud==="real"?"#3d7a52":p.oud==="mixed"?"#a0522d":"#6b7280"}}>{p.oud==="real"?"Real oud":p.oud==="mixed"?"Real + accord":"Oud accord"}</span></div>}
+        {p.perfumer && <div><span className="sec-lbl">Perfumer</span> <span>{p.perfumer}</span></div>}
       </div>
       {p.wearCount > 0 && <div className="wear-box"><strong>Wear history:</strong> {p.wearCount}{p.wearCount === 1 ? " time" : " times"}{p.daysAgo != null && ` · Last worn ${p.daysAgo === 0 ? "today" : `${p.daysAgo} day${p.daysAgo === 1 ? "" : "s"} ago`}`}</div>}
       {p.ratingHistory && p.ratingHistory.length >= 2 && (
@@ -4386,6 +4390,9 @@ function Modal({ p, onClose, onEdit, onResetToSeed, hasEdits, perfumes, onNaviga
                 <option value="akiga">Oud accord (Akigalawood)</option>
                 <option value="mixed">Both — real oud blended with an accord</option>
               </select>
+            </label>
+            <label><span className="mini-lbl">Perfumer</span>
+              <input type="text" value={editForm.perfumer} onChange={e => ef("perfumer", e.target.value)} placeholder="e.g. Dominique Ropion" />
             </label>
             <label><span className="mini-lbl">Primary notes (comma separated)</span>
               <input type="text" value={editForm.primaryTags} onChange={e => ef("primaryTags", e.target.value)} placeholder="e.g. rose, sandalwood" />
