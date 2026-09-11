@@ -64,6 +64,10 @@ h1 em{font-style:normal;color:var(--accent)}
   transition:background .15s,color .15s,border-color .15s}
 .chip:hover{border-color:var(--accent);color:var(--ink)}
 .chip[aria-pressed="true"]{background:var(--deep);border-color:var(--deep);color:#fff}
+#pfSel{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:11.5px;letter-spacing:.04em;
+  padding:6px 10px;border:1px solid var(--rule);background:var(--surface);color:var(--muted);cursor:pointer;
+  max-width:220px}
+#pfSel:hover{border-color:var(--accent);color:var(--ink)}
 .status{margin-left:auto;font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:11px;
   color:var(--faint);font-variant-numeric:tabular-nums;text-align:right}
 .status .sync{display:block;font-size:10px;letter-spacing:.08em;text-transform:uppercase}
@@ -198,6 +202,7 @@ a.title:hover{color:var(--accent);text-decoration:underline}
       <button class="chip" data-f="untried" aria-pressed="false">Untried</button>
       <button class="chip" data-f="loved" aria-pressed="false">Loved</button>
       <button class="chip" data-f="unrated" aria-pressed="false">Unrated</button>
+      <select id="pfSel"><option value="">All perfumers</option></select>
       <div class="status"><span class="sync" id="sync">connecting…</span></div>
     </div>
   </div>
@@ -213,6 +218,11 @@ a.title:hover{color:var(--accent);text-decoration:underline}
 <script>
 (function(){
 "use strict";
+
+// Split joint perfumer credits ("X & Y", "X, Y and Z") into individual names.
+function splitPerfumers(s){
+  return String(s).split(/\s*,\s*|\s*&\s*|\s+and\s+/i).map(x => x.trim()).filter(Boolean);
+}
 
 /* ───────────────────────────────────────────────────────────────────────────
    HOUSE TIERS — same convention as Trevor's page.
@@ -1081,6 +1091,14 @@ for(const p of RAW){
   }
 }
 
+// Perfumer roster — split joint credits ("X & Y", "X, Y and Z") into
+// individual names so the filter picks a single person, not a whole credit line.
+const PERFUMERS = (() => {
+  const set = new Set();
+  for(const it of ITEMS) if(it.perfumer) for(const name of splitPerfumers(it.perfumer)) set.add(name);
+  return Array.from(set).sort((a,b) => a.localeCompare(b));
+})();
+
 const TIERS = [{id:"all",label:"All"},{id:"indie",label:"Indie"},{id:"niche",label:"Niche"},
                {id:"designer",label:"Designer"},{id:"diary",label:"Diary"}];
 const TIER_LABEL = {indie:"Indie", niche:"Niche", designer:"Designer"};
@@ -1220,11 +1238,14 @@ const noResEl   = document.getElementById("noresults");
 const toolbarEl = document.getElementById("toolbar");
 const catnavEl  = document.getElementById("catnav");
 const qEl       = document.getElementById("q");
+const pfSelEl   = document.getElementById("pfSel");
 let tier = "all", filter = "all", activeCat = null;
 
 const slugify = s => "cat-" + s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 const stripAccents = s => String(s).normalize("NFD").replace(/[̀-ͯ]/g, "");
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+pfSelEl.insertAdjacentHTML("beforeend",
+  PERFUMERS.map(name => '<option value="'+esc(name)+'">'+esc(name)+'</option>').join(""));
 
 const VERDICTS = [
   {v:"Love", label:"Love", cls:"v-love"},
@@ -1293,7 +1314,8 @@ function panelFor(it){
 
 function entryHTML(it, catName){
   return '<article class="entry" data-id="'+it.id+'" data-state="'+ratedState(it)+'" '+
-    'data-search="'+esc(stripAccents((it.house+" "+it.name+" "+it.family+" "+it.notes+" "+catName).toLowerCase()))+'">'+
+    'data-search="'+esc(stripAccents((it.house+" "+it.name+" "+it.family+" "+it.notes+" "+catName+" "+it.perfumer).toLowerCase()))+'" '+
+    'data-pf="'+esc(stripAccents(it.perfumer.toLowerCase()))+'">'+
     '<div class="name"><span class="house">'+esc(it.house)+'</span>'+
       '<a class="title" href="index.html?open='+it.id+'" target="_blank" rel="noopener" title="Open editable card">'+esc(it.displayName)+'</a></div>'+
     '<div class="notes">'+esc(it.notes)+'</div>'+
@@ -1387,6 +1409,7 @@ function apply(){
   if(tier === "diary"){ noResEl.hidden = true; return; }
   const q = stripAccents(qEl.value.trim().toLowerCase());
   const terms = q ? q.split(/\s+/) : [];
+  const pf = stripAccents(pfSelEl.value.toLowerCase());
   let shown = 0;
   document.querySelectorAll("section.cat").forEach(sec => {
     if(activeCat && sec.id !== activeCat){ sec.hidden = true; return; }
@@ -1396,13 +1419,14 @@ function apply(){
       if(filter === "untried")     ok = row.dataset.state === "untried";
       else if(filter === "loved")  ok = row.dataset.state === "rated";
       else if(filter === "unrated")ok = row.dataset.state === "untried";
+      if(ok && pf) ok = row.dataset.pf.includes(pf);
       if(ok && terms.length) ok = terms.every(t => row.dataset.search.includes(t));
       row.hidden = !ok;
       if(ok){ vis++; shown++; }
     });
     const empty = sec.querySelector(".empty");
     if(empty) empty.hidden = vis > 0;
-    sec.hidden = vis === 0 && (terms.length > 0 || filter !== "all");
+    sec.hidden = vis === 0 && (terms.length > 0 || filter !== "all" || !!pf);
   });
   noResEl.hidden = shown > 0;
   catnavEl.querySelectorAll(".catlink").forEach(btn => {
@@ -1531,6 +1555,7 @@ document.querySelectorAll(".chip").forEach(btn => {
 
 let qTimer = null;
 qEl.addEventListener("input", () => { clearTimeout(qTimer); qTimer = setTimeout(apply, 120); });
+pfSelEl.addEventListener("change", apply);
 
 buildTabs();
 render();
