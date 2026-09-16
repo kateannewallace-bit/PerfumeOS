@@ -103,6 +103,8 @@ a.title:hover{color:var(--accent);text-decoration:underline}
 .notes{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12.5px;line-height:1.7;
   color:var(--muted);min-width:0;overflow-wrap:anywhere;cursor:pointer;
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.added-date{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:10px;letter-spacing:.04em;
+  color:var(--faint)}
 .perfumer{font-size:11px;font-style:italic;color:var(--faint);margin-top:2px}
 .pflink{font:inherit;font-style:italic;color:var(--faint);background:none;border:none;padding:0;
   cursor:pointer;text-decoration:underline;text-decoration-color:transparent;transition:color .15s,text-decoration-color .15s}
@@ -1329,12 +1331,15 @@ function perfumerHTML(pf){
   return '<div class="perfumer">by ' + joined + '</div>';
 }
 
-function entryHTML(it, catName){
+function entryHTML(it, catName, showDate){
+  const dateBadge = (showDate && /^\d{4}-\d{2}/.test(it.dateAdded))
+    ? '<span class="added-date">'+esc(new Date(it.dateAdded+"T00:00:00").toLocaleDateString(undefined, {month:"short", day:"numeric", year:"numeric"}))+'</span>'
+    : '';
   return '<article class="entry" data-id="'+it.id+'" data-state="'+ratedState(it)+'" '+
     'data-search="'+esc(stripAccents((it.house+" "+it.name+" "+it.family+" "+it.notes+" "+catName+" "+it.perfumer).toLowerCase()))+'" '+
     'data-pf="'+esc(stripAccents(it.perfumer.toLowerCase()))+'">'+
     '<div class="name"><span class="house">'+esc(it.house)+'</span>'+
-      '<a class="title" href="index.html?open='+it.id+'" target="_blank" rel="noopener" title="Open editable card">'+esc(it.displayName)+'</a></div>'+
+      '<a class="title" href="index.html?open='+it.id+'" target="_blank" rel="noopener" title="Open editable card">'+esc(it.displayName)+'</a>'+dateBadge+'</div>'+
     '<div class="notes">'+esc(it.notes)+'</div>'+
     perfumerHTML(it.perfumer)+
     '<div class="side"><div class="tags">'+tagsFor(it)+'</div>'+reactFor(it)+
@@ -1420,7 +1425,7 @@ function buildRecent(){
   for(const [m, arr] of byMonth){
     const label = new Date(m + "-02").toLocaleDateString(undefined, {month:"long", year:"numeric"});
     html += '<section class="cat" id="'+slugify("recent-"+m)+'"><div class="cat-head"><h2>'+esc(label)+'</h2></div><div class="entries">'+
-            arr.map(it => entryHTML(it, it.cat)).join("")+
+            arr.map(it => entryHTML(it, it.cat, true)).join("")+
             '</div><p class="empty" hidden>Nothing here matches.</p></section>';
   }
   if(preApp.length){
