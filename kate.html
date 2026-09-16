@@ -1401,8 +1401,11 @@ function buildDiary(){
 }
 
 function buildRecent(){
-  const dated = ITEMS.filter(it => it.dateAdded).sort((a,b) => b.dateAdded.localeCompare(a.dateAdded));
-  if(!dated.length){
+  const isRealDate = d => /^\d{4}-\d{2}/.test(d);
+  const dated = ITEMS.filter(it => isRealDate(it.dateAdded)).sort((a,b) => b.dateAdded.localeCompare(a.dateAdded));
+  const preApp = ITEMS.filter(it => it.dateAdded === "pre-app")
+    .sort((a,b) => a.house.localeCompare(b.house) || a.name.localeCompare(b.name));
+  if(!dated.length && !preApp.length){
     listEl.innerHTML = '<p class="diary-empty">No dated additions yet — dateAdded is only known for '+
       'fragrances added since this field started being tracked.</p>';
     return;
@@ -1418,6 +1421,12 @@ function buildRecent(){
     const label = new Date(m + "-02").toLocaleDateString(undefined, {month:"long", year:"numeric"});
     html += '<section class="cat" id="'+slugify("recent-"+m)+'"><div class="cat-head"><h2>'+esc(label)+'</h2></div><div class="entries">'+
             arr.map(it => entryHTML(it, it.cat)).join("")+
+            '</div><p class="empty" hidden>Nothing here matches.</p></section>';
+  }
+  if(preApp.length){
+    html += '<section class="cat" id="'+slugify("recent-pre-app")+'"><div class="cat-head"><h2>Before PerfumeOS</h2>'+
+            '<p class="gloss">Added sometime Nov 2025 &ndash; Jun 2026, before dates were tracked. Exact month unknown.</p></div>'+
+            '<div class="entries">'+preApp.map(it => entryHTML(it, it.cat)).join("")+
             '</div><p class="empty" hidden>Nothing here matches.</p></section>';
   }
   listEl.innerHTML = html;
