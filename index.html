@@ -517,6 +517,12 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   color: var(--fg-very-soft);
   letter-spacing: 0.06em;
 }
+.card-added {
+  font-size: 10.5px;
+  color: var(--fg-very-soft);
+  letter-spacing: 0.04em;
+  margin-top: 2px;
+}
 .card-meta {
   display: flex;
   flex-direction: column;
@@ -2518,6 +2524,7 @@ function normalizePerfume(p) {
     oud: p.oud || null,
     perfumer: p.pf || "",
     userAdded: p.userAdded || false,
+    dateAdded: p.dateAdded || "",
   };
 }
 const PERFUMES_SEED = RAW_DATA.perfumes.map(normalizePerfume);
@@ -4090,6 +4097,12 @@ function fmtAge(daysAgo) {
   if (daysAgo < 365) return Math.round(daysAgo / 30) + "mo ago";
   return Math.round(daysAgo / 365) + "y ago";
 }
+// Formats a "YYYY-MM-DD" dateAdded for card display; the "pre-app" sentinel
+// (acquired before this field was tracked) and any blank value render nothing.
+function fmtDateAdded(dateAdded) {
+  if (!dateAdded || !/^\d{4}-\d{2}-\d{2}$/.test(dateAdded)) return null;
+  return new Date(dateAdded + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
 // Recorded-reaction display metadata: word Trevor said → dashboard label + colors.
 const REACTION_META = {
   "very positive": { label: "Loved",    color: "#5a8a5f", bg: "#e8f2e6" },
@@ -4120,6 +4133,7 @@ function Card({ p, onClick, annotation, simScore, trevorMode, excludeTags }) {
         <div className="card-house">{p.house}</div>
         <div className="card-name">{p.name}</div>
         {p.concentration && <div className="card-conc">{p.concentration}</div>}
+        {fmtDateAdded(p.dateAdded) && <div className="card-added">{fmtDateAdded(p.dateAdded)}</div>}
       </div>
       <div className="card-meta">
         <span className="dot" style={{ background: STATUS_COLOR[p.status] }} />
