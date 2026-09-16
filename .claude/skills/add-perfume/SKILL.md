@@ -155,6 +155,8 @@ collection uses lowercase `"les indemodables"` and `"Frederic Malle"` not
 | `m` | mood | `"Air"` / `"Resin"` / `"Bridge"` / `"Classic"` — see formula below |
 | `g` | gender | `"feminine"` / `"masculine"` / `"unisex"` per Fragrantica |
 | `userAdded` | — | always `true` |
+| `pf` | perfumer | set when a specific individual perfumer can be confirmed (manufacturer site, press, Parfumo/Fragrantica) — omit if genuinely undisclosed, and never credit a lab/manufacturer name (Firmenich, Givaudan, IFF, etc.) as the perfumer |
+| `dateAdded` | date this record was added to PerfumeOS | today's date as `"YYYY-MM-DD"` (e.g. Python `datetime.date.today().isoformat()`) — this is when it was added to the collection, not when Katie acquired/started wearing it. Only set on genuinely new records; never touch it on a correction to an existing one |
 
 **Mood formula** (replicates `index.html`'s `scoreNewPerfume`, so hand-added
 records look like ones the app itself would have produced — text is `no`
@@ -235,7 +237,9 @@ auto-scoring against `CATEGORIES` keyword weights (falls to the
 Before committing, in the browser:
 - `kate.html`: total item count increased by exactly the number of perfumes
   added (or unchanged, for a pure correction); each new/changed name search
-  lands in the expected category.
+  lands in the expected category; new records also appear at the top of the
+  **Recent** tab (sorted by `dateAdded`, newest first) — a missing/blank
+  `dateAdded` means Step 3's stamp was skipped.
 - `index.html`: `read_console_messages(onlyErrors:true)` comes back clean;
   spot-check `dominantCategory()` output per Step 4.
 - `git status` / `git diff --stat`: only `perfume-data.js` (always) and

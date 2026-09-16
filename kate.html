@@ -1077,6 +1077,7 @@ for(const p of RAW){
     gender:p.g || null,
     oud:p.oud || null,
     perfumer:p.pf || "",
+    dateAdded:p.dateAdded || "",
     cat:categorize(p)
   };
   ITEMS.push(it);
@@ -1106,7 +1107,7 @@ const PERFUMERS = (() => {
 })();
 
 const TIERS = [{id:"all",label:"All"},{id:"indie",label:"Indie"},{id:"niche",label:"Niche"},
-               {id:"designer",label:"Designer"},{id:"diary",label:"Diary"}];
+               {id:"designer",label:"Designer"},{id:"recent",label:"Recent"},{id:"diary",label:"Diary"}];
 const TIER_LABEL = {indie:"Indie", niche:"Niche", designer:"Designer"};
 
 /* ───────────────────────────────────────────────────────────────────────────
@@ -1399,6 +1400,29 @@ function buildDiary(){
   listEl.innerHTML = html;
 }
 
+function buildRecent(){
+  const dated = ITEMS.filter(it => it.dateAdded).sort((a,b) => b.dateAdded.localeCompare(a.dateAdded));
+  if(!dated.length){
+    listEl.innerHTML = '<p class="diary-empty">No dated additions yet — dateAdded is only known for '+
+      'fragrances added since this field started being tracked.</p>';
+    return;
+  }
+  const byMonth = new Map();
+  for(const it of dated){
+    const m = it.dateAdded.slice(0, 7);
+    if(!byMonth.has(m)) byMonth.set(m, []);
+    byMonth.get(m).push(it);
+  }
+  let html = "";
+  for(const [m, arr] of byMonth){
+    const label = new Date(m + "-02").toLocaleDateString(undefined, {month:"long", year:"numeric"});
+    html += '<section class="cat" id="'+slugify("recent-"+m)+'"><div class="cat-head"><h2>'+esc(label)+'</h2></div><div class="entries">'+
+            arr.map(it => entryHTML(it, it.cat)).join("")+
+            '</div><p class="empty" hidden>Nothing here matches.</p></section>';
+  }
+  listEl.innerHTML = html;
+}
+
 function buildTabs(){
   tiersEl.innerHTML = TIERS.map(t =>
     '<button class="tier" role="tab" data-tier="'+t.id+'" aria-selected="'+(t.id===tier)+'">'+t.label+'</button>'
@@ -1407,9 +1431,12 @@ function buildTabs(){
 
 function render(){
   const diary = tier === "diary";
+  const recent = tier === "recent";
   toolbarEl.hidden = diary;
-  catnavEl.hidden = diary;
-  if(diary){ catnavEl.innerHTML = ""; buildDiary(); } else buildList();
+  catnavEl.hidden = diary || recent;
+  if(diary){ catnavEl.innerHTML = ""; buildDiary(); }
+  else if(recent){ catnavEl.innerHTML = ""; buildRecent(); }
+  else buildList();
   apply();
 }
 
@@ -1458,6 +1485,7 @@ tiersEl.addEventListener("click", e => {
   const btn = e.target.closest(".tier");
   if(!btn) return;
   tier = btn.dataset.tier;
+  if(tier === "recent" || tier === "diary") activeCat = null;
   tiersEl.querySelectorAll(".tier").forEach(b => b.setAttribute("aria-selected", String(b === btn)));
   render();
   window.scrollTo({top:0, behavior:"smooth"});
