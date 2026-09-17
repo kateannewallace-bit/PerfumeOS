@@ -5408,6 +5408,13 @@ function CollectionView({ onSelect, wearStats, perfumes }) {
         if (sort === "house") return a.house.localeCompare(b.house) * dir;
         if (sort === "name") return a.name.localeCompare(b.name) * dir;
         if (sort === "rating") return ((b.rating||0)-(a.rating||0)) * dir;
+        if (sort === "dateAdded") {
+          const da = a.dateAdded || "", db = b.dateAdded || "";
+          if (!da && !db) return 0;
+          if (!da) return 1;  // missing dates always sort last, regardless of direction
+          if (!db) return -1;
+          return db.localeCompare(da) * dir; // desc (default) = newest first, matching By Rating's "best first" convention
+        }
         // "By Trevor (on you)": recorded reactions always rank above heuristic
         // predictions (regardless of direction), then by score within each tier.
         if (sort === "safeScore") {
@@ -5483,6 +5490,7 @@ function CollectionView({ onSelect, wearStats, perfumes }) {
         <option value="rating">By Rating</option>
         <option value="house">By House</option>
         <option value="name">By Name</option>
+        <option value="dateAdded">By Date Added</option>
       </select><button type="button" className={`toggle ${sortDir === "asc" ? "active" : ""}`} style={{marginTop:4,padding:"6px 4px",fontSize:11}} onClick={() => setSortDir(d => d === "desc" ? "asc" : "desc")}>{sortDir === "desc" ? "↓ Best / High first" : "↑ Worst / Low first"}</button></label>
       <button className={`toggle ${triedOnly ? "active" : ""}`} onClick={() => setTriedOnly(t => !t)}>Tried Only</button>
       {CONFIG.partnerName && <button className={`toggle ${trevorOnly ? "active" : ""}`} onClick={() => setTrevorOnly(t => !t)}>{CONFIG.partnerName} on you ✓</button>}
