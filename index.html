@@ -7059,7 +7059,13 @@ function DataVizView({ perfumes, wearLog, onSelect }) {
       if(matchesAllExcept(it, "house")) houseCounts.set(it.p.house, (houseCounts.get(it.p.house)||0)+1);
       if(matchesAllExcept(it, "genre")) genreCounts.set(it.genre, (genreCounts.get(it.genre)||0)+1);
       if(matchesAllExcept(it, "perfumer") && it.p.perfumer) perfumerCounts.set(it.p.perfumer, (perfumerCounts.get(it.p.perfumer)||0)+1);
-      if(matchesAllExcept(it, "note")){
+      // Notes are AND'd (a perfume must have ALL selected notes), so the note
+      // panel itself must NOT exclude the note filter the way the other three
+      // facets do — otherwise it would keep offering notes that can't
+      // actually combine with what's already picked, leading to a dead-end
+      // zero-result combination. Use the fully-filtered set instead: once
+      // Iris is selected, only notes that co-occur with Iris remain choosable.
+      if(matchesAll(it)){
         const set = noteMode === "verbatim" ? it.verbatimSet : it.canonSet;
         for(const n of set) noteCounts.set(n, (noteCounts.get(n)||0)+1);
       }
