@@ -1624,6 +1624,28 @@ select:focus, input:focus, textarea:focus, button:focus-visible {
   margin-top: 2px;
 }
 
+/* ─── DATA VIZ ────────────────────────────────────────────────────────────── */
+.dv-combobox { position: relative; }
+.dv-panel {
+  position: absolute; top: calc(100% + 2px); left: 0; right: 0; z-index: 20;
+  max-height: 280px; overflow-y: auto;
+  background: #fff; border: 1px solid var(--border);
+  box-shadow: 0 8px 20px rgba(0,0,0,.08);
+}
+.dv-option {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 14px; font-size: 13px; color: var(--fg-mute); cursor: pointer;
+}
+.dv-option:hover, .dv-option.selected { background: var(--bg-soft); color: var(--fg); }
+.dv-option .dv-count { margin-left: auto; font-size: 11px; color: var(--fg-soft); }
+.dv-empty { padding: 14px; font-size: 13px; color: var(--fg-soft); font-style: italic; }
+.dv-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.dv-table th, .dv-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+.dv-table th { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--fg-soft); cursor: pointer; user-select: none; white-space: nowrap; }
+.dv-table th.active { color: var(--gold); }
+.dv-table td.num, .dv-table th.num { text-align: right; }
+.dv-table tbody tr:hover { background: var(--bg-soft); cursor: pointer; }
+.dv-sub { display: block; font-size: 11px; color: var(--fg-soft); }
 
 </style>
 </head>
@@ -2558,6 +2580,803 @@ function activeWishlistSeed() {
   const removed = new Set(_loadWishlistRemoved());
   return WISHLIST_SEED.filter(s => !removed.has(_wlKey(s)));
 }
+
+/* ───────────────────────────────────────────────────────────────────────
+   KATE'S BY-GENRE TAXONOMY — ported from kate.html so the Data Viz tab's
+   Genre grouping matches the By Genre page exactly (same CATEGORIES
+   keyword scoring, same RECATEGORIZE overrides). Operates on the
+   normalized perfume shape (house/name/family/notes/tags) rather than
+   the raw compact record kate.html uses, since that's what's already
+   in hand here for both seed AND user-added perfumes.
+   ─────────────────────────────────────────────────────────────────────── */
+const kateNorm = s => (s||"").toLowerCase();
+function kateHasWord(hay, needle){
+  let from = 0;
+  for(;;){
+    const i = hay.indexOf(needle, from);
+    if(i === -1) return false;
+    const before = i === 0 ? " " : hay[i-1];
+    const after  = i + needle.length >= hay.length ? " " : hay[i + needle.length];
+    if(!/[a-z]/.test(before) && !/[a-z]/.test(after)) return true;
+    from = i + 1;
+  }
+}
+const kateKeyOf = p => p.house + " — " + p.name;
+function kateProfileText(p){
+  const name  = kateNorm(p.name);
+  const fam   = kateNorm(p.family);
+  const notes = kateNorm(p.notes);
+  const tags  = (p.tags||[]).map(kateNorm).join(" · ");
+  return [name, fam, notes, tags].join(" · ")
+    .replace(/violet leaf/g, "violetleaf")
+    .replace(/cherry blossom/g, "cherryblossom");
+}
+
+const CATEGORIES = [
+ {name:"Rice", prio:1,
+  gloss:"Rice powder, rice steam, the milky-starchy skin-scent register.",
+  keys:{"rice powder":8,"rice steam":8,"rice":6,"rice milk":8}},
+
+ {name:"Solar", prio:2,
+  gloss:"Monoi, coconut, tiaré — suntan lotion on warm skin.",
+  keys:{"monoi":8,"tiare":7,"tiaré":7,"coconut water":6,"coconut":4,"suntan":8,"solar":8,
+        "frangipani":3,"plumeria":3}},
+
+ {name:"Peach", prio:2.5,
+  gloss:"White peach, fuzzy skin, a little powdery.",
+  keys:{"white peach":9,"peach":7,"apricot":3,"peach skin":9}},
+
+ {name:"Tea", prio:2.7,
+  gloss:"Black tea, matcha, lapsang — the leaf itself, not a garnish.",
+  keys:{"tea":6,"black tea":8,"green tea":7,"white tea":7,"oolong":8,"oolong tea":8,"matcha":8,
+        "rooibos":7,"mate":6,"maté":6,"yerba mate":8,"chai":7,"masala chai":8,"earl grey":8,
+        "lapsang":8,"lapsang souchong":9,"darjeeling":8,"ceylon tea":8,"smoked tea":8,
+        "tea leaf":7,"tea leaves":7}},
+
+ {name:"Dirty Sexy", prio:3,
+  gloss:"Animalic and resinous in the same breath — feminine, not clean.",
+  keys:{}},
+
+ {name:"Leather", prio:5,
+  gloss:"Birch tar, cade, suede, saffron and hide.",
+  keys:{"leather":8,"leathery":8,"birch tar":9,"cade":8,"cade oil":9,"tanned":7,"morocco leather":9,
+        "tuscan leather":9,"saffiano":9,"smoked leather":9,"black leather":9,"white leather":7,"cuir":9,
+        "hide":6,"rubber":5,"vinyl":6}},
+
+ {name:"Tart Fruit", prio:6,
+  gloss:"Grapefruit, rhubarb, sour berry — bright and puckering, not sweet.",
+  keys:{"rhubarb":8,"grapefruit":6,"tart":6,"gooseberry":7,"currant":5,"blackcurrant":5,
+        "cranberry":6,"sour cherry":6,"pomelo":4,"kumquat":5}},
+
+ {name:"Citrus-Vetiver", prio:7,
+  gloss:"Vetiver root braced with citrus — dry, not juicy.",
+  keys:{"vetiver":7,"vetyver":7,"bergamot":3,"grapefruit":2,"lemon":2,"citrus":2,"lime":2}},
+
+ {name:"Saffron", prio:6.5,
+  gloss:"Saffron as the star, not a supporting spice.",
+  keys:{"saffron":9,"saffron accord":9}},
+
+ {name:"Fig", prio:7.4,
+  gloss:"Green fig, milky sap — not the leaf, the fruit.",
+  keys:{"fig":8,"fig accord":8,"green fig":9,"fig leaf":1}},
+
+ {name:"Geranium", prio:7.6,
+  gloss:"Geranium as the anchor, rosy-green and slightly minty.",
+  keys:{"geranium":8,"geranium leaf":8}},
+
+ {name:"Green Vanilla", prio:7.65,
+  gloss:"Vanilla against galbanum and green stems — not gourmand, not resinous, just green sweetness.",
+  keys:{"green vanilla":9}},
+
+ {name:"Classic Floral Aldehyde", prio:7.7,
+  gloss:"Powdery aldehydic bouquets in the No. 5 lineage — soapy sparkle over a big multi-floral heart.",
+  keys:{"aldehyde bouquet":8}},
+
+ {name:"Osmanthus", prio:7.85,
+  gloss:"Osmanthus as the lead — apricot-leather, tea-like, not just a supporting floral.",
+  keys:{"osmanthus":8,"osmanthus absolute":9,"apricot":3,"nectarine":3}},
+
+ {name:"Cherry", prio:7.8,
+  gloss:"Cherry up front — bitter almond, liqueur, the fruit itself, not the blossom.",
+  keys:{"cherry":8,"cherry accord":8,"cherry liqueur":9,"black cherry":8,"sour cherry":8,
+        "morello cherry":8,"cherry wine":7,"cherry liquor":9,"cherry pie":7}},
+
+ {name:"Conifer & Forest Floor", prio:8,
+  gloss:"Fir, pine resin, damp moss, soil, mushroom.",
+  keys:{"fir":7,"balsam fir":7,"douglas fir":7,"silver fir":7,"pine":6,"pine needle":7,"spruce":7,
+        "larch":7,"tamarack":7,"cypress":4,"hinoki":6,"coniferous":7,"conifer":7,"sandarac":5,"lichen":6,
+        "forest floor":8,"wet soil":5,"mushroom":6,"morel":8,"porcini":8,"bamboo":3,"sawdust":5,
+        "cedar planks":5,"terebinth":3,"fern":2,"moss":1,"mossy":1}},
+
+ {name:"Big, Sexy Tuberose & Jasmine", prio:9,
+  gloss:"White florals with volume — tuberose, jasmine, gardenia, ylang.",
+  keys:{"tuberose":9,"jasmine":8,"jasmine sambac":8,"gardenia":8,"ylang":6,"ylang-ylang":6,
+        "white floral":6,"white flowers":5,"orange blossom":3,"magnolia":3,"honeysuckle":3,
+        "lily of the valley":2,"muguet":2,"neroli":1}},
+
+ {name:"Lolita Lempicka–Adjacent Gourmands", prio:10,
+  gloss:"Anise, violet, powdered vanilla — candied and a little witchy.",
+  keys:{"anise":6,"liquorice":6,"licorice":6,"star anise":5,"violet":3,"iris":2,"powder":3,
+        "powdery":3,"vanilla":2,"almond":2}},
+
+ {name:"Iris", prio:11,
+  gloss:"Iris root — cold, carroty, suede-adjacent powder.",
+  keys:{"iris":9,"orris":9,"orris butter":9,"iris pallida":9,"iris germanica":9,"lipstick iris":8,
+        "carrot seed":4,"orris concrete":9}},
+
+ {name:"Violet", prio:12,
+  gloss:"Violet flower — powdery, not candied. Violet leaf alone reads green, not violet.",
+  keys:{"violet":9}},
+
+ {name:"Heliotrope", prio:12.5,
+  gloss:"Almond-powder haze — heliotrope's own thing, not violet's.",
+  keys:{"heliotrope":9,"marzipan":4}},
+
+ {name:"Rose", prio:13,
+  gloss:"Rose as the star, not a supporting note.",
+  keys:{"rose":9,"damask rose":9,"centifolia":8,"turkish rose":8,"bulgarian rose":8,
+        "rose absolute":8,"rose otto":8}},
+
+ {name:"Earth", prio:14,
+  gloss:"Wet plaster, soil, petrichor — the ground itself, not the animal on it.",
+  keys:{"civet":9,"castoreum":9,"hyraceum":9,"costus":7,"cumin":7,"indolic":7,"skatole":9,
+        "wet plaster":9,"concrete":7,"gasoline":9,"petrol":9,"kombucha":7,"lovage":7,
+        "pencil":6,"antique iron":7,"snake plant":6,"clay":4,"soil":3,"wet earth":5}},
+
+ {name:"Pepper & Spice", prio:13.5,
+  gloss:"Black and pink pepper, cardamom, clove, nutmeg — dry spice, not gourmand.",
+  keys:{"black pepper":5,"pink pepper":5,"peppercorn":5,"timur":6,"sichuan pepper":6,"szechuan":6,
+        "pepper wood":6,"white pepper":5,"cardamom":4,"clove":4,"nutmeg":4,"cinnamon":3,
+        "cassia":4,"turmeric":4,"coriander":4,"caraway":4,"ginger":2,"star anise":3,"anise":3,
+        "licorice":4,"liquorice":4,"rooibos":5,"wasabi":6,"spicy":1,"spices":1}},
+
+ {name:"Amber", prio:14.5,
+  gloss:"Amber and its raw materials — rockrose, cistus, labdanum — warm and resinous, without oud or tobacco leading.",
+  keys:{"amber":7,"amber accord":8,"ambered":6,"labdanum":8,"rockrose":8,"cistus":8,"ambery":2,"amber resin":3}},
+
+ {name:"Oud", prio:14.8,
+  gloss:"Agarwood as the lead — the note itself, not a supporting accord in someone else's oriental.",
+  keys:{"oud":9,"agarwood":9,"oudh":8,"agar wood":8}},
+
+ {name:"Sexy Resinous Powdery", prio:15,
+  gloss:"Amber, oud, tobacco and powder together — opulent, boozy-warm.",
+  keys:{"oud":6,"agarwood":5,"tobacco":5,"amber":3,"resin":3,"resinous":3,"benzoin":3,"styrax":3,
+        "powder":3,"powdery":3,"vanilla":1,"boozy":3,"cognac":4,"rum":4}},
+
+ {name:"Smoke & Incense", prio:16,
+  gloss:"Frankincense, myrrh, labdanum, burning wood.",
+  keys:{"incense":5,"olibanum":6,"frankincense":6,"myrrh":5,"opoponax":4,"copal":7,"smoke":6,"smoky":6,
+        "wood smoke":8,"pine smoke":8,"firewood smoke":8,"smouldering":6,"smoldering":6,"lapsang":7,
+        "cypriol":4,"papyrus":4,"oud":4,"agarwood":4,"dukhan":6,"torrefied":6,"candlewax":4,
+        "melted wax":4,"church incense":8,"nag champa":5,"gunpowder":4,"resinous":2,"labdanum":1}},
+
+ {name:"Salt, Stone & Cold Water", prio:17,
+  gloss:"Sea salt, wet rock, ozone, cold metal.",
+  keys:{"sea salt":6,"salt":5,"salted":5,"marine":6,"seaweed":5,"algae":5,"samphire":5,"sargassum":5,
+        "aquatic":5,"ozonic":4,"ocean":5,"sea water":6,"mineral":6,"lava":6,"limestone":5,"flint":4,
+        "petrichor":5,"cold metal":6,"metallic":4,"driftwood":3,"seashell":5,"kelp":5,"pacific":4,
+        "coastal":4,"rain":3,"wet lava rock":6}},
+
+ {name:"Skin Musk & Ambergris", prio:18,
+  gloss:"Ambrette, Iso E, ambroxan, sandalwood. Barely a perfume.",
+  keys:{"skin musk":9,"ambrette":5,"ambrettolide":6,"muscone":6,"muscenone":6,"ambroxan":4,"ambrox":4,
+        "ambergris":5,"ambrofix":4,"iso e super":6,"orcanox":5,"cetalox":5,"timbersilk":5,"ambermax":5,
+        "civettone":3,"white musk":2,"musk":1,"skin":4}},
+
+ {name:"Young Florals", prio:19,
+  gloss:"Light, fresh, unfussy florals — nothing heavy about them.",
+  keys:{"young fresh":8,"fresh floral":5,"citrus floral":4}},
+
+ {name:"Spicy Dry Vanilla", prio:19.5,
+  gloss:"Vanilla as spice and resin, not dessert — cardamom, frankincense, saffron, calamus.",
+  keys:{"bourbon vanilla":3,"vanilla":2,"calamus":6,"cypriol":5,"nagarmotha":5}},
+
+ {name:"Sweet Gourmand", prio:20,
+  gloss:"Caramel, toffee, sugar — dessert, not resin.",
+  keys:{"caramel":6,"praline":7,"toffee":7,"cotton candy":7,"bubble gum":7,"marshmallow":6,
+        "sugar":5,"condensed milk":6,"coffee":3,"cacao":3,"chocolate":3,"honey":2}},
+
+ {name:"Neroli & Orange Blossom", prio:20.5,
+  gloss:"Orange blossom and neroli as the anchor, not a supporting citrus-floral note.",
+  keys:{"neroli":6,"orange blossom":6,"fleur d'oranger":7,"orange flower":6}},
+
+ {name:"Bitter Citrus & Cologne", prio:21,
+  gloss:"Grapefruit rind, yuzu, petitgrain, oakmoss.",
+  keys:{"grapefruit":6,"pomelo":6,"yuzu":6,"petitgrain":6,"bigarade":6,"bitter orange":6,"citron":5,
+        "cedrat":7,"cédrat":7,"cologne":7,"hesperidic":5,"citrus":4,"bergamot":2,"lemon":2,"lime":2,
+        "mandarin":1,"myrtle":3,"blood orange":2,"orange peel":2}},
+
+ {name:"Juicy Citrus", prio:22,
+  gloss:"Mandarin, orange, tangerine — sweet and ripe, not dry.",
+  keys:{"mandarin":6,"orange":4,"tangerine":6,"blood orange":5,"clementine":6}},
+
+ {name:"Green, Herbal & Fougère", prio:23,
+  gloss:"Lavender, artemisia, fern, basil, crushed stems.",
+  keys:{"fougere":8,"fougère":8,"lavender":6,"lavandin":6,"artemisia":6,"wormwood":6,"absinthe":6,
+        "fern":5,"galbanum":4,"violetleaf":5,"thyme":4,"rosemary":4,"clary sage":4,"sage":3,"basil":5,"mint":4,
+        "peppermint":4,"spearmint":4,"shiso":4,"verbena":4,"tarragon":4,"cannabis":7,"turpentine":7,
+        "celery":5,"fennel":3,"hay":5,"clover":4,"sweet grass":4,"green tea":3,"herbal":5,"camphor":4,
+        "eucalyptus":3,"fig leaf":4,"tomato leaf":5,"gentiana":4,"green":1}},
+
+ {name:"Dry Woods & Vetiver", prio:24,
+  gloss:"Cedar, sandalwood, guaiac, vetiver root.",
+  keys:{"vetiver":6,"vetyver":6,"sandalwood":5,"cedarwood":4,"cedar":3,"guaiac":5,"gaiac":5,
+        "akigalawood":5,"amyris":4,"mahogany":6,"maplewood":6,"okoumé":6,"okoume":6,"sequoia":6,
+        "rosewood":4,"blond woods":4,"blonde woods":4,"siam wood":4,"hiba":4,"ho wood":4,"palo santo":4,
+        "varnish":7,"patchouli":2,"cashmeran":2,"cashmere wood":2,"woody":1}}
+];
+const RECATEGORIZE = {
+  "Carolina Herrera — Good Girl Blush": "Sweet Gourmand",
+  "Clean Reserve — Whipped Cherry": "Cherry",
+  "Versace — Man Eau Fraiche": "Bitter Citrus & Cologne",
+  "Matière Première — Vanilla Powder Extrait": "Sweet Gourmand",
+  "Matière Première — Crystal Saffron Extrait": "Saffron",
+  "Matière Première — Radical Rose Extrait": "Rose",
+  "Frederic Malle — L'Eau d'Hiver": "Iris",
+  "Essential Parfums — Ambre Latte": "Sweet Gourmand",
+  "Le Labo — Oud 27": "Oud",
+  "Diptyque — Oud Palao": "Oud",
+  "Gucci — Nocturnal whisper": "Oud",
+  "Etat Libre d'Orange — Divin'Enfant": "Leather",
+  "Matière Première — Oud Seven": "Oud",
+  "Serge Lutens — Daim Blond": "Leather",
+  "Rania J. — Oud Assam": "Oud",
+  "Caron — Tabac Blond": "Leather",
+  "Nicolai — Amber Oud": "Amber",
+  "Nicolai — Rose Oud": "Rose",
+  "Carolina Herrera — Oud Couture": "Oud",
+  "Mizensir — Original Oud": "Oud",
+  "Maison Francis Kurkdjian — Oud Satin Mood": "Oud",
+  "Thameen — Bravi": "Big, Sexy Tuberose & Jasmine",
+  "Zeromolecole — Nèh": "Violet",
+  "Parfums de Nicolaï — Cuir Cuba Intense": "Leather",
+  "Frederic Malle — Lys Méditerranée": "Salt, Stone & Cold Water",
+  "Serge Lutens — Nuit de Cellophane": "Osmanthus",
+  "Papillon artisan perfumes — Hera": "Big, Sexy Tuberose & Jasmine",
+  "Caron — Montaigne": "Sweet Gourmand",
+  "Rundholz — Feb. 14, 1912": "Iris",
+  "Bohoboco — Vanilla Black Pepper": "Pepper & Spice",
+  "Marc-Antoine Barrois — Tilia": "Young Florals",
+  "Chanel — Comete": "Lolita Lempicka–Adjacent Gourmands",
+  "Dries Van Noten — Velvet Violet": "Violet",
+  "Annick Goutal — La Violette": "Violet",
+  "Histoires de Parfums — Blanc Violette": "Violet",
+  "Maison Crivelli — Tubéreuse Astrale": "Big, Sexy Tuberose & Jasmine",
+  "Bon Parfumeur — 502 Iris Cartagena": "Iris",
+  "Sammarco — Alter": "Big, Sexy Tuberose & Jasmine",
+  "Universal Flowering — Seduction Theory": "Big, Sexy Tuberose & Jasmine",
+  "Diptyque — Eau Rihla": "Leather",
+  "Miller Harris — Myrica Muse": "Tart Fruit",
+  "Penhaligon's — Changing Constance": "Sweet Gourmand",
+  "Penhaligon's — Changing Constance Intense": "Sweet Gourmand",
+  "BDK — 312 Saint-Honore": "Skin Musk & Ambergris",
+  "Guerlain — Mon Guerlain": "Sweet Gourmand",
+  "Hermès — Hermessence Brin de Réglisse": "Green, Herbal & Fougère",
+  "Robert Piguet — V": "Rose",
+  "Yves Saint Laurent — Libre": "Green, Herbal & Fougère",
+  "Yves Saint Laurent — Jumpsuit": "Young Florals",
+  "Room 1015 — Sweet Leaf": "Citrus-Vetiver",
+  "Byredo — Open Sky": "Citrus-Vetiver",
+  "Masque Milano — L'Attesa": "Iris",
+  "Frederic Malle — Iris Poudre": "Iris",
+  "Le Labo — Iris 39": "Iris",
+  "Santa Maria Novella — L'Iris": "Iris",
+  "Byredo — Future Memories": "Iris",
+  "Houbigant — Iris des Champs": "Iris",
+  "Gisada — Donna": "Iris",
+  "Ex Nihilo — Fleur narcotique": "Peach",
+  "Memo Paris — Marfa": "Peach",
+  "Caron — Lady Caron": "Peach",
+  "Jimmy Choo — I Want Choo": "Peach",
+  "L'Artisan Parfumeur — A Fleur de Peche": "Peach",
+  "Ex Nihilo — Fleur Narcotique Extrait": "Young Florals",
+  "Kilian — Good Girl Gone Bad": "Osmanthus",
+  "Penhaligon's — Orange Blossom": "Neroli & Orange Blossom",
+  "Maison Francis Kurkdjian — APOM": "Neroli & Orange Blossom",
+  "Miller Harris — Lumiere doree": "Neroli & Orange Blossom",
+  "Parfums de Marly — Athénaïs": "Neroli & Orange Blossom",
+  "Serge Lutens — Fleurs d'oranger": "Neroli & Orange Blossom",
+  "Le Labo — Aldehyde 44": "Classic Floral Aldehyde",
+  "Maison Francis Kurkdjian — 724": "Classic Floral Aldehyde",
+  "Byredo — Bois Obscur": "Sexy Resinous Powdery",
+  "Miller Harris — Soufflot": "Sexy Resinous Powdery",
+  "Caron — Infini": "Sexy Resinous Powdery",
+  "Caron — Fleur de Rocaille": "Classic Floral Aldehyde",
+  "Juliette Has a Gun — musc invisible": "Skin Musk & Ambergris",
+  "Penhaligon's — Bluebell": "Young Florals",
+  "Frederic Malle — En Passant": "Young Florals",
+  "Frederic Malle — Synthetic Nature": "Green, Herbal & Fougère",
+  "Penhaligon's — Solaris": "Solar",
+  "Byredo — Sundazed": "Sweet Gourmand",
+  "Parfums de Marly — Meliora": "Tart Fruit",
+  "Creed — Aventus for her": "Tart Fruit",
+  "Diptyque — Eau Moheli": "Pepper & Spice",
+  "Jo Malone — Vanilla and Anise Cologne": "Lolita Lempicka–Adjacent Gourmands",
+  "Nishane — Hundred Silent Ways": "Sweet Gourmand",
+  "Houbigant — Quelques Fleurs royale": "Classic Floral Aldehyde",
+  "Santa Maria Novella — Angels of Florence": "Young Florals",
+  "Danner & Flemming — Iris Altesse": "Iris",
+  "Ledda — 14 Isla Coco": "Solar",
+  "Universal Flowering — Venus in Tuberose": "Tart Fruit",
+  "Puredistance — No. 12": "Iris",
+  "Etat Libre d'Orange — True Lust": "Violet",
+  "Rogue Perfumery — Flos Mortis": "Big, Sexy Tuberose & Jasmine",
+  "Sammarco — Ariel": "Big, Sexy Tuberose & Jasmine",
+  "Sammarco — Naias": "Violet",
+  "Bienaimé — Fleurs d'Été": "Heliotrope",
+  "J-Scent — Sumo Wrestler": "Heliotrope",
+  "J-Scent — Hanamachi": "Heliotrope",
+  "Lorenzo Villoresi — Teint de Neige": "Heliotrope",
+  "Marissa Zappas — Annabel's Birthday Cake": "Heliotrope",
+  "Parfums de Nicolaï — Kiss Me Intense": "Heliotrope",
+  "Matière Première — Neroli Oranger": "Neroli & Orange Blossom",
+  "Hellenist — Le Chant d'Achille": "Neroli & Orange Blossom",
+  "les indemodables — Oranger Sirocco": "Neroli & Orange Blossom",
+  "Puredistance — I (No. 01)": "Neroli & Orange Blossom",
+  "Imaginary Authors — First Peach of the Season": "Peach",
+  "Maison Mataha — Peche Velours": "Peach",
+  "Régime des Fleurs — Crushed Fruits": "Peach",
+  "Bohoboco — Coffee White Flowers": "Sweet Gourmand",
+  "French Cowboy — Pear Pavlova": "Sweet Gourmand",
+  "les indemodables — Ambre Suprême": "Amber",
+  "Ormonde Jayne — Ambre Royal": "Amber",
+  "Ormonde Jayne — Ta'if": "Rose",
+  "Etat Libre d'Orange — Dangerous Complicity": "Leather",
+  "Naomi Goodsir — Nuit de Bakélite": "Leather",
+  "Thin Wild Mercury — Laurel Canyon, 1966": "Leather",
+  "Essential Parfums — Nice Bergamote": "Bitter Citrus & Cologne",
+  "Heeley — St Clement's": "Bitter Citrus & Cologne",
+  "Meo Fusciuni — Viole Nere": "Violet",
+  "Maison Crivelli — Santal Volcanique": "Dry Woods & Vetiver",
+  "Oriza L. Legrand — Apothéose": "Green, Herbal & Fougère",
+  "Régime des Fleurs — Glass Blooms": "Green, Herbal & Fougère",
+  "Thin Wild Mercury — Zuma, 1975": "Salt, Stone & Cold Water",
+  "Chris Collins — African rooibos": "Tea",
+  "DS & Durga — Black Magenta": "Sexy Resinous Powdery",
+  "DS & Durga — Debaser": "Fig",
+  "Thin Wild Mercury — Girl of the Year": "Leather",
+  "Heretic — Midnight Toker": "Leather",
+  "Oriza L. Legrand — Violettes du Czar": "Violet",
+  "Sammarco — Yael": "Amber",
+  "Maison Violet — Un Air d'Apogée": "Lolita Lempicka–Adjacent Gourmands",
+  "Oriza L. Legrand — Gentry Jockey Club": "Leather",
+  "Marissa Zappas — Maggie the Cat is Alive, I'm Alive!": "Peach",
+  "Régime des Fleurs — Swans": "Peach",
+  "Bienaimé — La Vie En Fleurs": "Heliotrope",
+  "Bienaimé — Vermeil": "Heliotrope",
+  "Imaginary Authors — Yesterday Haze": "Fig",
+  "Papillon artisan perfumes — Angélique": "Osmanthus",
+  "Perfumer H — Heliotrope": "Heliotrope",
+  "Puredistance — Antonia (No. 02)": "Peach",
+  "Oriza L. Legrand — Œillet Louis XV": "Pepper & Spice",
+  "Régime des Fleurs — Tears": "Neroli & Orange Blossom",
+  "Régime des Fleurs — Palo Santo Halo": "Smoke & Incense",
+  "Room 1015 — Electric Wood": "Dry Woods & Vetiver",
+  "Les Bains Guerbois — 1978": "Classic Floral Aldehyde",
+  "Liis — Of True Minds": "Sexy Resinous Powdery",
+  "Vilhelm Parfumerie — Poets of Berlin": "Sweet Gourmand",
+  "Thin Wild Mercury — 34 Bohemian Cafes": "Leather",
+  "Ulrich Lang — 17 Nandan Road": "Osmanthus",
+  "Chanel — N° 5 L'Eau": "Classic Floral Aldehyde",
+  "Etro — Heliotrope": "Heliotrope",
+  "Gucci — Fiori de neroli": "Neroli & Orange Blossom",
+  "The Body Shop — Full Orange Blossom": "Neroli & Orange Blossom",
+  "Lolita Lempicka — Lolitaland": "Lolita Lempicka–Adjacent Gourmands",
+  "Lolita Lempicka — Mon Eau": "Lolita Lempicka–Adjacent Gourmands",
+  "Cacharel — LouLou": "Lolita Lempicka–Adjacent Gourmands",
+  "Guerlain — L'Heure Bleue": "Lolita Lempicka–Adjacent Gourmands",
+  "Kiehl's — Original Musk": "Skin Musk & Ambergris",
+  "Narciso Rodriguez — Pure musc": "Skin Musk & Ambergris",
+  "Zadig & Voltaire — This is Her! Undressed": "Skin Musk & Ambergris",
+  "Gucci — Ylang Ambrato": "Amber",
+  "Guerlain — Spiritueuse Double Vanille": "Sexy Resinous Powdery",
+  "Juicy Couture — Viva la Juicy": "Sweet Gourmand",
+  "Chanel — Bois des Iles": "Dry Woods & Vetiver",
+  "Chloé — Love Story": "Neroli & Orange Blossom",
+  "Hanae Mori — Butterfly": "Tart Fruit",
+  "Marc Jacobs — Daisy": "Young Florals",
+  "Narciso Rodriguez — Narciso ambree": "Amber",
+  "Narciso Rodriguez — Musc rose noir": "Rose",
+  "Tom Ford — Cafe Rose": "Rose",
+  "Yves Saint Laurent — Mon Paris": "Young Florals",
+  "Tocca — Simone": "Solar",
+  "Chanel — 31 Rue Cambon": "Iris",
+  "Miu Miu — Miutine": "Young Florals",
+  "Guerlain — Musc Outreblanc": "Skin Musk & Ambergris",
+  "Celine — La Peau nue": "Rice",
+  "Chanel — Chance Eau Splendide": "Violet",
+  "Gucci — A kiss from violet": "Violet",
+  "Gucci — The virgin violet": "Violet",
+  "Celine — Saint Germain des pres": "Heliotrope",
+  "Guerlain — Patchouli Paris": "Sexy Resinous Powdery",
+  "Guerlain — Tonka Impériale": "Sweet Gourmand",
+  "The Body Shop — White Musk": "Skin Musk & Ambergris",
+  "Calvin Klein — CK One": "Bitter Citrus & Cologne",
+  "Celine — Nightclubbing": "Sexy Resinous Powdery",
+  "Celine — Bois dormant": "Dry Woods & Vetiver",
+  "Celine — Black tie": "Sexy Resinous Powdery",
+  "Celine — Eau de Californie": "Sexy Resinous Powdery",
+  "Celine — Cologne francaise": "Neroli & Orange Blossom",
+  "Chanel — 1957": "Neroli & Orange Blossom",
+  "Dolce & Gabbana — The only One": "Heliotrope",
+  "Gucci — Generous Violet": "Violet",
+  "Guerlain — Insolence": "Violet",
+  "Guerlain — French Kiss": "Violet",
+  "Marc Jacobs — Daisy Love Eau So Sweet": "Sweet Gourmand",
+  "Prada — Tainted love": "Peach",
+  "Le Labo — Ambrette 9": "Skin Musk & Ambergris",
+  "Dedcool — Fragrance 03 blonde": "Violet",
+  "Frederic Malle — Lipstick Rose": "Violet",
+  "Le Labo — The Matcha 26": "Tea",
+  "Le Labo — Fleur D’Oranger": "Neroli & Orange Blossom",
+  "Diptyque — Eau des Sens": "Neroli & Orange Blossom",
+  "Diptyque — L'Eau de Neroli": "Neroli & Orange Blossom",
+  "Penhaligon's — Racquets": "Dry Woods & Vetiver",
+  "Penhaligon's — Highgrove Bouquet": "Geranium",
+  "Annick Goutal — Nuit et confidences": "Sexy Resinous Powdery",
+  "Brunello Cucinelli — Brezza Gentile": "Amber",
+  "Byredo — Sunday Cologne": "Pepper & Spice",
+  "Commodity — Moss": "Green, Herbal & Fougère",
+  "Diptyque — Vetyverio": "Citrus-Vetiver",
+  "Jo Malone — Silver Birch and Lavender": "Green, Herbal & Fougère",
+  "L'Artisan Parfumeur — Mure et Musc Extreme": "Skin Musk & Ambergris",
+  "Serge Lutens — Rahät Loukoum": "Lolita Lempicka–Adjacent Gourmands",
+  "Penhaligon's — Cairo": "Sexy Resinous Powdery",
+  "Penhaligon's — Halfeti": "Sexy Resinous Powdery",
+  "Le Labo — Geranium 33": "Geranium",
+  "Maison Margiela Replica — Bubble Bath": "Skin Musk & Ambergris",
+  "Annick Goutal — Petite Chérie": "Young Florals",
+  "Caron — Santal Précieux": "Dry Woods & Vetiver",
+  "Diptyque — Ôponé": "Saffron",
+  "Diptyque — Kyoto": "Smoke & Incense",
+  "Frederic Malle — Promise": "Sexy Resinous Powdery",
+  "Frederic Malle — Contre-Jour": "Pepper & Spice",
+  "Jo Malone — Peony and Blush Suede": "Young Florals",
+  "L'Artisan Parfumeur — Abyssae": "Rose",
+  "Byredo — Eleventh Hour": "Pepper & Spice",
+  "Miller Harris — Melody": "Green, Herbal & Fougère",
+  "Montale — Intense Cafe": "Sweet Gourmand",
+  "Parfums de Marly — Delina La Rosee": "Young Florals",
+  "Serge Lutens — La Fille de Berlin": "Geranium",
+  "Serge Lutens — Louve": "Sexy Resinous Powdery",
+  "Jo Malone — Wild Bluebell": "Young Florals",
+  "7 Virtues — Candied lychee": "Sweet Gourmand",
+  "Cartier — Baiser Volé": "Young Florals",
+  "Jo Malone — Velvety Butternut": "Sweet Gourmand",
+  "Jo Malone — Melancholy thistle": "Earth",
+  "Frederic Malle — Dans tes bras": "Skin Musk & Ambergris",
+  "Byredo — Mojave Ghost": "Skin Musk & Ambergris",
+  "Penhaligon's — Halfeti Cedar": "Sexy Resinous Powdery",
+  "Ex Nihilo — Iris Porcelana": "Iris",
+  "Byredo — Bal D’Afrique": "Violet",
+  "Diptyque — Tam Dao": "Dry Woods & Vetiver",
+  "Le Labo — Osmanthus 19": "Osmanthus",
+  "Penhaligon's — Babylon": "Saffron",
+  "Le Labo — Vetiver 46": "Dry Woods & Vetiver",
+  "Universal Flowering — Poems One through Twelve": "Sweet Gourmand",
+  "Clue — With the Candlestick": "Cherry",
+  "Aedes de Venustas — Iris Nazarena": "Iris",
+  "Apoteker Tepe — Pale Fire": "Sexy Resinous Powdery",
+  "Arquiste — Nanban": "Saffron",
+  "Marissa Zappas — Ching Shih": "Osmanthus",
+  "Etat Libre d'Orange — Putain Des Palaces": "Violet",
+  "Mind Games — French Defense": "Cherry",
+  "Akro — Crush": "Sweet Gourmand",
+  "Arquiste — Misfit": "Sexy Resinous Powdery",
+  "BDK — Villa neroli": "Neroli & Orange Blossom",
+  "BDK — Ambre Safrano": "Saffron",
+  "BDK Parfums — Bouquet de Hongrie": "Tart Fruit",
+  "Bohoboco — Eternal Lily Amber": "Amber",
+  "DS & Durga — Rose Atlantic": "Salt, Stone & Cold Water",
+  "Imaginary Authors — In Love with Everything": "Solar",
+  "Maison d'Etto — Karat EG": "Earth",
+  "Parfums de Nicolaï — Poudre de Musc": "Skin Musk & Ambergris",
+  "Régime des Fleurs — Rock River Melody": "Green, Herbal & Fougère",
+  "Essential Parfums — The Musc": "Skin Musk & Ambergris",
+  "Essential Parfums — Mon Vetiver": "Dry Woods & Vetiver",
+  "les indemodables — Rose de Jamal": "Rose",
+  "Guerlain — Eau de Coton": "Sweet Gourmand",
+  "Guerlain — Aqua Allegoria Pera Granita": "Tart Fruit",
+  "Burberry — Brit Sheer": "Sweet Gourmand",
+  "Chanel — Le Lion": "Amber",
+  "Hermès — Un Jardin Sur Le Nil": "Green, Herbal & Fougère",
+  "Hermès — Eau des Merveilles": "Amber",
+  "Marc Jacobs — Daisy eau so fresh": "Tart Fruit",
+  "Tocca — Laila": "Amber",
+  "Tocca — Lucia": "Fig",
+  "Tocca — Florence": "Big, Sexy Tuberose & Jasmine",
+  "Tocca — Stella": "Young Florals",
+  "Louis Vuitton — Attrape-rêves": "Sweet Gourmand",
+  "Guerlain — La Petite Robe Noire": "Lolita Lempicka–Adjacent Gourmands",
+  "Acqua di Parma — Colonia": "Bitter Citrus & Cologne",
+  "Chloé — Chloé Eau de Parfum": "Young Florals",
+  "Dries Van Noten — Camomille Satin": "Green, Herbal & Fougère",
+  "Guerlain — La Petite Robe Noire Eau Fraîche": "Tart Fruit",
+  "Narciso Rodriguez — Narciso Poudrée": "Skin Musk & Ambergris",
+  "Narciso Rodriguez — Narciso rouge": "Skin Musk & Ambergris",
+  "Dries Van Noten — fleur du mal": "Osmanthus",
+  "Penhaligon's — Juniper Sling": "Green, Herbal & Fougère",
+  "Byredo — Young Rose": "Rose",
+  "Frederic Malle — Heaven Can Wait": "Peach",
+  "Serge Lutens — Chergui": "Sexy Resinous Powdery",
+  "Serge Lutens — Clair de musc": "Skin Musk & Ambergris",
+  "Diptyque — Ilio": "Young Florals",
+  "Nishane — Meant To Be Seen": "Skin Musk & Ambergris",
+  "Penhaligon's — The Favourite": "Violet",
+  "Byredo — Gypsy Water": "Conifer & Forest Floor",
+  "Jo Malone — Orange Blossom": "Young Florals",
+  "DS & Durga — Pistachio": "Sweet Gourmand",
+  "Oriza L. Legrand — Vinaigre de Toilette": "Green, Herbal & Fougère",
+  "Universal Flowering — Lilac No.4": "Green, Herbal & Fougère",
+  "Heretic — Dirty Coconut": "Sweet Gourmand",
+  "Marissa Zappas — Petrichor": "Salt, Stone & Cold Water",
+  "Régime des Fleurs — Green Vanille": "Green Vanilla",
+  "Diptyque — Lilyphea": "Green Vanilla",
+  "Room 1015 — Ten Fifteen": "Saffron",
+  "Thin Wild Mercury — Sheep Meadow": "Sweet Gourmand",
+  "Gucci — Mémoire d'une Odeur": "Green, Herbal & Fougère",
+  "Chanel — Bleu de Chanel": "Bitter Citrus & Cologne",
+  "Guerlain — Neroli plein sud": "Young Florals",
+  "Chanel — Beige": "Solar",
+  "Guerlain — Petit Guerlain (In Pink)": "Sweet Gourmand",
+  "Celine — Dans Paris": "Green, Herbal & Fougère",
+  "Gucci — Tears from the moon": "Young Florals",
+  "Gucci — Winter’s spring": "Young Florals",
+  "Guerlain — Eau de Popeline": "Young Florals",
+  "Issey Miyake — L'Eau d'Issey": "Salt, Stone & Cold Water",
+  "Marc Jacobs — Daisy Love": "Young Florals",
+  "Arquiste — The Architects Club": "Amber",
+  "Imaginary Authors — Falling into the Sea": "Solar",
+  "Marissa Zappas — Dream Sequence": "Earth",
+  "Jo Malone — Violet and amber absolu": "Violet",
+  "Penhaligon's — Iris Prima": "Iris",
+  "Dedcool — Xtra milk": "Skin Musk & Ambergris",
+  "Miller Harris — Legato": "Cherry",
+  "Penhaligon's — A Balm of Calm": "Green, Herbal & Fougère",
+  "Maison Margiela Replica — By the Fireplace": "Smoke & Incense",
+  "Diptyque — Philosykos": "Fig",
+  "Byredo — Accord Oud": "Sexy Resinous Powdery",
+  "Frederic Malle — Music for a while": "Sweet Gourmand",
+  "Penhaligon's — Vra Vra Voom": "Osmanthus",
+  "D'Annam — Strawberry Mochi": "Sweet Gourmand",
+  "Byredo — Reine de nuit": "Rose",
+  "Creed — Love in Black": "Violet",
+  "Jo Malone — Poppy and Barley": "Sweet Gourmand",
+  "Miller Harris — Rose silence": "Rose",
+  "Miller Harris — Powdered Veil": "Sexy Resinous Powdery",
+  "Le Labo — Mousse de Chene 30": "Green, Herbal & Fougère",
+  "Byredo — Baudelaire": "Leather",
+  "Clive Christian — E: Cashmere Musk": "Skin Musk & Ambergris",
+  "L'Artisan Parfumeur — L'Eau d'Ambre Extreme": "Amber",
+  "Serge Lutens — Bois de Violette": "Violet",
+  "The Perfumer's Story — Twisted Iris": "Iris",
+  "Haute Fragrance Company — Musk Flower": "Violet",
+  "Chloé — Atelier des Fleurs violet": "Violet",
+  "Balenciaga — Paris": "Violet",
+  "Hermès — Violette Volynka": "Violet",
+  "Viktor & Rolf — Flowerbomb Pretty Peony": "Young Florals",
+  "Etat Libre d'Orange — You or someone like you": "Tart Fruit",
+  "Ormonde Jayne — Damask": "Rose",
+  "Ulrich Lang — Suncrest": "Peach",
+  "Frederic Malle — Acne Studios": "Peach",
+  "Byredo — Rodeo": "Leather",
+  "Byredo — Blanche": "Skin Musk & Ambergris",
+  "Diptyque — Tempo": "Pepper & Spice",
+  "Frederic Malle — Une Fleur de Cassie": "Classic Floral Aldehyde",
+  "Miller Harris — Peau Santal": "Dry Woods & Vetiver",
+  "Tom Ford — White Suede": "Leather",
+  "Heeley — Note de Yuzu": "Bitter Citrus & Cologne",
+  "Apoteker Tepe — After the Flood": "Conifer & Forest Floor",
+  "Heeley — Palm (Coccobello)": "Solar",
+  "Universal Flowering — Gossamer Spirit": "Smoke & Incense",
+  "Heretic — Dirty Violet": "Violet",
+  "New Notes — Bonbons a la Violette": "Violet",
+  "Diptyque — Tam dao": "Dry Woods & Vetiver",
+  "Diptyque — Eau Duelle": "Spicy Dry Vanilla",
+  "Gritti — Violet Venom": "Osmanthus",
+  "Gumamina — Odile": "Lolita Lempicka–Adjacent Gourmands",
+  "Boy Smells — Violet Ends (pre-reformulation)": "Smoke & Incense",
+  "Etat Libre d'Orange — Rien Intense Incense": "Smoke & Incense",
+  "les indemodables — Cuir de Chine": "Osmanthus",
+  "Maison Crivelli — Neroli Nasimba": "Bitter Citrus & Cologne",
+  "Oriza L. Legrand — Le Régent": "Sexy Resinous Powdery",
+  "Yves Saint Laurent — Babycat": "Sexy Resinous Powdery",
+  "Gucci — The Eyes of the Tiger": "Amber",
+  "Gucci — A gloaming Night": "Dry Woods & Vetiver",
+  "Kenzo — Flower": "Violet",
+  "Gucci — Vanilla Firenze": "Amber",
+  "Louis Vuitton — Imagination": "Bitter Citrus & Cologne",
+  "Josie Maran — Topless Tangerine": "Juicy Citrus",
+  "Dolce & Gabbana — My Devotion": "Amber",
+  "Dries Van Noten — Soie Malaquais": "Sweet Gourmand",
+  "Louis Vuitton — Pacific Chill": "Juicy Citrus",
+  "Boy Smells — Citrush": "Bitter Citrus & Cologne",
+  "BDK — Sel d'argent": "Bitter Citrus & Cologne",
+  "Fugazzi — Orange Crush": "Juicy Citrus",
+  "Maison Crivelli — Hibiscus Mahajád": "Rose",
+  "Hellenist — La Nuit des 300": "Green, Herbal & Fougère",
+  "Oriza L. Legrand — Héliotrope Blanc": "Heliotrope",
+  "Oriza L. Legrand — Muguet Fleuri": "Young Florals",
+  "Oriza L. Legrand — Royal Œillet": "Pepper & Spice",
+  "Marc-Antoine Barrois — ganymede": "Saffron",
+  "Régime des Fleurs — Tóor Tóor": "Citrus-Vetiver",
+  "Vilhelm Parfumerie — Room Service": "Amber",
+  "Vilhelm Parfumerie — Opus Kore": "Young Florals",
+  "Vilhelm Parfumerie — Modest Mimosa": "Young Florals",
+  "Imaginary Authors — A Little Secret": "Cherry",
+  "Room 1015 — Cherry Punk": "Cherry",
+  "Marissa Zappas — Violette Hay": "Violet",
+  "Marissa Zappas — Carnival of Souls": "Violet",
+  "Vilhelm Parfumerie — Chimilka": "Peach",
+  "Discothèque — All Night Until the First Light": "Bitter Citrus & Cologne",
+  "Mind Games — Queening": "Sweet Gourmand",
+  "Puredistance — Black (No. 05)": "Sexy Resinous Powdery",
+  "Une Nuit Nomade — Jardins de Misfah": "Pepper & Spice",
+  "Byredo — Black saffron": "Saffron",
+  "Byredo — Bullion": "Leather",
+  "Diptyque — Kimonanthe": "Osmanthus",
+  "Miller Harris — Staccato": "Pepper & Spice",
+  "Penhaligon's — Eau the Audacity": "Smoke & Incense",
+  "Arquiste — A grove by the sea": "Fig",
+  "D'Annam — Hinoki Mediation": "Dry Woods & Vetiver",
+  "Apoteker Tepe — Anabasis": "Green, Herbal & Fougère",
+  "DS & Durga — Radio Bombay": "Dry Woods & Vetiver",
+  "Jorum Studio — Risso": "Bitter Citrus & Cologne",
+  "Ffern — Summer 25": "Bitter Citrus & Cologne",
+  "les indemodables — Escale en Haïti": "Dry Woods & Vetiver",
+  "Régime des Fleurs — Wildly Fig": "Fig",
+  "Universal Flowering — Mona": "Amber",
+  "Puredistance — M V2Q (No. 03)": "Sexy Resinous Powdery",
+  "Sammarco — Vitrum": "Smoke & Incense",
+  "Universal Flowering — Big Night": "Cherry",
+  "Gucci — Fading autumn": "Dry Woods & Vetiver",
+  "Gucci — A reason to love": "Rose",
+  "Tocca — Colette": "Violet",
+  "Miller Harris — Mineir": "Green, Herbal & Fougère",
+  "byredo — Oboro": "Pepper & Spice",
+  "giardini di toscana — celeste": "Violet",
+  "Miller Harris — Hydra Figue": "Fig",
+  "Violette Fr — Avec Amour": "Amber",
+  "Louis Vuitton — Orage": "Dry Woods & Vetiver",
+  "Balenciaga — Le Dix": "Classic Floral Aldehyde",
+  "Guerlain — Mitsouko": "Peach",
+  "Narciso Rodriguez — For her": "Skin Musk & Ambergris",
+  "Chanel — N° 19": "Green, Herbal & Fougère",
+  "Ex Nihilo — Lust in Paradise": "Young Florals",
+  "Diptyque — Bois Corse": "Dry Woods & Vetiver",
+  "Escentric Molecules — Molecule 01": "Skin Musk & Ambergris",
+  "Miller Harris — L'air de rien": "Skin Musk & Ambergris",
+  "Trudon — 45°": "Sweet Gourmand",
+  "Essential Parfums — Divine Vanille": "Sweet Gourmand",
+  "Ledda — 18 Vanilla Nera": "Sweet Gourmand",
+  "Puredistance — Gold (No. 10)": "Sexy Resinous Powdery",
+  "les indemodables — Patchouli Noisette": "Smoke & Incense",
+  "Nobile 1942 — Café Chantant": "Lolita Lempicka–Adjacent Gourmands",
+  "Tom Ford — Lost Cherry": "Cherry",
+  "Prada — Cargo de nuit": "Skin Musk & Ambergris",
+  "Guerlain — Tonka Sarrapia Extrait 75": "Sweet Gourmand",
+  "Prada — Infusion de Vanille": "Sweet Gourmand",
+  "Versace — Bright Crystal": "Young Florals",
+  "Louis Vuitton — Meteore": "Citrus-Vetiver",
+  "Yves Saint Laurent — Tuxedo": "Sexy Resinous Powdery",
+  "Miller Harris — Leather Rouge": "Sexy Resinous Powdery",
+  "Guerlain — Vetiver Fauve": "Dry Woods & Vetiver",
+  "Guerlain — Aqua Allegoria Nerolia Vetiver Forte": "Dry Woods & Vetiver",
+  "BDK — Citrus riviera": "Juicy Citrus",
+  "Diptyque — Eau lierre": "Green, Herbal & Fougère",
+  "D'Annam — Kimono": "Rice",
+  "D'Annam — White Rice": "Rice",
+  "Diptyque — L’Eau Papier": "Rice",
+  "Oddity — Naked Dance": "Rice",
+  "Juliette Has a Gun — Lust for Sun": "Solar",
+  "Papillon artisan perfumes — Salome": "Dirty Sexy",
+  "Bogue — Maai": "Dirty Sexy",
+  "Frederic Malle — Musc Ravageur": "Dirty Sexy",
+  "Le Labo — Labdanum 18": "Dirty Sexy",
+  "Diptyque — Lunamaris": "Amber",
+  "Byredo — Slow Dance": "Amber",
+  "Le Labo — Rose 31": "Rose",
+  "Celine — Zouzou": "Sweet Gourmand",
+  "Byredo — Animalique": "Leather",
+  "Frederic Malle — Portrait of a Lady": "Rose",
+  "Régime des Fleurs — Little Flower": "Rose",
+  "Penhaligon's — Elisabethan Rose": "Rose",
+  "Penhaligon's — Duchess Rose": "Rose",
+  "Diptyque — Ofresia": "Big, Sexy Tuberose & Jasmine",
+  "D'Annam — Vietnamese Coffee": "Sweet Gourmand",
+  "Byredo — Velvet Haze": "Sweet Gourmand",
+  "Juliette Has a Gun — Not a Perfume": "Skin Musk & Ambergris",
+  "Jo Malone — Mallow on the moor": "Skin Musk & Ambergris",
+  "Diptyque — Orphéon": "Dry Woods & Vetiver",
+  "Miu Miu — Miu Miu": "Young Florals",
+  "Liis — Floating": "Peach",
+  "Keiko Mecheri — Peau de Peche": "Peach",
+  "Guerlain — Peche Mirage": "Peach",
+  "Arquiste — Venice Rococo": "Dirty Sexy",
+  "Thin Wild Mercury — Chelsea Staircase": "Tea",
+  "Universal Flowering — Heliotrope Milkbath": "Heliotrope",
+  "Bohoboco — Dark Vinyl Musk": "Leather",
+  "Maison Crivelli — Musc Nurāsana": "Skin Musk & Ambergris",
+  "Oriza L. Legrand — Fin Comme L'Ambre": "Dirty Sexy",
+  "Serge Lutens — La Religieuse": "Big, Sexy Tuberose & Jasmine",
+  "Serge Lutens — Sarrasins": "Big, Sexy Tuberose & Jasmine",
+  "Penhaligon's — Lord George": "Green, Herbal & Fougère",
+  // Already tagged "Tea" via categoryOverride in the main app
+  "Arquiste — Indigo Smoke": "Tea",
+  "D'Annam — Monsoon Tea": "Tea",
+  "D'Annam — Pomelo Oolong": "Tea",
+  "Ellis Brooklyn — Sci Fi": "Tea",
+  "Guerlain — Neroli Outrenoir": "Tea",
+  "Imaginary Authors — O, Unknown!": "Tea",
+  "Kerosene — Unknown Pleasures": "Tea",
+  "Liis — Ethereal Wave": "Tea",
+  "Penhaligon's — A Kiss of Bliss": "Tea",
+  "Nishane — Wūlóng Chá": "Tea",
+  "Clean Reserve — Skin": "Skin Musk & Ambergris",
+  "L'Artisan Parfumeur — Mure et Musc": "Skin Musk & Ambergris",
+  "Penhaligon's — Heartless Helen": "Big, Sexy Tuberose & Jasmine",
+  "Guerlain — Cuir Beluga": "Heliotrope",
+  "Chanel — Cuir de Russie": "Iris",
+  "Gucci — A midnight stroll": "Smoke & Incense",
+  "Matière Première — Vanilla Powder": "Sweet Gourmand",
+  "Guerlain — Jicky": "Sexy Resinous Powdery",
+  "Oriza L. Legrand — Empire des Indes": "Heliotrope",
+  "Naomi Goodsir — Iris Cendré": "Iris",
+  "Rhizome — Rhizome 06": "Amber",
+  "Penhaligon's — Constantinople": "Rose",
+  "Gucci — Where my heart beats": "Young Florals",
+  "Moroccanoil — L'Originale": "Young Florals",
+  "Guerlain — Rose Cherie": "Lolita Lempicka–Adjacent Gourmands",
+  "Guerlain — Aqua Allegoria rosa pop": "Lolita Lempicka–Adjacent Gourmands",
+  "Régime des Fleurs — Himitsu Violet": "Violet",
+  "Amouage — Guidance": "Sweet Gourmand",
+  "Byredo — Vanille Antique": "Sweet Gourmand",
+  "M. Micallef — Hypnotic Musk": "Sweet Gourmand",
+  "Glossier — You Fleur": "Young Florals",
+  "Lake & Skye — 11 11 Lychee": "Young Florals",
+  "Essential Parfums — Fig Infusion": "Tea",
+  "Byredo — Bal d'Afrique": "Violet",
+  "Byredo — Black Saffron": "Saffron",
+  "Diptyque — Geranium odorata": "Geranium",
+  "Frederic Malle — Eau de Magnolia": "Young Florals",
+  "Frederic Malle — Uncut gem": "Pepper & Spice",
+  "Jo Malone — Wild achillea": "Green, Herbal & Fougère",
+  "Xerjoff — Irisss": "Iris",
+  "Le Labo — Santal 33": "Dry Woods & Vetiver",
+  "Juliette Has a Gun — Lipstick Fever": "Violet",
+  "Byredo — Bibliotheque": "Tart Fruit",
+  "Penhaligon's — Artemisia": "Tart Fruit",
+  "Guerlain — Feve Gourmande": "Sweet Gourmand",
+  "Hermès — Eau de Mandarine Ambrée": "Amber",
+  "Chloé — Atelier des Fleurs Vert Soleil": "Green, Herbal & Fougère",
+  "Hermès — Hermessence Iris Ukiyoé": "Iris",
+  "Prada — Infusion de figue": "Fig",
+  "Tom Ford — Bitter Peach": "Peach",
+  "Tom Ford — Rose d'Amalfi": "Rose",
+  "Marissa Zappas — The Pink Bedroom": "Heliotrope",
+  "Marissa Zappas — Melitodes": "Green, Herbal & Fougère",
+  "Bon Parfumeur — 501 Praline Royale": "Lolita Lempicka–Adjacent Gourmands"
+};
+
+function kateCategorize(p){
+  const forced = RECATEGORIZE[kateKeyOf(p)];
+  if(forced) return forced;
+  const all = kateProfileText(p);
+  let best = null, bestScore = 0, bestPrio = 99;
+  for(const cat of CATEGORIES){
+    let s = 0;
+    for(const word in cat.keys){
+      if(kateHasWord(all, word)) s += cat.keys[word];
+    }
+    if(s > bestScore || (s === bestScore && s > 0 && cat.prio < bestPrio)){
+      bestScore = s; best = cat.name; bestPrio = cat.prio;
+    }
+  }
+  let result = bestScore >= 5 ? best : "Dry Woods & Vetiver";
+  if(result === "Tart Fruit" && /\b(musc|musk)/i.test(p.name)) result = "Skin Musk & Ambergris";
+  return result;
+}
+
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 const MOODS = ["All","Air","Resin","Bridge","Classic"];
@@ -6166,6 +6985,324 @@ const recentMostWorn = useMemo(() => {
   );
 }
 
+// Raw note list as authored, no synonym collapsing — the "Verbatim" note mode.
+function dvVerbatimNotes(no){
+  if(!no) return [];
+  return no.split(/[;,\n]+/)
+    .map(s => s.trim().replace(/^(top|middle|heart|base)\s+notes?\s*/i, "").trim())
+    .filter(s => s.length > 0 && s.length < 80);
+}
+
+const DV_GROUP_LABEL = { none: "perfume", season: "season", genre: "genre", house: "house", mood: "mood", conc: "concentration" };
+const DV_MEASURE_LABEL = { worn: "Times worn", rating: "Avg rating", perfumeCount: "Perfume count" };
+const DV_SEASON_ORDER = ["Winter","Spring","Summer","Fall"];
+function dvSeason(dateStr){
+  const m = +String(dateStr).slice(5,7);
+  if(m === 12 || m <= 2) return "Winter";
+  if(m <= 5) return "Spring";
+  if(m <= 8) return "Summer";
+  return "Fall";
+}
+function dvTitleCase(s){ return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
+
+function DataVizView({ perfumes, wearLog, onSelect }) {
+  const [noteMode, setNoteMode] = useState("collapsed");
+  const [notes, setNotes] = useState([]);
+  const [noteQuery, setNoteQuery] = useState("");
+  const [noteOpen, setNoteOpen] = useState(false);
+  const [house, setHouse] = useState("");
+  const [genre, setGenre] = useState("");
+  const [perfumer, setPerfumer] = useState("");
+  const [groupBy, setGroupBy] = useState("genre");
+  const [measure, setMeasure] = useState("worn");
+  const [sortCol, setSortCol] = useState("worn");
+  const [sortDir, setSortDir] = useState("desc");
+  const comboRef = useRef(null);
+
+  // Precompute once per perfumes change: real By Genre category, and both
+  // note vocabularies (collapsed = already-canonical p.notesList; verbatim =
+  // split-but-uncollapsed from the raw note string).
+  const items = useMemo(() => perfumes.map(p => ({
+    p,
+    genre: kateCategorize(p),
+    canonSet: new Set((p.notesList || []).map(n => n.toLowerCase())),
+    verbatimSet: new Set(dvVerbatimNotes(p.rawNotes).map(n => n.toLowerCase())),
+  })), [perfumes]);
+
+  useEffect(() => {
+    function onDocClick(e){ if(comboRef.current && !comboRef.current.contains(e.target)) setNoteOpen(false); }
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, []);
+
+  const passesKey = (it, key) => {
+    if(key === "note" && notes.length){
+      const set = noteMode === "verbatim" ? it.verbatimSet : it.canonSet;
+      return notes.some(n => set.has(n));
+    }
+    if(key === "house" && house) return it.p.house === house;
+    if(key === "genre" && genre) return it.genre === genre;
+    if(key === "perfumer" && perfumer) return it.p.perfumer === perfumer;
+    return true;
+  };
+  const FILTER_KEYS = ["note","house","genre","perfumer"];
+  const matchesAll = it => FILTER_KEYS.every(k => passesKey(it, k));
+  const matchesAllExcept = (it, exclude) => FILTER_KEYS.every(k => k === exclude || passesKey(it, k));
+
+  const filtered = useMemo(() => items.filter(matchesAll), [items, notes, noteMode, house, genre, perfumer]);
+
+  // Faceted option lists: each dropdown's choices come from perfumes matching
+  // every OTHER active filter, so picking one narrows the others.
+  const facets = useMemo(() => {
+    const houseCounts = new Map(), genreCounts = new Map(), perfumerCounts = new Map(), noteCounts = new Map();
+    for(const it of items){
+      if(matchesAllExcept(it, "house")) houseCounts.set(it.p.house, (houseCounts.get(it.p.house)||0)+1);
+      if(matchesAllExcept(it, "genre")) genreCounts.set(it.genre, (genreCounts.get(it.genre)||0)+1);
+      if(matchesAllExcept(it, "perfumer") && it.p.perfumer) perfumerCounts.set(it.p.perfumer, (perfumerCounts.get(it.p.perfumer)||0)+1);
+      if(matchesAllExcept(it, "note")){
+        const set = noteMode === "verbatim" ? it.verbatimSet : it.canonSet;
+        for(const n of set) noteCounts.set(n, (noteCounts.get(n)||0)+1);
+      }
+    }
+    return { houseCounts, genreCounts, perfumerCounts, noteCounts };
+  }, [items, notes, noteMode, house, genre, perfumer]);
+
+  const wearCountFor = pid => {
+    // p.wearCount (from enrich()) already reflects the full live diary —
+    // used for every grouping except Season, which needs each wear's own date.
+    const it = items.find(x => x.p.id === pid);
+    return it ? it.p.wearCount || 0 : 0;
+  };
+
+  const rows = useMemo(() => {
+    const filteredIds = new Set(filtered.map(it => it.p.id));
+    const byId = new Map(filtered.map(it => [it.p.id, it.p]));
+    const out = [];
+
+    if(groupBy === "none"){
+      for(const it of filtered){
+        out.push({ key: String(it.p.id), label: it.p.name, sub: it.p.house, perfumeCount: 1,
+          worn: it.p.wearCount || 0, rating: typeof it.p.rating === "number" ? it.p.rating : null, id: it.p.id });
+      }
+    } else if(groupBy === "season"){
+      const buckets = new Map(DV_SEASON_ORDER.map(s => [s, { ids: new Set(), worn: 0 }]));
+      for(const w of wearLog){
+        if(!filteredIds.has(w.perfumeId)) continue;
+        const s = dvSeason(w.date);
+        const b = buckets.get(s);
+        b.worn++; b.ids.add(w.perfumeId);
+      }
+      for(const s of DV_SEASON_ORDER){
+        const b = buckets.get(s);
+        const ps = [...b.ids].map(id => byId.get(id)).filter(Boolean);
+        const rated = ps.filter(p => typeof p.rating === "number");
+        out.push({ key: s, label: s, sub: null, perfumeCount: ps.length, worn: b.worn,
+          rating: rated.length ? rated.reduce((a,p)=>a+p.rating,0)/rated.length : null });
+      }
+    } else {
+      const dimOf = it => groupBy === "genre" ? it.genre : groupBy === "house" ? it.p.house
+        : groupBy === "mood" ? (it.p.mood || "Classic") : (it.p.concentration || "Unspecified");
+      const buckets = new Map();
+      for(const it of filtered){
+        const key = dimOf(it);
+        if(!buckets.has(key)) buckets.set(key, []);
+        buckets.get(key).push(it.p);
+      }
+      for(const [key, ps] of buckets){
+        const rated = ps.filter(p => typeof p.rating === "number");
+        const worn = ps.reduce((a,p) => a + (p.wearCount || 0), 0);
+        out.push({ key, label: key, sub: null, perfumeCount: ps.length, worn,
+          rating: rated.length ? rated.reduce((a,p)=>a+p.rating,0)/rated.length : null });
+      }
+    }
+    return out;
+  }, [filtered, groupBy, wearLog]);
+
+  const activeFilterParts = () => {
+    const parts = [];
+    if(notes.length) parts.push(`note: ${notes.map(dvTitleCase).join(" or ")} (${noteMode})`);
+    if(house) parts.push(`house: ${house}`);
+    if(genre) parts.push(`genre: ${genre}`);
+    if(perfumer) parts.push(`perfumer: ${perfumer}`);
+    return parts;
+  };
+
+  const fmtRating = v => v === null ? "—" : v.toFixed(1);
+  const fmtNum = v => v.toLocaleString();
+
+  const totalWorn = rows.reduce((a,r) => a + r.worn, 0);
+  const ratedFiltered = filtered.filter(it => typeof it.p.rating === "number");
+  const avgRating = ratedFiltered.length ? ratedFiltered.reduce((a,it)=>a+it.p.rating,0) / ratedFiltered.length : null;
+
+  const plotRows = useMemo(() => {
+    let r = rows.filter(r => measure !== "rating" || r.rating !== null);
+    r = r.slice().sort((a,b) => (b[measure] ?? -1) - (a[measure] ?? -1));
+    return r;
+  }, [rows, measure]);
+  const capped = plotRows.slice(0, 30);
+  const maxVal = Math.max(1, ...capped.map(r => r[measure] || 0));
+
+  const sortedRows = useMemo(() => {
+    return rows.slice().sort((a,b) => {
+      const key = sortCol === "count" ? "perfumeCount" : sortCol;
+      let av = a[key], bv = b[key];
+      if(key === "label"){ av = (av||"").toLowerCase(); bv = (bv||"").toLowerCase(); }
+      if(av === null) av = -Infinity;
+      if(bv === null) bv = -Infinity;
+      if(av < bv) return sortDir === "desc" ? 1 : -1;
+      if(av > bv) return sortDir === "desc" ? -1 : 1;
+      return 0;
+    });
+  }, [rows, sortCol, sortDir]);
+
+  const setSort = col => {
+    if(sortCol === col) setSortDir(d => d === "desc" ? "asc" : "desc");
+    else { setSortCol(col); setSortDir("desc"); }
+  };
+  const onGroupByChange = v => { setGroupBy(v); setSortCol(measure); setSortDir("desc"); };
+  const onMeasureChange = v => { setMeasure(v); setSortCol(v); setSortDir("desc"); };
+
+  const toggleNote = key => {
+    setNotes(ns => ns.includes(key) ? ns.filter(n => n !== key) : [...ns, key]);
+  };
+  const removeNote = key => setNotes(ns => ns.filter(n => n !== key));
+  const switchNoteMode = mode => { if(mode !== noteMode){ setNoteMode(mode); setNotes([]); } };
+
+  const noteOptions = useMemo(() => {
+    const q = noteQuery.trim().toLowerCase();
+    return [...facets.noteCounts.keys()]
+      .filter(k => !q || k.includes(q))
+      .sort((a,b) => a.localeCompare(b));
+  }, [facets, noteQuery]);
+
+  const houseOptions = [...facets.houseCounts.keys()].sort((a,b)=>a.localeCompare(b));
+  const genreOptions = [...facets.genreCounts.keys()].sort((a,b)=> facets.genreCounts.get(b)-facets.genreCounts.get(a));
+  const perfumerOptions = [...facets.perfumerCounts.keys()].sort((a,b)=>a.localeCompare(b));
+
+  const dimLabel = dvTitleCase(DV_GROUP_LABEL[groupBy]);
+  const showCount = groupBy !== "none";
+  const filterParts = activeFilterParts();
+
+  return <div>
+    <h1 className="page-title">Data Visualization</h1>
+    <p className="page-sub">Cross-reference genre, house, notes, wear diary and rating from your collection.</p>
+
+    <div className="filter-panel open" style={{marginBottom: 8}}>
+      <div className="dv-combobox" ref={comboRef}>
+        <label style={{marginBottom: 6}}>Note</label>
+        <div className="chip-row mode-row" style={{marginBottom: 6}}>
+          <button className={`toggle ${noteMode === "collapsed" ? "active" : ""}`} onClick={() => switchNoteMode("collapsed")}>Collapsed</button>
+          <button className={`toggle ${noteMode === "verbatim" ? "active" : ""}`} onClick={() => switchNoteMode("verbatim")}>Verbatim</button>
+        </div>
+        {notes.length > 0 && <div className="chip-row" style={{marginBottom: 6}}>
+          {notes.map(n => <span key={n} className="chip active" style={{cursor:"pointer"}} onClick={() => removeNote(n)}>{dvTitleCase(n)} ✕</span>)}
+        </div>}
+        <input className="search-input" placeholder="Search notes…" value={noteQuery}
+          onFocus={() => setNoteOpen(true)}
+          onChange={e => { setNoteQuery(e.target.value); setNoteOpen(true); }} />
+        {noteOpen && <div className="dv-panel">
+          {noteOptions.length === 0 && <div className="dv-empty">No notes match.</div>}
+          {noteOptions.map(k => (
+            <div key={k} className={`dv-option ${notes.includes(k) ? "selected" : ""}`}
+              onMouseDown={e => { e.preventDefault(); toggleNote(k); }}>
+              <span>{notes.includes(k) ? "✓" : ""}</span>
+              <span>{dvTitleCase(k)}</span>
+              <span className="dv-count">{facets.noteCounts.get(k)}</span>
+            </div>
+          ))}
+        </div>}
+      </div>
+
+      <label>House
+        <select value={house} onChange={e => setHouse(e.target.value)}>
+          <option value="">All houses</option>
+          {houseOptions.map(h => <option key={h} value={h}>{h} ({facets.houseCounts.get(h)})</option>)}
+        </select>
+      </label>
+
+      <label>Genre
+        <select value={genre} onChange={e => setGenre(e.target.value)}>
+          <option value="">All genres</option>
+          {genreOptions.map(g => <option key={g} value={g}>{g} ({facets.genreCounts.get(g)})</option>)}
+        </select>
+      </label>
+
+      <label>Perfumer
+        <select value={perfumer} onChange={e => setPerfumer(e.target.value)}>
+          <option value="">All perfumers</option>
+          {perfumerOptions.map(p => <option key={p} value={p}>{p} ({facets.perfumerCounts.get(p)})</option>)}
+        </select>
+      </label>
+
+      <label>Group by
+        <select value={groupBy} onChange={e => onGroupByChange(e.target.value)}>
+          <option value="genre">Genre</option>
+          <option value="house">House</option>
+          <option value="season">Season worn</option>
+          <option value="mood">Mood</option>
+          <option value="conc">Concentration</option>
+          <option value="none">Individual perfumes</option>
+        </select>
+      </label>
+
+      <label>Measure
+        <select value={measure} onChange={e => onMeasureChange(e.target.value)}>
+          <option value="worn">Times worn</option>
+          <option value="rating">Avg rating</option>
+          <option value="perfumeCount">Perfume count</option>
+        </select>
+      </label>
+    </div>
+
+    <p className="result-count">
+      {filterParts.length ? `${fmtNum(filtered.length)} perfumes match ${filterParts.join(" · ")}` : `${fmtNum(filtered.length)} perfumes — no filters applied`}
+    </p>
+
+    <div className="stats-grid">
+      <div className="stat"><div className="stat-val">{fmtNum(filtered.length)}</div><div className="stat-lbl">Perfumes</div></div>
+      <div className="stat"><div className="stat-val">{fmtNum(totalWorn)}</div><div className="stat-lbl">Diary Entries</div></div>
+      <div className="stat"><div className="stat-val">{avgRating === null ? "—" : avgRating.toFixed(1)}</div><div className="stat-lbl">Avg Rating</div></div>
+    </div>
+
+    <h2 style={{fontSize: 15, marginBottom: 4}}>{DV_MEASURE_LABEL[measure]} by {DV_GROUP_LABEL[groupBy]}</h2>
+    <p className="stat-sub" style={{marginBottom: 14}}>
+      {filterParts.length ? `Filtered to ${filterParts.join(" · ")} · ` : ""}top {capped.length} of {plotRows.length}
+    </p>
+
+    {capped.length === 0 && <p className="dv-empty">No data for this combination yet.</p>}
+    {capped.map(r => (
+      <div key={r.key} className="bar" style={{marginBottom: 8, cursor: r.id ? "pointer" : "default"}}
+        onClick={() => { if(r.id) { const p = perfumes.find(x => x.id === r.id); if(p) onSelect(p); } }}>
+        <span style={{minWidth: 140, fontSize: 12, color: "var(--fg-mute)"}}>{r.label}</span>
+        <div className="bar-track"><div className="bar-fill" style={{ width: `${(r[measure]||0)/maxVal*100}%`, background: "var(--gold)" }} /></div>
+        <span className="bar-val">{measure === "rating" ? fmtRating(r[measure]) : fmtNum(r[measure]||0)}</span>
+      </div>
+    ))}
+
+    <h2 style={{fontSize: 15, margin: "24px 0 4px"}}>Full breakdown</h2>
+    <div style={{overflowX: "auto"}}>
+      <table className="dv-table">
+        <thead><tr>
+          <th className={sortCol === "label" ? "active" : ""} onClick={() => setSort("label")}>{dimLabel}</th>
+          {showCount && <th className={`num ${sortCol === "perfumeCount" ? "active" : ""}`} onClick={() => setSort("count")}>Perfumes</th>}
+          <th className={`num ${sortCol === "worn" ? "active" : ""}`} onClick={() => setSort("worn")}>Times Worn</th>
+          <th className={`num ${sortCol === "rating" ? "active" : ""}`} onClick={() => setSort("rating")}>Avg Rating</th>
+        </tr></thead>
+        <tbody>
+          {sortedRows.map(r => (
+            <tr key={r.key} onClick={() => { if(r.id) { const p = perfumes.find(x => x.id === r.id); if(p) onSelect(p); } }}>
+              <td>{r.label}{r.sub && <span className="dv-sub">{r.sub}</span>}</td>
+              {showCount && <td className="num">{fmtNum(r.perfumeCount)}</td>}
+              <td className="num">{fmtNum(r.worn)}</td>
+              <td className="num">{fmtRating(r.rating)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>;
+}
+
 function InsightsView({ onSelect, wearStats, perfumes }) {
   const enriched = useMemo(() => enrich(perfumes, wearStats), [wearStats, perfumes]);
   const loves = enriched.filter(p => p.preference === "Love").sort((a,b) => b.balScore - a.balScore);
@@ -7111,6 +8248,7 @@ function App() {
     { k: "wishlist", l: "Wishlist" },
     { k: "add", l: "Add Perfume" },
     { k: "charts", l: "Charts" },
+    { k: "dataviz", l: "Data Viz" },
     { k: "insights", l: "Insights" },
     { k: "settings", l: "Settings" },
   ];
@@ -7145,6 +8283,7 @@ function App() {
       {loaded && view === "diary" && <DiaryView wearLog={wearLog} onAdd={addWearEntry} onEdit={editWearEntry} onDelete={deleteWearEntry} syncStatus={syncStatus} />}
       {loaded && view === "wishlist" && <WishlistView wishlist={wishlist} onAdd={addWishlistItem} onRemove={removeWishlistItem} />}
       {loaded && view === "charts" && <ChartsView wearLog={resolvedWearLog} perfumes={perfumes} wearStats={wearStats} onRefresh={loadAll} onSelect={setSelected} />}
+      {loaded && view === "dataviz" && <DataVizView perfumes={perfumes} wearLog={resolvedWearLog} onSelect={setSelected} />}
       {loaded && view === "insights" && <InsightsView onSelect={setSelected} wearStats={wearStats} perfumes={perfumes} />}
       {loaded && view === "add" && <AddPerfumeView onAdd={addPerfume} perfumes={perfumes} />}
       {loaded && view === "settings" && <SettingsView syncStatus={syncStatus} onSyncChange={loadAll} />}
