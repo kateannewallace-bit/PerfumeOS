@@ -7524,6 +7524,17 @@ function FragranceView({ perfumes, onSelect }) {
   const [tab, setTab] = useState("genre");
   const [tabQuery, setTabQuery] = useState("");
   const [flipped, setFlipped] = useState(() => new Set());
+  // Touch browsers (confirmed on mobile Chrome) fire a synthetic mouseenter
+  // right before click, to support legacy hover-only sites — so wiring the
+  // flip to onMouseEnter unconditionally meant a single tap both flipped
+  // the card AND satisfied the "already flipped" click check that opens
+  // the modal, in the same gesture. Only real hover-capable pointers
+  // (mouse/trackpad) get the hover handlers; touch relies purely on the
+  // two-tap click logic below.
+  const supportsHover = useMemo(() => {
+    try { return window.matchMedia("(hover: hover) and (pointer: fine)").matches; }
+    catch(e) { return true; }
+  }, []);
 
   const items = useMemo(() => perfumes.map(p => ({
     p, _genre: kateCategorize(p), _mood: scoreMood(p),
@@ -7641,18 +7652,16 @@ function FragranceView({ perfumes, onSelect }) {
             const noteFrags = (p.rawNotes || "").split(/[;,\n]+/).map(s => s.trim()).filter(Boolean);
             const ratingText = typeof p.rating === "number" ? p.rating.toFixed(1).replace(/\.0$/,'') : "—";
             const isFlipped = flipped.has(p.id);
-            // Hover flips on desktop (mouseenter below), so by the time a
-            // mouse click lands the card is already flipped and the click
-            // opens the full detail. Touch devices never fire mouseenter,
-            // so there isFlipped is false on the first tap — that tap just
+            // Hover flips on real pointer devices (mouseenter below, gated
+            // on supportsHover), so by the time a mouse click lands the
+            // card is already flipped and the click opens the full detail.
+            // Touch devices get no hover handlers at all — first tap just
             // flips the card instead of jumping straight to the modal, and
-            // a second tap (now flipped) opens it. Without this, mouseover
-            // was the ONLY way to see notes/rating/genre/mood, which don't
-            // exist on a touchscreen.
+            // a second tap (now flipped) opens it.
             return <div key={p.id} className={`frag-card ${isFlipped ? "flipped" : ""}`}
               onClick={() => { if(isFlipped) onSelect(p); else setFlipped(f => new Set(f).add(p.id)); }}
-              onMouseEnter={() => setFlipped(f => new Set(f).add(p.id))}
-              onMouseLeave={() => setFlipped(f => { const n = new Set(f); n.delete(p.id); return n; })}>
+              onMouseEnter={supportsHover ? () => setFlipped(f => new Set(f).add(p.id)) : undefined}
+              onMouseLeave={supportsHover ? () => setFlipped(f => { const n = new Set(f); n.delete(p.id); return n; }) : undefined}>
               <div className="frag-card-inner">
                 <div className="frag-card-face frag-card-front">
                   <div className="frag-card-top">
