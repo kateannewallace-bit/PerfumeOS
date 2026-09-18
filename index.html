@@ -7,6 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>Perfume OS</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700;1,900&family=Space+Mono:wght@400;700&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
@@ -1646,6 +1647,123 @@ select:focus, input:focus, textarea:focus, button:focus-visible {
 .dv-table td.num, .dv-table th.num { text-align: right; }
 .dv-table tbody tr:hover { background: var(--bg-soft); cursor: pointer; }
 .dv-sub { display: block; font-size: 11px; color: var(--fg-soft); }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   FRAGRANCE TAB — deliberately its own visual world (stark black/white,
+   Playfair Display + Space Mono) rather than the app's cream/serif/gold
+   theme, styled after stele.nyc's browsing UI. All rules scoped under
+   .frag to avoid touching anything else.
+   ═══════════════════════════════════════════════════════════════════════ */
+.frag{
+  --frag-bg:#ffffff; --frag-ink:#0a0a0a; --frag-line:#0a0a0a; --frag-dim:#6b6b6b;
+  background:var(--frag-bg); color:var(--frag-ink);
+  font-family:"Space Mono",ui-monospace,monospace;
+  border:1px solid var(--frag-line);
+}
+.frag *{box-sizing:border-box;}
+.frag-topbar{
+  background:var(--frag-bg);color:var(--frag-ink);
+  border-bottom:1px solid var(--frag-line);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 20px;
+}
+.frag-mark{font-family:"Playfair Display",Georgia,serif;font-weight:900;font-style:italic;font-size:20px;}
+.frag-tag{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--frag-dim);}
+.frag-toolbar{border-bottom:1px solid var(--frag-line);padding:14px 20px;display:flex;flex-direction:column;gap:12px;}
+.frag-search-row{display:flex;align-items:center;gap:10px;}
+.frag-search{
+  flex:1;background:transparent;border:1px solid var(--frag-line);color:var(--frag-ink);
+  font:14px "Space Mono",monospace;padding:10px 12px;border-radius:0;
+  text-transform:uppercase;letter-spacing:.03em;
+}
+.frag-search::placeholder{color:var(--frag-dim);}
+.frag-search:focus{outline:2px solid var(--frag-ink);outline-offset:-2px;}
+.frag-result-count{font-size:11px;letter-spacing:.05em;white-space:nowrap;color:var(--frag-dim);}
+.frag-facet-rail{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;scrollbar-width:thin;}
+.frag-facet-pill{
+  flex:0 0 auto;background:transparent;border:1px solid var(--frag-line);color:var(--frag-ink);
+  font:11px "Space Mono",monospace;letter-spacing:.08em;text-transform:uppercase;
+  padding:9px 14px;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;
+}
+.frag-facet-pill.active{background:var(--frag-ink);color:var(--frag-bg);}
+.frag-facet-pill .frag-n{background:var(--frag-ink);color:var(--frag-bg);font-size:9.5px;padding:1px 5px;}
+.frag-facet-pill.active .frag-n{background:var(--frag-bg);color:var(--frag-ink);}
+.frag-active-chips{display:flex;gap:6px;flex-wrap:wrap;}
+.frag-chip{
+  display:inline-flex;align-items:center;gap:6px;border:1px solid var(--frag-line);color:var(--frag-ink);
+  font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;padding:5px 6px 5px 10px;
+}
+.frag-chip button{border:none;background:transparent;color:inherit;cursor:pointer;font-size:13px;line-height:1;padding:0;font-family:inherit;}
+.frag-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));border-top:1px solid var(--frag-line);border-left:1px solid var(--frag-line);}
+.frag-card{height:210px;cursor:pointer;perspective:1000px;overflow:hidden;}
+.frag-card-inner{position:relative;width:100%;height:100%;transition:transform .45s cubic-bezier(.4,.1,.2,1);transform-style:preserve-3d;}
+.frag-card.flipped .frag-card-inner{transform:rotateY(180deg);}
+@media (prefers-reduced-motion:reduce){.frag-card-inner{transition:none;}}
+.frag-card-face{
+  position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;
+  border-right:1px solid var(--frag-line);border-bottom:1px solid var(--frag-line);
+  padding:20px 18px;display:flex;flex-direction:column;overflow:hidden;
+}
+.frag-card-front{background:var(--frag-bg);justify-content:space-between;}
+.frag-card-back{background:#f0efec;color:var(--frag-ink);transform:rotateY(180deg);gap:7px;}
+.frag-card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}
+.frag-card-house{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--frag-dim);}
+.frag-card-rating{font:700 13px "Space Mono",monospace;white-space:nowrap;font-variant-numeric:tabular-nums;}
+.frag-card-name{
+  font-family:"Playfair Display",Georgia,serif;font-style:italic;font-weight:700;font-size:19px;line-height:1.22;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+}
+.frag-card-family{font-size:10.5px;color:var(--frag-dim);letter-spacing:.02em;margin-top:6px;}
+.frag-cb-name{
+  font-family:"Playfair Display",Georgia,serif;font-style:italic;font-weight:700;font-size:14px;line-height:1.2;color:var(--frag-ink);
+  display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;
+}
+.frag-cb-notes{font-size:10.5px;line-height:1.6;color:#3d3d3a;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden;}
+.frag-cb-rows{margin-top:auto;display:flex;flex-direction:column;gap:5px;}
+.frag-cb-row{display:flex;justify-content:space-between;gap:10px;font-size:10px;}
+.frag-cb-row .k{letter-spacing:.08em;text-transform:uppercase;color:var(--frag-dim);flex-shrink:0;}
+.frag-cb-row .v{text-align:right;color:var(--frag-ink);}
+.frag-empty{padding:60px 20px;text-align:center;color:var(--frag-dim);font-size:12px;letter-spacing:.05em;text-transform:uppercase;border:1px solid var(--frag-line);border-top:none;}
+.frag-overlay{position:fixed;inset:0;background:rgba(10,10,10,.7);display:flex;align-items:flex-end;justify-content:center;z-index:200;}
+.frag-overlay[hidden]{display:none;}
+@media (min-width:720px){.frag-overlay{align-items:center;}}
+.frag-modal{
+  background:var(--frag-bg);color:var(--frag-ink);width:100%;max-width:600px;max-height:min(84vh,700px);
+  display:flex;flex-direction:column;border:1px solid var(--frag-line);border-bottom:none;
+}
+@media (min-width:720px){.frag-modal{border-bottom:1px solid var(--frag-line);}}
+.frag-modal-head{display:flex;justify-content:space-between;align-items:center;padding:16px 18px;border-bottom:1px solid var(--frag-line);}
+.frag-modal-head h2{font-family:"Space Mono",monospace;font-weight:700;font-size:12px;margin:0;letter-spacing:.14em;text-transform:uppercase;}
+.frag-modal-head button{background:none;border:none;color:var(--frag-ink);font-size:20px;cursor:pointer;width:28px;height:28px;font-family:monospace;}
+.frag-tabs{display:flex;gap:0;overflow-x:auto;flex-shrink:0;border-bottom:1px solid var(--frag-line);}
+.frag-tab{
+  background:none;border:none;color:var(--frag-dim);font:11px "Space Mono",monospace;letter-spacing:.06em;text-transform:uppercase;
+  padding:12px 14px;white-space:nowrap;cursor:pointer;border-right:1px solid var(--frag-line);
+}
+.frag-tab.active{color:var(--frag-ink);background:var(--frag-bg);font-weight:700;box-shadow:inset 0 -2px 0 var(--frag-ink);}
+.frag-tab .frag-n{color:var(--frag-dim);margin-left:3px;}
+.frag-tab.active .frag-n{color:var(--frag-ink);}
+.frag-tab-search{
+  margin:12px 16px 0;background:transparent;border:1px solid var(--frag-line);color:var(--frag-ink);
+  font:12px "Space Mono",monospace;padding:9px 10px;text-transform:uppercase;letter-spacing:.03em;
+}
+.frag-tab-search:focus{outline:none;}
+.frag-opt-list{flex:1;overflow-y:auto;padding:10px 6px 16px;}
+.frag-opt{display:flex;align-items:center;gap:10px;padding:9px 10px;cursor:pointer;font-size:12.5px;color:var(--frag-ink);}
+.frag-opt:hover{background:rgba(10,10,10,.06);}
+.frag-opt .box{width:14px;height:14px;border:1.5px solid var(--frag-ink);flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:9px;}
+.frag-opt.checked .box{background:var(--frag-ink);color:var(--frag-bg);}
+.frag-opt .cnt{margin-left:auto;font-size:10.5px;color:var(--frag-dim);font-variant-numeric:tabular-nums;}
+.frag-modal-foot{display:flex;gap:0;border-top:1px solid var(--frag-line);flex-shrink:0;}
+.frag-btn-ghost{
+  flex:1;background:none;border:none;border-right:1px solid var(--frag-line);color:var(--frag-ink);
+  font:11px "Space Mono",monospace;letter-spacing:.08em;text-transform:uppercase;padding:14px;cursor:pointer;
+}
+.frag-btn-solid{
+  flex:2;background:var(--frag-ink);color:var(--frag-bg);border:none;
+  font:700 11px "Space Mono",monospace;letter-spacing:.08em;text-transform:uppercase;padding:14px;cursor:pointer;
+}
+@media (max-width:640px){.frag-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));}}
 
 </style>
 </head>
@@ -3377,6 +3495,69 @@ function kateCategorize(p){
   return result;
 }
 
+/* ───────────────────────────────────────────────────────────────────────
+   FRAGRANCE TAB "MOOD" — evocative buckets in the spirit of stele.nyc's
+   own Mood filter (Indie / Deep & Decadent / Soft Radiance / Artisanal /
+   Journeys & Destinations / Contemporary / Experimental). Theirs is a
+   hand-curated call over a small boutique catalog; here it's approximated
+   by keyword scoring against the same kateProfileText used for genre,
+   falling back to a house-prestige signal (mainstream vs. niche + whether
+   a perfumer is credited) when no scent signal is strong enough to call
+   it. Weights are deliberately light on common single notes (amber,
+   vanilla, musk show up across huge swaths of any collection) and the
+   threshold (5) means most buckets need two co-occurring signals rather
+   than one generic note.
+   ─────────────────────────────────────────────────────────────────────── */
+const MAINSTREAM_HOUSES = new Set([
+  "chanel","dior","christian dior","yves saint laurent","ysl","gucci","prada",
+  "versace","burberry","calvin klein","hugo boss","dolce & gabbana","dolce and gabbana",
+  "giorgio armani","armani","marc jacobs","ralph lauren","coach","michael kors",
+  "victoria's secret","bath & body works","lancome","lancôme","estee lauder","estée lauder",
+  "issey miyake","jean paul gaultier","carolina herrera","elizabeth arden","clinique",
+  "bvlgari","bulgari","cartier","hermes","hermès","louis vuitton","valentino","givenchy",
+  "lanvin","nina ricci","paco rabanne","tom ford","guerlain","montblanc","davidoff",
+  "adidas","nautica","tommy hilfiger","banana republic","aeropostale","abercrombie & fitch",
+]);
+const MOOD_KEYWORDS = {
+  "Deep & Decadent": {
+    "oud":3,"leather":2,"incense":2,"myrrh":2,"labdanum":2,"benzoin":2,
+    "tobacco":2,"patchouli":1,"gourmand":1,"resin":1,"chocolate":1,
+    "honey":1,"tonka":1,"praline":1,"caramel":1,"amber":1,"vanilla":1,
+  },
+  "Soft Radiance": {
+    "aldehydic":3,"aldehydes":2,"white floral":3,"iris":2,"violet":2,"powdery":2,
+    "linen":2,"cotton":2,"lily of the valley":2,"clean":1,"citrus":1,"musk":1,
+  },
+  "Journeys & Destinations": {
+    "coconut":4,"tiare":4,"monoi":4,"tropical":4,"aquatic":3,"marine":3,
+    "salt":2,"sand":2,"mango":2,"pineapple":2,"guava":2,"seaweed":1,
+    "papyrus":1,"saffron":1,"cardamom":1,
+  },
+  "Contemporary": {
+    "iso e super":4,"ambrox":4,"ambroxan":4,"cashmeran":3,"helvetolide":3,
+    "habanolide":3,"timbersilk":3,"ozonic":3,"cetalox":3,"akigalawood":3,
+    "grisalva":3,"hedione":2,
+  },
+  "Experimental": {
+    "rubber":4,"petrol":4,"gasoline":4,"diesel":4,"cannabis":3,"tar":3,
+    "birch tar":3,"metal":3,"ink":3,"civet":3,"castoreum":3,"mushroom":3,
+    "blood":3,"vinegar":3,"plastic":3,"animalic":2,
+  },
+};
+function scoreMood(p){
+  const text = kateProfileText(p);
+  let best = null, bestScore = 0;
+  for(const bucket in MOOD_KEYWORDS){
+    let s = 0;
+    const words = MOOD_KEYWORDS[bucket];
+    for(const w in words){ if(kateHasWord(text, w)) s += words[w]; }
+    if(s > bestScore){ bestScore = s; best = bucket; }
+  }
+  if(bestScore >= 5) return best;
+  const isMainstream = MAINSTREAM_HOUSES.has(kateNorm(p.house));
+  if(isMainstream) return "Contemporary";
+  return p.perfumer ? "Artisanal" : "Indie";
+}
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 const MOODS = ["All","Air","Resin","Bridge","Classic"];
@@ -7317,6 +7498,217 @@ function DataVizView({ perfumes, wearLog, onSelect }) {
   </div>;
 }
 
+/* ───────────────────────────────────────────────────────────────────────
+   FRAGRANCE — a from-scratch browsing page, distinct visual treatment
+   (stark black/white, Playfair Display + Space Mono) from the rest of the
+   app, styled after stele.nyc's own browsing UI: a horizontal rail of
+   facet pills, each opening a shared tabbed filter modal, plus a grid of
+   cards that flip on hover to reveal notes/rating/genre/mood. Clicking a
+   card opens the app's own shared perfume detail modal via onSelect, same
+   as every other view.
+   ─────────────────────────────────────────────────────────────────────── */
+const FRAG_FACETS = [
+  { key: "genre",    label: "Genre",    multi: "or",  getValue: it => [it._genre] },
+  { key: "mood",     label: "Mood",     multi: "or",  getValue: it => [it._mood] },
+  { key: "house",    label: "House",    multi: "or",  getValue: it => [it.p.house] },
+  { key: "note",     label: "Note",     multi: "and", getValue: it => (it.p.notesList || []).map(n => n.toLowerCase()) },
+  { key: "perfumer", label: "Perfumer", multi: "or",  getValue: it => it.p.perfumer ? [it.p.perfumer] : [] },
+];
+function fragTitleCase(s){ return s && s.length ? s[0].toUpperCase() + s.slice(1) : s; }
+
+function FragranceView({ perfumes, onSelect }) {
+  const [search, setSearch] = useState("");
+  const [picks, setPicks] = useState(() => Object.fromEntries(FRAG_FACETS.map(f => [f.key, []])));
+  const [modalOpen, setModalOpen] = useState(false);
+  const [draftPicks, setDraftPicks] = useState(null);
+  const [tab, setTab] = useState("genre");
+  const [tabQuery, setTabQuery] = useState("");
+  const [flipped, setFlipped] = useState(() => new Set());
+
+  const items = useMemo(() => perfumes.map(p => ({
+    p, _genre: kateCategorize(p), _mood: scoreMood(p),
+  })), [perfumes]);
+
+  const passesFacet = (it, key, list) => {
+    if(!list || list.length === 0) return true;
+    const facet = FRAG_FACETS.find(f => f.key === key);
+    const values = new Set(facet.getValue(it).map(v => v.toLowerCase()));
+    if(facet.multi === "and") return list.every(v => values.has(v));
+    return list.some(v => values.has(v));
+  };
+  const matchesAll = (it, list, excludeKey) =>
+    FRAG_FACETS.every(f => f.key === excludeKey || passesFacet(it, f.key, list[f.key]));
+  const matchesSearch = it => {
+    if(!search) return true;
+    const q = search.toLowerCase();
+    return it.p.name.toLowerCase().includes(q) || it.p.house.toLowerCase().includes(q);
+  };
+
+  const filtered = useMemo(() => items.filter(it => matchesSearch(it) && matchesAll(it, picks)),
+    [items, search, picks]);
+
+  const openModal = (startTab) => {
+    setDraftPicks(JSON.parse(JSON.stringify(picks)));
+    setTab(startTab || "genre");
+    setTabQuery("");
+    setModalOpen(true);
+  };
+  const closeModal = () => setModalOpen(false);
+
+  const optionCounts = useMemo(() => {
+    if(!modalOpen || !draftPicks) return new Map();
+    const facet = FRAG_FACETS.find(f => f.key === tab);
+    const counts = new Map();
+    for(const it of items){
+      const picksForCheck = { ...draftPicks };
+      if(facet.multi === "or") picksForCheck[facet.key] = [];
+      if(!matchesSearch(it)) continue;
+      if(!FRAG_FACETS.every(f => f.key === facet.key ? true : passesFacet(it, f.key, picksForCheck[f.key]))) continue;
+      if(facet.key === "note" && !passesFacet(it, "note", draftPicks.note)) continue;
+      for(const raw of facet.getValue(it)){
+        if(!raw) continue;
+        const key = raw.toLowerCase();
+        counts.set(key, (counts.get(key)||0)+1);
+      }
+    }
+    return counts;
+  }, [modalOpen, draftPicks, tab, items, search]);
+
+  const optionKeys = useMemo(() => {
+    const facet = FRAG_FACETS.find(f => f.key === tab);
+    const q = tabQuery.trim().toLowerCase();
+    return [...optionCounts.keys()].filter(k => !q || k.includes(q))
+      .sort((a,b) => facet.key === "genre" || facet.key === "mood" ? optionCounts.get(b)-optionCounts.get(a) : a.localeCompare(b));
+  }, [optionCounts, tab, tabQuery]);
+
+  const toggleOption = key => {
+    setDraftPicks(dp => {
+      const arr = dp[tab];
+      const next = arr.includes(key) ? arr.filter(v => v !== key) : [...arr, key];
+      return { ...dp, [tab]: next };
+    });
+  };
+  const applyModal = () => { setPicks(draftPicks); setModalOpen(false); };
+  const clearModal = () => setDraftPicks(Object.fromEntries(FRAG_FACETS.map(f => [f.key, []])));
+  const removePick = (key, v) => setPicks(p => ({ ...p, [key]: p[key].filter(x => x !== v) }));
+
+  const toggleFlip = id => setFlipped(f => {
+    const next = new Set(f);
+    if(next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+
+  const shown = filtered.slice(0, 240);
+
+  return <div className="frag">
+    <div className="frag-topbar">
+      <span className="frag-mark">Fragrance</span>
+      <span className="frag-tag">{perfumes.length.toLocaleString()} fragrances</span>
+    </div>
+
+    <div className="frag-toolbar">
+      <div className="frag-search-row">
+        <input className="frag-search" placeholder="Search" autoComplete="off"
+          value={search} onChange={e => setSearch(e.target.value)} />
+        <span className="frag-result-count">
+          {filtered.length > 240 ? `${filtered.length.toLocaleString()} (240 shown)` : filtered.length.toLocaleString()}
+        </span>
+      </div>
+      <div className="frag-facet-rail">
+        {FRAG_FACETS.map(f => {
+          const n = picks[f.key].length;
+          return <button key={f.key} className={`frag-facet-pill ${n ? "active" : ""}`} onClick={() => openModal(f.key)}>
+            {f.label}{n ? <span className="frag-n">{n}</span> : null}
+          </button>;
+        })}
+      </div>
+      <div className="frag-active-chips">
+        {FRAG_FACETS.map(f => picks[f.key].map(v =>
+          <span key={f.key + v} className="frag-chip">
+            {fragTitleCase(v)} <button aria-label="Remove" onClick={() => removePick(f.key, v)}>&times;</button>
+          </span>
+        ))}
+      </div>
+    </div>
+
+    {shown.length === 0
+      ? <div className="frag-empty">No matches</div>
+      : <div className="frag-grid">
+          {shown.map(it => {
+            const p = it.p;
+            const familyWords = (p.family || "").split(",").map(s => s.trim()).filter(Boolean).slice(0, 3);
+            const familyLine = familyWords.length ? familyWords.join(", ") : (it._genre || "").toLowerCase();
+            const noteFrags = (p.rawNotes || "").split(/[;,\n]+/).map(s => s.trim()).filter(Boolean);
+            const ratingText = typeof p.rating === "number" ? p.rating.toFixed(1).replace(/\.0$/,'') : "—";
+            const isFlipped = flipped.has(p.id);
+            return <div key={p.id} className={`frag-card ${isFlipped ? "flipped" : ""}`}
+              onClick={() => onSelect(p)}
+              onMouseEnter={() => setFlipped(f => new Set(f).add(p.id))}
+              onMouseLeave={() => setFlipped(f => { const n = new Set(f); n.delete(p.id); return n; })}>
+              <div className="frag-card-inner">
+                <div className="frag-card-face frag-card-front">
+                  <div className="frag-card-top">
+                    <span className="frag-card-house">{p.house}</span>
+                    {typeof p.rating === "number" && <span className="frag-card-rating">{ratingText}</span>}
+                  </div>
+                  <div>
+                    <div className="frag-card-name">{p.name}</div>
+                    <div className="frag-card-family">{familyLine}</div>
+                  </div>
+                </div>
+                <div className="frag-card-face frag-card-back">
+                  <div className="frag-cb-name">{p.name}</div>
+                  <div className="frag-cb-notes">{noteFrags.join(" · ") || "—"}</div>
+                  <div className="frag-cb-rows">
+                    <div className="frag-cb-row"><span className="k">Rating</span><span className="v">{ratingText}</span></div>
+                    <div className="frag-cb-row"><span className="k">Genre</span><span className="v">{fragTitleCase(it._genre)}</span></div>
+                    <div className="frag-cb-row"><span className="k">Mood</span><span className="v">{it._mood}</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>;
+          })}
+        </div>}
+
+    {modalOpen && draftPicks && <div className="frag-overlay" onClick={e => { if(e.target === e.currentTarget) closeModal(); }}>
+      <div className="frag-modal">
+        <div className="frag-modal-head">
+          <h2>Filter</h2>
+          <button aria-label="Close" onClick={closeModal}>&times;</button>
+        </div>
+        <div className="frag-tabs">
+          {FRAG_FACETS.map(f => {
+            const n = draftPicks[f.key].length;
+            return <button key={f.key} className={`frag-tab ${tab === f.key ? "active" : ""}`}
+              onClick={() => { setTab(f.key); setTabQuery(""); }}>
+              {f.label}{n ? <span className="frag-n">{n}</span> : null}
+            </button>;
+          })}
+        </div>
+        {(tab === "note" || tab === "house") &&
+          <input className="frag-tab-search" placeholder={`Search ${FRAG_FACETS.find(f=>f.key===tab).label.toLowerCase()}`}
+            value={tabQuery} onChange={e => setTabQuery(e.target.value)} />}
+        <div className="frag-opt-list">
+          {optionKeys.length === 0
+            ? <div style={{padding:"20px", color:"var(--frag-dim)", fontSize:"12px"}}>No options match.</div>
+            : optionKeys.map(key => {
+                const checked = draftPicks[tab].includes(key);
+                return <div key={key} className={`frag-opt ${checked ? "checked" : ""}`} onClick={() => toggleOption(key)}>
+                  <span className="box">{checked ? "✓" : ""}</span>
+                  <span>{fragTitleCase(key)}</span>
+                  <span className="cnt">{optionCounts.get(key)}</span>
+                </div>;
+              })}
+        </div>
+        <div className="frag-modal-foot">
+          <button className="frag-btn-ghost" onClick={clearModal}>Clear</button>
+          <button className="frag-btn-solid" onClick={applyModal}>Apply</button>
+        </div>
+      </div>
+    </div>}
+  </div>;
+}
+
 function InsightsView({ onSelect, wearStats, perfumes }) {
   const enriched = useMemo(() => enrich(perfumes, wearStats), [wearStats, perfumes]);
   const loves = enriched.filter(p => p.preference === "Love").sort((a,b) => b.balScore - a.balScore);
@@ -8263,6 +8655,7 @@ function App() {
     { k: "add", l: "Add Perfume" },
     { k: "charts", l: "Charts" },
     { k: "dataviz", l: "Data Viz" },
+    { k: "fragrance", l: "Fragrance" },
     { k: "insights", l: "Insights" },
     { k: "settings", l: "Settings" },
   ];
@@ -8298,6 +8691,7 @@ function App() {
       {loaded && view === "wishlist" && <WishlistView wishlist={wishlist} onAdd={addWishlistItem} onRemove={removeWishlistItem} />}
       {loaded && view === "charts" && <ChartsView wearLog={resolvedWearLog} perfumes={perfumes} wearStats={wearStats} onRefresh={loadAll} onSelect={setSelected} />}
       {loaded && view === "dataviz" && <DataVizView perfumes={perfumes} wearLog={resolvedWearLog} onSelect={setSelected} />}
+      {loaded && view === "fragrance" && <FragranceView perfumes={perfumes} onSelect={setSelected} />}
       {loaded && view === "insights" && <InsightsView onSelect={setSelected} wearStats={wearStats} perfumes={perfumes} />}
       {loaded && view === "add" && <AddPerfumeView onAdd={addPerfume} perfumes={perfumes} />}
       {loaded && view === "settings" && <SettingsView syncStatus={syncStatus} onSyncChange={loadAll} />}
