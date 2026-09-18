@@ -7641,8 +7641,16 @@ function FragranceView({ perfumes, onSelect }) {
             const noteFrags = (p.rawNotes || "").split(/[;,\n]+/).map(s => s.trim()).filter(Boolean);
             const ratingText = typeof p.rating === "number" ? p.rating.toFixed(1).replace(/\.0$/,'') : "—";
             const isFlipped = flipped.has(p.id);
+            // Hover flips on desktop (mouseenter below), so by the time a
+            // mouse click lands the card is already flipped and the click
+            // opens the full detail. Touch devices never fire mouseenter,
+            // so there isFlipped is false on the first tap — that tap just
+            // flips the card instead of jumping straight to the modal, and
+            // a second tap (now flipped) opens it. Without this, mouseover
+            // was the ONLY way to see notes/rating/genre/mood, which don't
+            // exist on a touchscreen.
             return <div key={p.id} className={`frag-card ${isFlipped ? "flipped" : ""}`}
-              onClick={() => onSelect(p)}
+              onClick={() => { if(isFlipped) onSelect(p); else setFlipped(f => new Set(f).add(p.id)); }}
               onMouseEnter={() => setFlipped(f => new Set(f).add(p.id))}
               onMouseLeave={() => setFlipped(f => { const n = new Set(f); n.delete(p.id); return n; })}>
               <div className="frag-card-inner">
