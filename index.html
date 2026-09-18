@@ -1784,7 +1784,7 @@ const CONFIG = {
   tagline: "Your collection, your way",
   accentColor: "#c8a97e",                     // gold (default). Try "#9b7db8" (lilac), "#8aaa80" (sage)
   publicBinId: "69ed6bc1aaba8821973a433d",    // JSONBin bin ID — legacy, used once to migrate into Supabase
-  buildVersion: "2026-09-17 · fragrance browsing tab",   // bump on each deploy to confirm the live build
+  buildVersion: "2026-09-17b · fragrance mood refinements",   // bump on each deploy to confirm the live build
   // Supabase backend (primary). The anon key is public by design (safe to ship in the client).
   supabaseUrl: "https://oxmcgryusgchdodbarhn.supabase.co",
   supabaseKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im94bWNncnl1c2djaGRvZGJhcmhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2ODg2NDksImV4cCI6MjA5ODI2NDY0OX0.4hK_nBi0nXhs0sKb_O12jfc2V5fdYFCJI48D6PHszzw",
@@ -3517,7 +3517,47 @@ const MAINSTREAM_HOUSES = new Set([
   "bvlgari","bulgari","cartier","hermes","hermès","louis vuitton","valentino","givenchy",
   "lanvin","nina ricci","paco rabanne","tom ford","guerlain","montblanc","davidoff",
   "adidas","nautica","tommy hilfiger","banana republic","aeropostale","abercrombie & fitch",
+  "celine","the body shop",
 ]);
+// Whole-house identity overrides — checked BEFORE scent-keyword scoring,
+// because these are facts about who makes a fragrance and how (a
+// single-person indie label, a natural/hand-crafted niche house, a revived
+// 19th-century house, a conceptual/avant-garde label) rather than what it
+// smells like. A Hiram Green amber shouldn't get pulled into "Deep &
+// Decadent" just because it has oud and resin — its defining trait here is
+// the small-batch all-natural production. Grows as Katie names more houses.
+const MOOD_HOUSE_OVERRIDE = {
+  // Indie: small, independent/bedroom-perfumer labels — distinct from
+  // "Artisanal" (established naturals/craft houses below) and from niche
+  // generally (Nemat, most unlisted houses fall through to Artisanal by
+  // default further down, NOT Indie).
+  "marissa zappas": "Indie", "gumamina": "Indie",
+  "universal flowering": "Indie", "oddity": "Indie",
+  // Artisanal: natural, hand-crafted perfumery houses.
+  "puredistance": "Artisanal", "danner & flemming": "Artisanal",
+  "sammarco": "Artisanal", "hiram green": "Artisanal",
+  // Historical & Vintage: heritage houses revived from/rooted in another era.
+  "oriza l. legrand": "Historical & Vintage",
+  // Experimental: conceptual/avant-garde labels.
+  "wasabi klub": "Experimental", "bohoboco": "Experimental",
+  "escentric molecules": "Experimental",
+  // Zeitgeist: of-the-moment DTC/"it girl" brands — not bedroom-small
+  // (Indie), not naturals/craft-focused (Artisanal), not really about
+  // synthetic-molecule construction (Contemporary) — the throughline is
+  // viral, cult-favorite, culturally-of-right-now branding.
+  "discothèque": "Zeitgeist", "thin wild mercury": "Zeitgeist",
+  "dedcool": "Zeitgeist", "glossier": "Zeitgeist",
+  "boy smells": "Zeitgeist", "phlur": "Zeitgeist",
+};
+// Per-perfume overrides for cases where only SOME of a house's catalog
+// qualifies — e.g. specific vintage Chanel/Guerlain/Caron/Piguet
+// formulations (Historical & Vintage), or specific Heretic releases
+// (Experimental) — rather than the whole house. Exact "House — Name" key,
+// same pattern as kate.html's RECATEGORIZE.
+// TODO(Katie): name the specific releases and I'll add them here — e.g.
+// "Guerlain — Mitsouko" / "Heretic — <name>": "Historical & Vintage" / "Experimental".
+const MOOD_PERFUME_OVERRIDE = {
+};
 const MOOD_KEYWORDS = {
   "Deep & Decadent": {
     "oud":3,"leather":2,"incense":2,"myrrh":2,"labdanum":2,"benzoin":2,
@@ -3545,6 +3585,11 @@ const MOOD_KEYWORDS = {
   },
 };
 function scoreMood(p){
+  const perfumeOverride = MOOD_PERFUME_OVERRIDE[kateKeyOf(p)];
+  if(perfumeOverride) return perfumeOverride;
+  const houseOverride = MOOD_HOUSE_OVERRIDE[kateNorm(p.house)];
+  if(houseOverride) return houseOverride;
+
   const text = kateProfileText(p);
   let best = null, bestScore = 0;
   for(const bucket in MOOD_KEYWORDS){
@@ -3554,9 +3599,7 @@ function scoreMood(p){
     if(s > bestScore){ bestScore = s; best = bucket; }
   }
   if(bestScore >= 5) return best;
-  const isMainstream = MAINSTREAM_HOUSES.has(kateNorm(p.house));
-  if(isMainstream) return "Contemporary";
-  return p.perfumer ? "Artisanal" : "Indie";
+  return MAINSTREAM_HOUSES.has(kateNorm(p.house)) ? "Contemporary" : "Artisanal";
 }
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
