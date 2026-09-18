@@ -1782,7 +1782,7 @@ const CONFIG = {
   tagline: "Your collection, your way",
   accentColor: "#c8a97e",                     // gold (default). Try "#9b7db8" (lilac), "#8aaa80" (sage)
   publicBinId: "69ed6bc1aaba8821973a433d",    // JSONBin bin ID — legacy, used once to migrate into Supabase
-  buildVersion: "2026-09-17c · fragrance mood: historical & zeitgeist",   // bump on each deploy to confirm the live build
+  buildVersion: "2026-09-17d · editable fragrance mood",   // bump on each deploy to confirm the live build
   // Supabase backend (primary). The anon key is public by design (safe to ship in the client).
   supabaseUrl: "https://oxmcgryusgchdodbarhn.supabase.co",
   supabaseKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im94bWNncnl1c2djaGRvZGJhcmhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2ODg2NDksImV4cCI6MjA5ODI2NDY0OX0.4hK_nBi0nXhs0sKb_O12jfc2V5fdYFCJI48D6PHszzw",
@@ -3603,7 +3603,18 @@ const MOOD_KEYWORDS = {
     "blood":3,"vinegar":3,"plastic":3,"animalic":2,
   },
 };
+// Full set of mood buckets a person can pick from in the edit form —
+// the 5 scent-keyword buckets above, plus the 3 that are purely
+// house/perfume-identity driven and never appear as MOOD_KEYWORDS keys.
+const MOOD_OPTIONS = [
+  "Indie", "Deep & Decadent", "Soft Radiance", "Artisanal",
+  "Journeys & Destinations", "Contemporary", "Experimental",
+  "Historical & Vintage", "Zeitgeist",
+];
 function scoreMood(p){
+  // A manual correction (edit form) always wins — it's Katie's own call,
+  // not a heuristic guess.
+  if(p.moodOverride) return p.moodOverride;
   const perfumeOverride = MOOD_PERFUME_OVERRIDE[kateKeyOf(p)];
   if(perfumeOverride) return perfumeOverride;
   const houseNormForLineage = kateNorm(p.house), nameNormForLineage = kateNorm(p.name);
@@ -5269,6 +5280,7 @@ function Modal({ p, onClose, onEdit, onResetToSeed, hasEdits, perfumes, onNaviga
       family: p.family || "",
       categoryOverride: p.categoryOverride || "",
       genreOverride: p.genreOverride || "",
+      moodOverride: p.moodOverride || "",
       oud: p.oud || "",
       perfumer: p.perfumer || "",
       primaryTags: (p.primary || []).join(", "),
@@ -5291,6 +5303,7 @@ function Modal({ p, onClose, onEdit, onResetToSeed, hasEdits, perfumes, onNaviga
       myNotes: editForm.myNotes,
       categoryOverride: editForm.categoryOverride || null,
       genreOverride: editForm.genreOverride || null,
+      moodOverride: editForm.moodOverride || null,
       oud: editForm.oud || null,
       perfumer: editForm.perfumer.trim() || null,
     };
@@ -5476,6 +5489,12 @@ function Modal({ p, onClose, onEdit, onResetToSeed, hasEdits, perfumes, onNaviga
               <select value={editForm.genreOverride || ""} onChange={e => ef("genreOverride", e.target.value)} style={{border:"1px solid #ddd",background:"#fff",padding:"10px 12px",fontSize:14,outline:"none",minHeight:44,width:"100%"}}>
                 <option value="">Auto (from notes)</option>
                 {BY_GENRE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </label>
+            <label><span className="mini-lbl">Fragrance Mood {editForm.moodOverride ? "(override)" : "(auto)"}</span>
+              <select value={editForm.moodOverride || ""} onChange={e => ef("moodOverride", e.target.value)} style={{border:"1px solid #ddd",background:"#fff",padding:"10px 12px",fontSize:14,outline:"none",minHeight:44,width:"100%"}}>
+                <option value="">Auto (from house/notes)</option>
+                {MOOD_OPTIONS.map(m => <option key={m} value={m}>{m}</option>)}
               </select>
             </label>
             <label><span className="mini-lbl">Oud provenance</span>
