@@ -1782,7 +1782,7 @@ const CONFIG = {
   tagline: "Your collection, your way",
   accentColor: "#c8a97e",                     // gold (default). Try "#9b7db8" (lilac), "#8aaa80" (sage)
   publicBinId: "69ed6bc1aaba8821973a433d",    // JSONBin bin ID — legacy, used once to migrate into Supabase
-  buildVersion: "2026-09-22 · collection notes uncapped + bitter orange filter",   // bump on each deploy to confirm the live build
+  buildVersion: "2026-09-22b · self-healing note filter",   // bump on each deploy to confirm the live build
   // Supabase backend (primary). The anon key is public by design (safe to ship in the client).
   supabaseUrl: "https://oxmcgryusgchdodbarhn.supabase.co",
   supabaseKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im94bWNncnl1c2djaGRvZGJhcmhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2ODg2NDksImV4cCI6MjA5ODI2NDY0OX0.4hK_nBi0nXhs0sKb_O12jfc2V5fdYFCJI48D6PHszzw",
@@ -5081,7 +5081,7 @@ function Tag({ tag, sm, primary }) {
 }
 
 
-function NoteFilter({ selected, onChange, primaryOnly, onPrimaryToggle, laneMode, onLaneModeChange }) {
+function NoteFilter({ selected, onChange, primaryOnly, onPrimaryToggle, laneMode, onLaneModeChange, perfumes }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
 
@@ -5096,7 +5096,30 @@ function NoteFilter({ selected, onChange, primaryOnly, onPrimaryToggle, laneMode
     return lane.toLowerCase().includes(search.toLowerCase());
   };
 
-  const visibleGroups = NOTE_GROUPS.map(g => ({
+  // NOTE_GROUPS is a hand-curated allowlist, and it silently drifts out of
+  // sync with the real tag vocabulary as the collection grows — that's how
+  // "Bitter Orange" (and 49 other real, present notes) went missing before
+  // anyone noticed. Rather than hand-maintain the list forever, compute
+  // whatever's actually in the live collection but NOT already covered by
+  // a curated group, and surface it in a catch-all "More Notes" group so
+  // nothing can silently disappear again.
+  const moreNotes = useMemo(() => {
+    if (!perfumes) return [];
+    const covered = new Set(NOTE_GROUPS.flatMap(g => g.notes).map(n => n.toLowerCase()));
+    const excluded = new Set([
+      ...BROAD_FAMILIES_SET, ...CHARACTER_SET, ...CURATED_TAGS, ...TREVOR_TAGS,
+    ]);
+    const found = new Set();
+    for (const p of perfumes) {
+      for (const t of (p.tags || [])) {
+        if (!covered.has(t) && !excluded.has(t)) found.add(t);
+      }
+    }
+    return [...found].sort().map(t => t.replace(/\b\w/g, c => c.toUpperCase()));
+  }, [perfumes]);
+
+  const allGroups = moreNotes.length ? [...NOTE_GROUPS, { label: "More Notes", notes: moreNotes }] : NOTE_GROUPS;
+  const visibleGroups = allGroups.map(g => ({
     ...g,
     lanes: g.notes.filter(filterFn),
   })).filter(g => g.lanes.length > 0);
@@ -5724,6 +5747,7 @@ function CollectionView({ onSelect, wearStats, perfumes }) {
           onPrimaryToggle={setPrimaryOnly}
           laneMode={laneMode}
           onLaneModeChange={setLaneMode}
+          perfumes={enriched}
         />
         {/* Exclude notes */}
         <div style={{marginTop:10}}>
