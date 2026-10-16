@@ -14,18 +14,30 @@
   --bg:#E1EEE4; --surface:#EDF5EF; --ink:#16241D; --muted:#4C6357; --faint:#7E9689;
   --rule:#C3D9C8; --accent:#3D8B6C; --accent-soft:#CFE6D6; --deep:#1F4A3A;
   --rosso:#9C2E22; --rosso-soft:#F0D2CB; --want:#3D8B6C; --nope:#9C2E22;
+  --w1:var(--accent-soft); --w2:color-mix(in srgb, var(--accent) 50%, var(--accent-soft)); --w3:var(--accent);
+  --w4:color-mix(in srgb, var(--accent) 50%, var(--deep)); --w5:var(--deep);
+  --r1:var(--rosso-soft); --r2:color-mix(in srgb, var(--rosso) 50%, var(--rosso-soft)); --r3:var(--rosso);
+  --r4:color-mix(in srgb, var(--rosso) 70%, var(--ink)); --r5:color-mix(in srgb, var(--rosso) 45%, var(--ink));
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     --bg:#10201A; --surface:#16261F; --ink:#EAF3ED; --muted:#9DB5A8; --faint:#71897C;
     --rule:#24382E; --accent:#6FC6A3; --accent-soft:#1C332A; --deep:#2A5646;
     --rosso:#D9695A; --rosso-soft:#3A2019; --want:#6FC6A3; --nope:#D9695A;
+    --w1:color-mix(in srgb, var(--accent) 22%, var(--bg)); --w2:color-mix(in srgb, var(--accent) 42%, var(--bg));
+    --w3:color-mix(in srgb, var(--accent) 62%, var(--bg)); --w4:color-mix(in srgb, var(--accent) 82%, var(--bg)); --w5:var(--accent);
+    --r1:color-mix(in srgb, var(--rosso) 22%, var(--bg)); --r2:color-mix(in srgb, var(--rosso) 42%, var(--bg));
+    --r3:color-mix(in srgb, var(--rosso) 62%, var(--bg)); --r4:color-mix(in srgb, var(--rosso) 82%, var(--bg)); --r5:var(--rosso);
   }
 }
 :root[data-theme="dark"]{
   --bg:#10201A; --surface:#16261F; --ink:#EAF3ED; --muted:#9DB5A8; --faint:#71897C;
   --rule:#24382E; --accent:#6FC6A3; --accent-soft:#1C332A; --deep:#2A5646;
   --rosso:#D9695A; --rosso-soft:#3A2019; --want:#6FC6A3; --nope:#D9695A;
+  --w1:color-mix(in srgb, var(--accent) 22%, var(--bg)); --w2:color-mix(in srgb, var(--accent) 42%, var(--bg));
+  --w3:color-mix(in srgb, var(--accent) 62%, var(--bg)); --w4:color-mix(in srgb, var(--accent) 82%, var(--bg)); --w5:var(--accent);
+  --r1:color-mix(in srgb, var(--rosso) 22%, var(--bg)); --r2:color-mix(in srgb, var(--rosso) 42%, var(--bg));
+  --r3:color-mix(in srgb, var(--rosso) 62%, var(--bg)); --r4:color-mix(in srgb, var(--rosso) 82%, var(--bg)); --r5:var(--rosso);
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--ink);font-family:"Archivo","Helvetica Neue",Arial,sans-serif;
@@ -176,8 +188,39 @@ a.title:hover{color:var(--accent);text-decoration:underline}
 .diary-empty{padding:70px 0;text-align:center;color:var(--muted);font-size:15.5px}
 .diary-empty strong{color:var(--ink);font-weight:600}
 
+.wheel-group{display:grid;gap:2px;padding:56px 0 0;scroll-margin-top:96px}
+.wheel-group[hidden],.navgroup[hidden]{display:none}
+.wheel-group:first-child{padding-top:30px}
+.wg-fam{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:10.5px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--rosso)}
+.wg-name{font-family:"Archivo",sans-serif;font-weight:900;font-size:clamp(22px,2.6vw,30px);
+  text-transform:uppercase;letter-spacing:.01em;line-height:1.1}
+.wg-gloss{color:var(--muted);font-size:14px;max-width:62ch}
+.wheel-group + section.cat{border-top:none}
+.catnav{flex-direction:column;align-items:stretch;gap:8px}
+.navgroup{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.navwheel{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:10px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--rosso);min-width:112px}
+
+.wheels{display:grid;gap:64px;padding:34px 0 20px}
+.wheel-intro{color:var(--muted);font-size:15px;max-width:68ch}
+.wheel-block{display:grid;gap:10px;justify-items:center}
+.wheel-block .cat-head{width:100%;margin-bottom:0}
+.wlegend{display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:center;
+  font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:11px;color:var(--muted)}
+.wlegend i{display:inline-block;width:11px;height:11px;margin-right:5px;vertical-align:-1px}
+.winfo{width:100%;max-width:720px;min-height:92px;padding:12px 16px;background:var(--surface);
+  border:1px solid var(--rule);font-size:14px;line-height:1.55;color:var(--muted)}
+.winfo b{color:var(--ink);font-weight:600}
+.winfo .mini{margin-top:8px}
+.wsvg{width:100%;max-width:720px;height:auto;overflow:visible}
+.wsvg .seg{cursor:pointer;transition:opacity .15s}
+.wsvg.dim .seg:not(.on){opacity:.3}
+.wsvg text{pointer-events:none}
+
 @media (max-width:860px){
   .wrap{padding:0 18px 90px}
+  .navwheel{min-width:0;width:100%}
   .cat-head,.entry{grid-template-columns:1fr;gap:8px}
   .side{justify-items:start}
   .tags{justify-content:flex-start}
@@ -282,184 +325,184 @@ function hasWord(hay, needle){
    prio breaks ties toward the more specific/diagnostic category.
    ─────────────────────────────────────────────────────────────────────────── */
 const CATEGORIES = [
- {name:"Rice", prio:1,
+ {name:"Rice", wheel:"Soft Floral", prio:1,
   gloss:"Rice powder, rice steam, the milky-starchy skin-scent register.",
   keys:{"rice powder":8,"rice steam":8,"rice":6,"rice milk":8}},
 
- {name:"Solar", prio:2,
+ {name:"Solar", wheel:"Floral Amber", prio:2,
   gloss:"Monoi, coconut, tiaré — suntan lotion on warm skin.",
   keys:{"monoi":8,"tiare":7,"tiaré":7,"coconut water":6,"coconut":4,"suntan":8,"solar":8,
         "frangipani":3,"plumeria":3}},
 
- {name:"Peach", prio:2.5,
+ {name:"Peach", wheel:"Fruity", prio:2.5,
   gloss:"White peach, fuzzy skin, a little powdery.",
   keys:{"white peach":9,"peach":7,"apricot":3,"peach skin":9}},
 
- {name:"Tea", prio:2.7,
+ {name:"Tea", wheel:"Green", prio:2.7,
   gloss:"Black tea, matcha, lapsang — the tea leaf itself, front and center.",
   keys:{"tea":6,"black tea":8,"green tea":7,"white tea":7,"oolong":8,"oolong tea":8,"matcha":8,
         "rooibos":7,"mate":6,"maté":6,"yerba mate":8,"chai":7,"masala chai":8,"earl grey":8,
         "lapsang":8,"lapsang souchong":9,"darjeeling":8,"ceylon tea":8,"smoked tea":8,
         "tea leaf":7,"tea leaves":7}},
 
- {name:"Dirty Sexy", prio:3,
+ {name:"Dirty Sexy", wheel:"Soft Amber", prio:3,
   gloss:"Animalic and resinous in the same breath — feminine and a little dirty.",
   keys:{}},
 
- {name:"Leather", prio:5,
+ {name:"Leather", wheel:"Dry Woods", prio:5,
   gloss:"Birch tar, cade, suede, saffron and hide.",
   keys:{"leather":8,"leathery":8,"birch tar":9,"cade":8,"cade oil":9,"tanned":7,"morocco leather":9,
         "tuscan leather":9,"saffiano":9,"smoked leather":9,"black leather":9,"white leather":7,"cuir":9,
         "hide":6,"rubber":5,"vinyl":6}},
 
- {name:"Tart Fruit", prio:6,
+ {name:"Tart Fruit", wheel:"Fruity", prio:6,
   gloss:"Grapefruit, rhubarb, sour berry — bright, puckering, tart.",
   keys:{"rhubarb":8,"grapefruit":6,"tart":6,"gooseberry":7,"currant":5,"blackcurrant":5,
         "cranberry":6,"sour cherry":6,"pomelo":4,"kumquat":5}},
 
- {name:"Citrus-Vetiver", prio:7,
+ {name:"Citrus-Vetiver", wheel:"Woods", prio:7,
   gloss:"Vetiver root braced with citrus — dry and bracing.",
   keys:{"vetiver":7,"vetyver":7,"bergamot":3,"grapefruit":2,"lemon":2,"citrus":2,"lime":2}},
 
- {name:"Saffron", prio:6.5,
+ {name:"Saffron", wheel:"Amber", prio:6.5,
   gloss:"Saffron front and center, the star of the composition.",
   keys:{"saffron":9,"saffron accord":9}},
 
- {name:"Fig", prio:7.4,
+ {name:"Fig", wheel:"Green", prio:7.4,
   gloss:"Green fig fruit and milky sap.",
   keys:{"fig":8,"fig accord":8,"green fig":9,"fig leaf":1}},
 
- {name:"Geranium", prio:7.6,
+ {name:"Geranium", wheel:"Floral", prio:7.6,
   gloss:"Geranium as the anchor, rosy-green and slightly minty.",
   keys:{"geranium":8,"geranium leaf":8}},
 
- {name:"Green Vanilla", prio:7.65,
+ {name:"Green Vanilla", wheel:"Amber", prio:7.65,
   gloss:"Vanilla against galbanum and green stems — green, sappy, sweet.",
   keys:{"green vanilla":9}},
 
- {name:"Classic Floral Aldehyde", prio:7.7,
+ {name:"Classic Floral Aldehyde", wheel:"Soft Floral", prio:7.7,
   gloss:"Powdery aldehydic bouquets in the No. 5 lineage — soapy sparkle over a big multi-floral heart.",
   keys:{"aldehyde bouquet":8}},
 
- {name:"Osmanthus", prio:7.85,
+ {name:"Osmanthus", wheel:"Floral", prio:7.85,
   gloss:"Osmanthus as the lead note — apricot-leather, tea-like.",
   keys:{"osmanthus":8,"osmanthus absolute":9,"apricot":3,"nectarine":3}},
 
- {name:"Cherry", prio:7.8,
+ {name:"Cherry", wheel:"Fruity", prio:7.8,
   gloss:"Cherry up front — bitter almond, liqueur, the fruit itself.",
   keys:{"cherry":8,"cherry accord":8,"cherry liqueur":9,"black cherry":8,"sour cherry":8,
         "morello cherry":8,"cherry wine":7,"cherry liquor":9,"cherry pie":7}},
 
- {name:"Conifer & Forest Floor", prio:8,
+ {name:"Conifer & Forest Floor", wheel:"Woods", prio:8,
   gloss:"Fir, pine resin, damp moss, soil, mushroom.",
   keys:{"fir":7,"balsam fir":7,"douglas fir":7,"silver fir":7,"pine":6,"pine needle":7,"spruce":7,
         "larch":7,"tamarack":7,"cypress":4,"hinoki":6,"coniferous":7,"conifer":7,"sandarac":5,"lichen":6,
         "forest floor":8,"wet soil":5,"mushroom":6,"morel":8,"porcini":8,"bamboo":3,"sawdust":5,
         "cedar planks":5,"terebinth":3,"fern":2,"moss":1,"mossy":1}},
 
- {name:"Big, Sexy Tuberose & Jasmine", prio:9,
+ {name:"Big, Sexy Tuberose & Jasmine", wheel:"Floral", prio:9,
   gloss:"White florals with volume — tuberose, jasmine, gardenia, ylang.",
   keys:{"tuberose":9,"jasmine":8,"jasmine sambac":8,"gardenia":8,"ylang":6,"ylang-ylang":6,
         "white floral":6,"white flowers":5,"orange blossom":3,"magnolia":3,"honeysuckle":3,
         "lily of the valley":2,"muguet":2,"neroli":1}},
 
- {name:"Lolita Lempicka–Adjacent Gourmands", prio:10,
+ {name:"Lolita Lempicka–Adjacent Gourmands", wheel:"Floral Amber", prio:10,
   gloss:"Anise, violet, powdered vanilla — candied and a little witchy.",
   keys:{"anise":6,"liquorice":6,"licorice":6,"star anise":5,"violet":3,"iris":2,"powder":3,
         "powdery":3,"vanilla":2,"almond":2}},
 
- {name:"Iris", prio:11,
+ {name:"Iris", wheel:"Soft Floral", prio:11,
   gloss:"Iris root — cold, carroty, suede-adjacent powder.",
   keys:{"iris":9,"orris":9,"orris butter":9,"iris pallida":9,"iris germanica":9,"lipstick iris":8,
         "carrot seed":4,"orris concrete":9}},
 
- {name:"Violet", prio:12,
+ {name:"Violet", wheel:"Soft Floral", prio:12,
   gloss:"Violet flower — powdery and soft. Violet leaf on its own reads green, and lives in its own category.",
   keys:{"violet":9}},
 
- {name:"Heliotrope", prio:12.5,
+ {name:"Heliotrope", wheel:"Soft Floral", prio:12.5,
   gloss:"Almond-powder haze — heliotrope's own distinct powder, apart from violet.",
   keys:{"heliotrope":9,"marzipan":4}},
 
- {name:"Rose", prio:13,
+ {name:"Rose", wheel:"Floral", prio:13,
   gloss:"Rose as the star of the composition.",
   keys:{"rose":9,"damask rose":9,"centifolia":8,"turkish rose":8,"bulgarian rose":8,
         "rose absolute":8,"rose otto":8}},
 
- {name:"Earth", prio:14,
+ {name:"Earth", wheel:"Mossy Woods", prio:14,
   gloss:"Wet plaster, soil, petrichor — the ground itself.",
   keys:{"civet":9,"castoreum":9,"hyraceum":9,"costus":7,"cumin":7,"indolic":7,"skatole":9,
         "wet plaster":9,"concrete":7,"gasoline":9,"petrol":9,"kombucha":7,"lovage":7,
         "pencil":6,"antique iron":7,"snake plant":6,"clay":4,"soil":3,"wet earth":5}},
 
- {name:"Pepper & Spice", prio:13.5,
+ {name:"Pepper & Spice", wheel:"Woody Amber", prio:13.5,
   gloss:"Black and pink pepper, cardamom, clove, nutmeg — dry and spice-forward.",
   keys:{"black pepper":5,"pink pepper":5,"peppercorn":5,"timur":6,"sichuan pepper":6,"szechuan":6,
         "pepper wood":6,"white pepper":5,"cardamom":4,"clove":4,"nutmeg":4,"cinnamon":3,
         "cassia":4,"turmeric":4,"coriander":4,"caraway":4,"ginger":2,"star anise":3,"anise":3,
         "licorice":4,"liquorice":4,"rooibos":5,"wasabi":6,"spicy":1,"spices":1}},
 
- {name:"Amber", prio:14.5,
+ {name:"Amber", wheel:"Amber", prio:14.5,
   gloss:"Amber and its raw materials — rockrose, cistus, labdanum — warm and resinous.",
   keys:{"amber":7,"amber accord":8,"ambered":6,"labdanum":8,"rockrose":8,"cistus":8,"ambery":2,"amber resin":3}},
 
- {name:"Oud", prio:14.8,
+ {name:"Oud", wheel:"Woody Amber", prio:14.8,
   gloss:"Agarwood as the lead note, front and center.",
   keys:{"oud":9,"agarwood":9,"oudh":8,"agar wood":8}},
 
- {name:"Sexy Resinous Powdery", prio:15,
+ {name:"Sexy Resinous Powdery", wheel:"Soft Amber", prio:15,
   gloss:"Amber, oud, tobacco and powder together — opulent, boozy-warm.",
   keys:{"oud":6,"agarwood":5,"tobacco":5,"amber":3,"resin":3,"resinous":3,"benzoin":3,"styrax":3,
         "powder":3,"powdery":3,"vanilla":1,"boozy":3,"cognac":4,"rum":4}},
 
- {name:"Smoke & Incense", prio:16,
+ {name:"Smoke & Incense", wheel:"Soft Amber", prio:16,
   gloss:"Frankincense, myrrh, labdanum, burning wood.",
   keys:{"incense":5,"olibanum":6,"frankincense":6,"myrrh":5,"opoponax":4,"copal":7,"smoke":6,"smoky":6,
         "wood smoke":8,"pine smoke":8,"firewood smoke":8,"smouldering":6,"smoldering":6,"lapsang":7,
         "cypriol":4,"papyrus":4,"oud":4,"agarwood":4,"dukhan":6,"torrefied":6,"candlewax":4,
         "melted wax":4,"church incense":8,"nag champa":5,"gunpowder":4,"resinous":2,"labdanum":1}},
 
- {name:"Salt, Stone & Cold Water", prio:17,
+ {name:"Salt, Stone & Cold Water", wheel:"Water", prio:17,
   gloss:"Sea salt, wet rock, ozone, cold metal.",
   keys:{"sea salt":6,"salt":5,"salted":5,"marine":6,"seaweed":5,"algae":5,"samphire":5,"sargassum":5,
         "aquatic":5,"ozonic":4,"ocean":5,"sea water":6,"mineral":6,"lava":6,"limestone":5,"flint":4,
         "petrichor":5,"cold metal":6,"metallic":4,"driftwood":3,"seashell":5,"kelp":5,"pacific":4,
         "coastal":4,"rain":3,"wet lava rock":6}},
 
- {name:"Skin Musk & Ambergris", prio:18,
+ {name:"Skin Musk & Ambergris", wheel:"Soft Floral", prio:18,
   gloss:"Ambrette, Iso E, ambroxan, sandalwood. Barely a perfume.",
   keys:{"skin musk":9,"ambrette":5,"ambrettolide":6,"muscone":6,"muscenone":6,"ambroxan":4,"ambrox":4,
         "ambergris":5,"ambrofix":4,"iso e super":6,"orcanox":5,"cetalox":5,"timbersilk":5,"ambermax":5,
         "civettone":3,"white musk":2,"musk":1,"skin":4}},
 
- {name:"Young Florals", prio:19,
+ {name:"Young Florals", wheel:"Floral", prio:19,
   gloss:"Light, fresh, unfussy florals.",
   keys:{"young fresh":8,"fresh floral":5,"citrus floral":4}},
 
- {name:"Spicy Dry Vanilla", prio:19.5,
+ {name:"Spicy Dry Vanilla", wheel:"Amber", prio:19.5,
   gloss:"Vanilla as spice and resin — cardamom, frankincense, saffron, calamus.",
   keys:{"bourbon vanilla":3,"vanilla":2,"calamus":6,"cypriol":5,"nagarmotha":5}},
 
- {name:"Sweet Gourmand", prio:20,
+ {name:"Sweet Gourmand", wheel:"Amber", prio:20,
   gloss:"Caramel, toffee, sugar — pure dessert.",
   keys:{"caramel":6,"praline":7,"toffee":7,"cotton candy":7,"bubble gum":7,"marshmallow":6,
         "sugar":5,"condensed milk":6,"coffee":3,"cacao":3,"chocolate":3,"honey":2}},
 
- {name:"Neroli & Orange Blossom", prio:20.5,
+ {name:"Neroli & Orange Blossom", wheel:"Floral", prio:20.5,
   gloss:"Orange blossom and neroli as the anchor note.",
   keys:{"neroli":6,"orange blossom":6,"fleur d'oranger":7,"orange flower":6}},
 
- {name:"Bitter Citrus & Cologne", prio:21,
+ {name:"Bitter Citrus & Cologne", wheel:"Citrus", prio:21,
   gloss:"Grapefruit rind, yuzu, petitgrain, oakmoss.",
   keys:{"grapefruit":6,"pomelo":6,"yuzu":6,"petitgrain":6,"bigarade":6,"bitter orange":6,"citron":5,
         "cedrat":7,"cédrat":7,"cologne":7,"hesperidic":5,"citrus":4,"bergamot":2,"lemon":2,"lime":2,
         "mandarin":1,"myrtle":3,"blood orange":2,"orange peel":2}},
 
- {name:"Juicy Citrus", prio:22,
+ {name:"Juicy Citrus", wheel:"Citrus", prio:22,
   gloss:"Mandarin, orange, tangerine — sweet, ripe, juicy.",
   keys:{"mandarin":6,"orange":4,"tangerine":6,"blood orange":5,"clementine":6}},
 
- {name:"Green, Herbal & Fougère", prio:23,
+ {name:"Green, Herbal & Fougère", wheel:"Aromatic", prio:23,
   gloss:"Lavender, artemisia, fern, basil, crushed stems.",
   keys:{"fougere":8,"fougère":8,"lavender":6,"lavandin":6,"artemisia":6,"wormwood":6,"absinthe":6,
         "fern":5,"galbanum":4,"violetleaf":5,"thyme":4,"rosemary":4,"clary sage":4,"sage":3,"basil":5,"mint":4,
@@ -467,7 +510,7 @@ const CATEGORIES = [
         "celery":5,"fennel":3,"hay":5,"clover":4,"sweet grass":4,"green tea":3,"herbal":5,"camphor":4,
         "eucalyptus":3,"fig leaf":4,"tomato leaf":5,"gentiana":4,"green":1}},
 
- {name:"Dry Woods & Vetiver", prio:24,
+ {name:"Dry Woods & Vetiver", wheel:"Woods", prio:24,
   gloss:"Cedar, sandalwood, guaiac, vetiver root.",
   keys:{"vetiver":6,"vetyver":6,"sandalwood":5,"cedarwood":4,"cedar":3,"guaiac":5,"gaiac":5,
         "akigalawood":5,"amyris":4,"mahogany":6,"maplewood":6,"okoumé":6,"okoume":6,"sequoia":6,
@@ -1147,7 +1190,8 @@ const PERFUMERS = (() => {
 })();
 
 const TIERS = [{id:"all",label:"All"},{id:"indie",label:"Indie"},{id:"niche",label:"Niche"},
-               {id:"designer",label:"Designer"},{id:"recent",label:"Recent"},{id:"diary",label:"Diary"}];
+               {id:"designer",label:"Designer"},{id:"wheel",label:"Wheel"},{id:"recent",label:"Recent"},
+               {id:"diary",label:"Diary"}];
 const TIER_LABEL = {indie:"Indie", niche:"Niche", designer:"Designer"};
 
 /* ───────────────────────────────────────────────────────────────────────────
@@ -1396,16 +1440,25 @@ function buildList(){
   for(const arr of byCat.values())
     arr.sort((a,b) => (b.rating||0) - (a.rating||0) || a.house.localeCompare(b.house));
 
+  // Genres are grouped and ordered around Michael Edwards' fragrance wheel.
   let html = "", navHtml = "";
-  for(const cat of CATEGORIES){
-    const arr = byCat.get(cat.name) || [];
-    if(!arr.length) continue;
-    const id = slugify(cat.name);
-    html += '<section class="cat" id="'+id+'"><div class="cat-head"><h2>'+esc(cat.name)+'</h2>'+
-            '<p class="gloss">'+cat.gloss+'</p></div><div class="entries">'+
-            arr.map(it => entryHTML(it, cat.name)).join("")+
-            '</div><p class="empty" hidden>Nothing in this category matches.</p></section>';
-    navHtml += '<button class="catlink" data-target="'+id+'">'+esc(cat.name)+'</button>';
+  for(const w of WHEEL){
+    const cats = CATEGORIES.filter(c => c.wheel === w.name && (byCat.get(c.name) || []).length);
+    if(!cats.length) continue;
+    html += '<div class="wheel-group" id="'+slugify("wheel-"+w.name)+'" data-wheel="'+esc(w.name)+'">'+
+            '<span class="wg-fam">'+esc(w.fam === "Aromatic" ? "Center of the wheel" : w.fam+" family")+'</span>'+
+            '<span class="wg-name">'+esc(w.name)+'</span><span class="wg-gloss">'+esc(w.gloss)+'</span></div>';
+    navHtml += '<div class="navgroup" data-wheel="'+esc(w.name)+'"><span class="navwheel">'+esc(w.name)+'</span>';
+    for(const cat of cats){
+      const arr = byCat.get(cat.name);
+      const id = slugify(cat.name);
+      html += '<section class="cat" id="'+id+'" data-wheel="'+esc(w.name)+'"><div class="cat-head"><h2>'+esc(cat.name)+'</h2>'+
+              '<p class="gloss">'+cat.gloss+'</p></div><div class="entries">'+
+              arr.map(it => entryHTML(it, cat.name)).join("")+
+              '</div><p class="empty" hidden>Nothing in this category matches.</p></section>';
+      navHtml += '<button class="catlink" data-target="'+id+'">'+esc(cat.name)+'</button>';
+    }
+    navHtml += '</div>';
   }
   listEl.innerHTML = html;
   catnavEl.innerHTML = navHtml;
@@ -1475,6 +1528,228 @@ function buildRecent(){
   listEl.innerHTML = html;
 }
 
+/* ───────────────────────────────────────────────────────────────────────────
+   THE WHEEL — Michael Edwards' fragrance wheel, laid over her genres.
+   Each genre in CATEGORIES carries a `wheel` subfamily; the list is grouped
+   in this order, and the Wheel tab draws three diagrams from live ratings.
+   Aromatic sits at the center because the fougère touches every family.
+   ─────────────────────────────────────────────────────────────────────────── */
+const WHEEL = [
+ {name:"Floral",       fam:"Floral", gloss:"The flower itself — white florals, rose, orange blossom."},
+ {name:"Soft Floral",  fam:"Floral", gloss:"Powder, aldehydes, iris, violet and soft musk."},
+ {name:"Floral Amber", fam:"Floral", gloss:"Flowers warmed with vanilla, anise, sweetness or sun."},
+ {name:"Soft Amber",   fam:"Amber",  gloss:"Incense, powdery resins, soft animalic warmth."},
+ {name:"Amber",        fam:"Amber",  gloss:"Vanilla, labdanum, saffron, sweet spice and dessert."},
+ {name:"Woody Amber",  fam:"Amber",  gloss:"Woods deepened with oud, pepper and spice."},
+ {name:"Woods",        fam:"Woody",  gloss:"Cedar, sandalwood, vetiver and conifers."},
+ {name:"Mossy Woods",  fam:"Woody",  gloss:"Moss, soil and the chypre ground."},
+ {name:"Dry Woods",    fam:"Woody",  gloss:"Leather, tar and smoke."},
+ {name:"Citrus",       fam:"Fresh",  gloss:"Bitter peel, colognes and juicy citrus."},
+ {name:"Water",        fam:"Fresh",  gloss:"Salt, stone, ozone and cold water."},
+ {name:"Green",        fam:"Fresh",  gloss:"Leaves, stems, tea and fig."},
+ {name:"Fruity",       fam:"Fresh",  gloss:"Ripe and tart fruit."},
+ {name:"Aromatic",     fam:"Aromatic", gloss:"Herbs and fougère — lavender, sage, mint. The center of the wheel, touching every family."}
+];
+const CAT_WHEEL = {};
+for(const c of CATEGORIES) CAT_WHEEL[c.name] = c.wheel;
+const wheelOf = cat => CAT_WHEEL[cat] || "Woods";
+const SHORT_CAT = {
+  "Big, Sexy Tuberose & Jasmine":"Tuberose & jasmine", "Lolita Lempicka–Adjacent Gourmands":"Lolita-adjacent",
+  "Salt, Stone & Cold Water":"Salt, stone & water", "Skin Musk & Ambergris":"Skin musk",
+  "Classic Floral Aldehyde":"Floral aldehyde", "Neroli & Orange Blossom":"Neroli & orange blossom",
+  "Bitter Citrus & Cologne":"Bitter citrus", "Sexy Resinous Powdery":"Resinous powdery",
+  "Conifer & Forest Floor":"Conifer & forest", "Dry Woods & Vetiver":"Dry woods & vetiver",
+  "Green, Herbal & Fougère":"Herbal & fougère"
+};
+
+function wheelStats(items){
+  const rated = items.filter(i => typeof i.rating === "number").sort((a,b) => b.rating - a.rating);
+  return {
+    n:items.length, rn:rated.length, un:items.length - rated.length,
+    avg:rated.length ? rated.reduce((s,i) => s + i.rating, 0) / rated.length : null,
+    top:rated.slice(0,3), low:rated.filter(i => i.rating < 6).length,
+    newest:items.filter(i => typeof i.rating !== "number")
+                .sort((a,b) => (b.dateAdded||"").localeCompare(a.dateAdded||"")).slice(0,4)
+  };
+}
+// Five steps per scale, light to dark; level 0 means "no ratings yet".
+const ratingLevel = v => v == null ? 0 : v > 8.1 ? 5 : v >= 7.9 ? 4 : v >= 7.6 ? 3 : v >= 7.2 ? 2 : 1;
+const unratedLevel = p => p > 70 ? 5 : p >= 64 ? 4 : p >= 58 ? 3 : p >= 52 ? 2 : 1;
+const RAMP = {   // theme-aware: --w*/--r* are redefined for dark mode so "more" always reads stronger
+  accent:["var(--rule)","var(--w1)","var(--w2)","var(--w3)","var(--w4)","var(--w5)"],
+  rosso: ["var(--rule)","var(--r1)","var(--r2)","var(--r3)","var(--r4)","var(--r5)"]
+};
+const tint = (hue, lvl) => RAMP[hue][lvl];
+const fmt1 = v => v == null ? "—" : (Math.round(v*10)/10).toFixed(1);
+
+function legendHTML(hue, labels){
+  return '<div class="wlegend">'+labels.map((l,i) =>
+    '<span><i style="background:'+tint(hue,i+1)+'"></i>'+esc(l)+'</span>').join("")+'</div>';
+}
+
+// Draws one wheel. segs go clockwise from 12 o'clock; center is drawn in the middle.
+// opts: {svg, info, maxR, labels:"flat"|"radial", rings:[{name,from,to,info}], fams:[[label,from,to]]}
+function drawWheel(o){
+  const NS = "http://www.w3.org/2000/svg", svg = o.svg;
+  const W = o.size || 680, cx = W/2, cy = W/2, R0 = o.r0 || 64, RM = o.rm || 172;
+  svg.setAttribute("viewBox", "0 0 "+W+" "+W);
+  const N = o.segs.length, step = 2*Math.PI/N, gap = N > 20 ? 0.012 : 0.025;
+  const max = Math.max(...o.segs.map(s => s.value), 1);
+  const pt = (r,a) => [cx + r*Math.sin(a), cy - r*Math.cos(a)];
+  const arc = (r1,r2,a1,a2) => {
+    const [x1,y1]=pt(r2,a1),[x2,y2]=pt(r2,a2),[x3,y3]=pt(r1,a2),[x4,y4]=pt(r1,a1), l = a2-a1 > Math.PI ? 1 : 0;
+    return "M"+x1+","+y1+"A"+r2+","+r2+" 0 "+l+" 1 "+x2+","+y2+"L"+x3+","+y3+"A"+r1+","+r1+" 0 "+l+" 0 "+x4+","+y4+"Z";
+  };
+  const el = (t,a,parent) => { const e = document.createElementNS(NS,t); for(const k in a) e.setAttribute(k,a[k]); (parent||svg).appendChild(e); return e; };
+  const select = (node, html) => {
+    svg.classList.add("dim");
+    svg.querySelectorAll(".seg").forEach(s => s.classList.toggle("on", s === node));
+    o.info.innerHTML = html;
+  };
+  svg.addEventListener("mouseleave", () => { svg.classList.remove("dim"); });
+  const inner = R0 + (o.rings ? 18 : 4);
+  el("circle", {cx, cy, r:RM, fill:"none", stroke:"var(--rule)", "stroke-dasharray":"2 4"});
+  o.segs.forEach((s,i) => {
+    const a1 = i*step + gap, a2 = (i+1)*step - gap, r = inner + (RM - inner)*Math.sqrt(s.value/max);
+    const p = el("path", {d:arc(inner, Math.max(r, inner+3), a1, a2), fill:s.fill, class:"seg"});
+    const hit = el("path", {d:arc(inner, RM+30, a1, a2), fill:"transparent", style:"cursor:pointer"});
+    const go = () => select(p, s.info());
+    p.addEventListener("mouseenter", go); hit.addEventListener("mouseenter", go);
+    p.addEventListener("click", go); hit.addEventListener("click", go);
+    const am = (a1+a2)/2;
+    if(o.labels === "radial"){
+      const [lx,ly] = pt(RM+10, am), deg = am*180/Math.PI - 90, flip = am > Math.PI;
+      const t = el("text", {x:lx, y:ly, "text-anchor":flip ? "end" : "start", "dominant-baseline":"middle",
+        transform:"rotate("+(flip ? deg+180 : deg)+" "+lx+" "+ly+")",
+        style:"font:12px Archivo,sans-serif;fill:var(--ink)"});
+      t.textContent = s.label;
+      const t2 = el("tspan", {style:"font:10px 'IBM Plex Mono',monospace;fill:var(--faint)"}, t);
+      t2.textContent = "  " + s.sub;
+    } else {
+      const [lx,ly] = pt(RM+16, am), sn = Math.sin(am), anc = Math.abs(sn) < 0.2 ? "middle" : sn > 0 ? "start" : "end";
+      const dy = Math.cos(am) > 0.6 ? -4 : Math.cos(am) < -0.6 ? 12 : 4;
+      el("text", {x:lx, y:ly+dy-7, "text-anchor":anc, style:"font:13px Archivo,sans-serif;fill:var(--ink)"}).textContent = s.label;
+      el("text", {x:lx, y:ly+dy+8, "text-anchor":anc, style:"font:10.5px 'IBM Plex Mono',monospace;fill:var(--faint)"}).textContent = s.sub;
+    }
+  });
+  if(o.rings){
+    o.rings.forEach((g,k) => {
+      const a1 = g.from*step + 0.006, a2 = (g.to+1)*step - 0.006;
+      const p = el("path", {d:arc(R0+2, R0+14, a1, a2), fill:k % 2 ? "var(--faint)" : "var(--muted)", class:"seg"});
+      const go = () => select(p, g.info());
+      p.addEventListener("mouseenter", go); p.addEventListener("click", go);
+    });
+  }
+  if(o.fams){
+    o.fams.forEach(([f,s,e]) => {
+      const a1 = s*step + 0.04, a2 = (e+1)*step - 0.04, R = RM + 92;
+      const [x1,y1] = pt(R,a1), [x2,y2] = pt(R,a2);
+      el("path", {d:"M"+x1+","+y1+"A"+R+","+R+" 0 0 1 "+x2+","+y2, fill:"none", stroke:"var(--rule)", "stroke-width":1.5});
+      const am = (a1+a2)/2, [fx,fy] = pt(R+14, am), sn = Math.sin(am);
+      el("text", {x:fx, y:fy+4, "text-anchor":Math.abs(sn) < 0.2 ? "middle" : sn > 0 ? "start" : "end",
+        style:"font:10.5px 'IBM Plex Mono',monospace;letter-spacing:.14em;fill:var(--rosso)"}).textContent = f.toUpperCase();
+    });
+  }
+  const c = o.center;
+  const cc = el("circle", {cx, cy, r:R0-4, fill:c.fill, class:"seg", style:"cursor:pointer"});
+  const goC = () => select(cc, c.info());
+  cc.addEventListener("mouseenter", goC); cc.addEventListener("click", goC);
+  // A halo in the page surface keeps the center label readable on any fill, in light or dark mode.
+  const halo = ";fill:var(--ink);paint-order:stroke;stroke:var(--surface);stroke-width:3px;stroke-linejoin:round";
+  el("text", {x:cx, y:cy-3, "text-anchor":"middle", style:"font:12px Archivo,sans-serif"+halo}).textContent = c.label;
+  el("text", {x:cx, y:cy+12, "text-anchor":"middle", style:"font:10px 'IBM Plex Mono',monospace"+halo}).textContent = c.sub;
+}
+
+function jumpTo(targetId){
+  tier = "all"; activeCat = null;
+  tiersEl.querySelectorAll(".tier").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tier === "all")));
+  render();
+  const t = document.getElementById(targetId);
+  if(t) t.scrollIntoView({behavior:"smooth", block:"start"});
+}
+
+function buildWheels(){
+  const byWheel = {}, byCat = {};
+  for(const it of ITEMS){
+    const w = wheelOf(it.cat);
+    (byWheel[w] = byWheel[w] || []).push(it);
+    (byCat[it.cat] = byCat[it.cat] || []).push(it);
+  }
+  const ring = WHEEL.filter(w => w.name !== "Aromatic"), aro = WHEEL.find(w => w.name === "Aromatic");
+  const st = {}; for(const w of WHEEL) st[w.name] = wheelStats(byWheel[w.name] || []);
+  const totalRated = ITEMS.filter(i => typeof i.rating === "number").length;
+  const names = arr => arr.map(i => esc(i.displayName) + (typeof i.rating === "number" ? " ("+i.rating+")" : "")).join(", ");
+  const goBtn = (id, label) => '<br><button class="mini" data-wheelgo="'+id+'">'+label+' →</button>';
+  const fams = [["Floral",0,2],["Amber",3,5],["Woody",6,8],["Fresh",9,12]];
+
+  listEl.innerHTML =
+    '<div class="wheels">'+
+    '<p class="wheel-intro">Your collection on Michael Edwards&rsquo; fragrance wheel. Every genre on this page has a home on the wheel, '+
+    'so these diagrams are built from your own genres and update as you rate. Hover or tap a wedge for details.</p>'+
+    '<div class="wheel-block"><div class="cat-head"><h2>Rated</h2><p class="gloss">The '+totalRated+' perfumes you&rsquo;ve rated. '+
+      'Wedge length is how many you&rsquo;ve rated in that subfamily; color is your average rating there.</p></div>'+
+      legendHTML("accent", ["under 7.2","7.2–7.6","7.6–7.9","7.9–8.1","over 8.1"])+
+      '<div class="winfo" id="wiRated">Hover or tap a wedge.</div><svg class="wsvg" id="wsRated" role="img" aria-label="Fragrance wheel of your rated perfumes"></svg></div>'+
+    '<div class="wheel-block"><div class="cat-head"><h2>Owned</h2><p class="gloss">All '+ITEMS.length+' perfumes, rated or not. '+
+      'Wedge length is how many you own; color is how much of it you haven&rsquo;t rated yet.</p></div>'+
+      legendHTML("rosso", ["under 52% unrated","52–58%","58–64%","64–70%","over 70%"])+
+      '<div class="winfo" id="wiOwned">Hover or tap a wedge.</div><svg class="wsvg" id="wsOwned" role="img" aria-label="Fragrance wheel of everything you own"></svg></div>'+
+    '<div class="wheel-block"><div class="cat-head"><h2>By genre</h2><p class="gloss">Your own genres, placed around the wheel. '+
+      'The inner ring marks the Edwards subfamily each genre belongs to. Wedge length is how many you own; color is your average rating.</p></div>'+
+      legendHTML("accent", ["under 7.2","7.2–7.6","7.6–7.9","7.9–8.1","over 8.1"])+
+      '<div class="winfo" id="wiGenre">Hover or tap a wedge, or the inner ring.</div><svg class="wsvg" id="wsGenre" role="img" aria-label="Your genres arranged around the fragrance wheel"></svg></div>'+
+    '</div>';
+
+  const wInfoRated = w => { const s = st[w.name];
+    return '<b>'+esc(w.name)+'</b> · '+s.rn+' rated · average <b>'+fmt1(s.avg)+'</b>'+(s.low ? ' · '+s.low+' under 6' : '')+
+      '<br>'+esc(w.gloss)+(s.top.length ? '<br>Top: '+names(s.top) : '')+goBtn(slugify("wheel-"+w.name), "See these genres"); };
+  const wInfoOwned = w => { const s = st[w.name], pct = s.n ? Math.round(100*s.un/s.n) : 0;
+    return '<b>'+esc(w.name)+'</b> · '+s.n+' owned · '+s.rn+' rated · <b>'+s.un+' unrated ('+pct+'%)</b>'+
+      (s.newest.length ? '<br>Newest unrated: '+names(s.newest) : '')+goBtn(slugify("wheel-"+w.name), "See these genres"); };
+
+  drawWheel({svg:document.getElementById("wsRated"), info:document.getElementById("wiRated"), fams,
+    segs:ring.map(w => ({value:st[w.name].rn, fill:tint("accent", ratingLevel(st[w.name].avg)), label:w.name,
+      sub:fmt1(st[w.name].avg)+" avg · "+st[w.name].rn, info:() => wInfoRated(w)})),
+    center:{fill:tint("accent", ratingLevel(st.Aromatic.avg)), label:"Aromatic",
+      sub:fmt1(st.Aromatic.avg)+" · "+st.Aromatic.rn, info:() => wInfoRated(aro)}});
+
+  const pctOf = s => s.n ? Math.round(100*s.un/s.n) : 0;
+  drawWheel({svg:document.getElementById("wsOwned"), info:document.getElementById("wiOwned"), fams,
+    segs:ring.map(w => ({value:st[w.name].n, fill:tint("rosso", unratedLevel(pctOf(st[w.name]))), label:w.name,
+      sub:st[w.name].n+" · "+pctOf(st[w.name])+"% unrated", info:() => wInfoOwned(w)})),
+    center:{fill:tint("rosso", unratedLevel(pctOf(st.Aromatic))), label:"Aromatic",
+      sub:st.Aromatic.n+" · "+pctOf(st.Aromatic)+"%", info:() => wInfoOwned(aro)}});
+
+  // Genre wheel: every genre gets an equal slice, ordered around the wheel.
+  const gsegs = [], rings = [];
+  for(const w of ring){
+    const cats = CATEGORIES.filter(c => c.wheel === w.name);
+    if(!cats.length) continue;
+    const from = gsegs.length;
+    for(const c of cats){
+      const s = wheelStats(byCat[c.name] || []);
+      gsegs.push({value:s.n, fill:tint("accent", ratingLevel(s.avg)), label:SHORT_CAT[c.name] || c.name,
+        sub:fmt1(s.avg)+" · "+s.n,
+        info:() => '<b>'+esc(c.name)+'</b> <span style="color:var(--rosso)">· '+esc(w.name)+'</span><br>'+
+          s.n+' owned · '+s.rn+' rated · average <b>'+fmt1(s.avg)+'</b> · '+s.un+' unrated'+
+          (s.top.length ? '<br>Top: '+names(s.top) : '')+goBtn(slugify(c.name), "See this genre")});
+    }
+    rings.push({from, to:gsegs.length-1, info:() => wInfoRated(w)});
+  }
+  const herbal = CATEGORIES.find(c => c.wheel === "Aromatic"), hs = wheelStats(byCat[herbal.name] || []);
+  drawWheel({svg:document.getElementById("wsGenre"), info:document.getElementById("wiGenre"),
+    size:820, r0:70, rm:228, labels:"radial", segs:gsegs, rings,
+    center:{fill:tint("accent", ratingLevel(hs.avg)), label:"Herbal & fougère",
+      sub:fmt1(hs.avg)+" · "+hs.n,
+      info:() => '<b>'+esc(herbal.name)+'</b> <span style="color:var(--rosso)">· Aromatic</span><br>'+hs.n+' owned · '+hs.rn+
+        ' rated · average <b>'+fmt1(hs.avg)+'</b>'+(hs.top.length ? '<br>Top: '+names(hs.top) : '')+goBtn(slugify(herbal.name), "See this genre")}});
+
+  listEl.querySelectorAll(".winfo").forEach(box => box.addEventListener("click", e => {
+    const b = e.target.closest("[data-wheelgo]");
+    if(b) jumpTo(b.dataset.wheelgo);
+  }));
+}
+
 function buildTabs(){
   tiersEl.innerHTML = TIERS.map(t =>
     '<button class="tier" role="tab" data-tier="'+t.id+'" aria-selected="'+(t.id===tier)+'">'+t.label+'</button>'
@@ -1484,10 +1759,12 @@ function buildTabs(){
 function render(){
   const diary = tier === "diary";
   const recent = tier === "recent";
-  toolbarEl.hidden = diary;
-  catnavEl.hidden = diary || recent;
+  const wheel = tier === "wheel";
+  toolbarEl.hidden = diary || wheel;
+  catnavEl.hidden = diary || recent || wheel;
   if(diary){ catnavEl.innerHTML = ""; buildDiary(); }
   else if(recent){ catnavEl.innerHTML = ""; buildRecent(); }
+  else if(wheel){ catnavEl.innerHTML = ""; buildWheels(); }
   else buildList();
   apply();
 }
@@ -1501,7 +1778,7 @@ catnavEl.addEventListener("click", e => {
 });
 
 function apply(){
-  if(tier === "diary"){ noResEl.hidden = true; return; }
+  if(tier === "diary" || tier === "wheel"){ noResEl.hidden = true; return; }
   const q = stripAccents(qEl.value.trim().toLowerCase());
   const terms = q ? q.split(/\s+/) : [];
   const pf = stripAccents(pfSelEl.value.toLowerCase());
@@ -1529,6 +1806,13 @@ function apply(){
     btn.hidden = !activeCat && (!sec || sec.hidden);
     btn.classList.toggle("active", btn.dataset.target === activeCat);
   });
+  // A wheel heading shows only while at least one of its genres is visible.
+  document.querySelectorAll(".wheel-group").forEach(g => {
+    g.hidden = !Array.from(document.querySelectorAll('section.cat[data-wheel="'+g.dataset.wheel+'"]')).some(s => !s.hidden);
+  });
+  catnavEl.querySelectorAll(".navgroup").forEach(g => {
+    g.hidden = !Array.from(g.querySelectorAll(".catlink")).some(b => !b.hidden);
+  });
 }
 
 /* ── interaction ─────────────────────────────────────────────────────────── */
@@ -1537,7 +1821,7 @@ tiersEl.addEventListener("click", e => {
   const btn = e.target.closest(".tier");
   if(!btn) return;
   tier = btn.dataset.tier;
-  if(tier === "recent" || tier === "diary") activeCat = null;
+  if(tier === "recent" || tier === "diary" || tier === "wheel") activeCat = null;
   tiersEl.querySelectorAll(".tier").forEach(b => b.setAttribute("aria-selected", String(b === btn)));
   render();
   window.scrollTo({top:0, behavior:"smooth"});
