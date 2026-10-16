@@ -247,7 +247,10 @@ Before committing, in the browser:
   touched. Never touch `index.html`'s `CATEGORY_MAP`/`dominantCategory` or
   `kate.html`'s `CATEGORIES` array for a routine add — that's structural and
   should be a separate, explicit conversation with Katie if a genuinely new
-  category is warranted.
+  category is warranted. If one is added, it also needs a `wheel:` subfamily
+  (one of the names in `kate.html`'s `WHEEL` list) — that's what places it in
+  the By Genre list order and on the Wheel tab; without it the genre silently
+  falls into Woods.
 
 Commit message should say *why* any genre override was needed, not just
 what changed — matches this project's established commit style. Push only
