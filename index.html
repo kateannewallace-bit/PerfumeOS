@@ -12,6 +12,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
 <script src="perfume-data.js"></script>
+<script src="diary-cleanup-2026-10.js"></script>
 <style>
 /* ═══════════════════════════════════════════════════════════════════════════
    LA COLLECTION — Mobile-first CSS
@@ -1782,7 +1783,7 @@ const CONFIG = {
   tagline: "Your collection, your way",
   accentColor: "#c8a97e",                     // gold (default). Try "#9b7db8" (lilac), "#8aaa80" (sage)
   publicBinId: "69ed6bc1aaba8821973a433d",    // JSONBin bin ID — legacy, used once to migrate into Supabase
-  buildVersion: "2026-09-22b · self-healing note filter",   // bump on each deploy to confirm the live build
+  buildVersion: "2026-10-19 · diary duplicate cleanup",   // bump on each deploy to confirm the live build
   // Supabase backend (primary). The anon key is public by design (safe to ship in the client).
   supabaseUrl: "https://oxmcgryusgchdodbarhn.supabase.co",
   supabaseKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im94bWNncnl1c2djaGRvZGJhcmhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2ODg2NDksImV4cCI6MjA5ODI2NDY0OX0.4hK_nBi0nXhs0sKb_O12jfc2V5fdYFCJI48D6PHszzw",
@@ -4283,6 +4284,39 @@ function normalizeWearEntry(entry) {
   const cleaned = String(r).replace(/\/10$/i, "").trim();
   const num = parseFloat(cleaned);
   return isNaN(num) ? { ...entry, rating: null } : { ...entry, rating: num };
+}
+
+// ── One-time diary cleanup (2026-10-19) ──
+// Removes duplicate wears left by the free-text → house/perfume → +concentration
+// migrations, and merges the details Katie chose onto the copy that stays.
+// Entries have no ids, so they're matched by a content fingerprint; ops that
+// find nothing (already applied) are skipped, so running it twice is harmless.
+const DIARY_CLEANUP = window.DIARY_CLEANUP_2026_10 || { deletes: [], patches: [] };
+function _wearFp(e) {
+  const t = v => (v == null ? "" : String(v)).trim();
+  let r = e.rating;
+  r = (r == null || r === "") ? null : parseFloat(String(r).replace(/\/10$/i, "").trim());
+  if (r != null && isNaN(r)) r = null;
+  return JSON.stringify([t(e.date), t(e.house), t(e.perfume), t(e.notes), r, t(e.concentration), t(e.safeReaction)]);
+}
+// Fingerprints of every pre-cleanup entry the cleanup removes or rewrites. A stale
+// device's local diary must not resurrect these as "local-only" entries on load.
+const DIARY_CLEANUP_RETIRED = new Set([...DIARY_CLEANUP.deletes, ...DIARY_CLEANUP.patches.map(p => p.fp)]);
+function planDiaryCleanup(log) {
+  const byFp = new Map();
+  log.forEach((e, i) => { if (e && !WEAR_LOG_SEED.includes(e)) { const k = _wearFp(e); if (!byFp.has(k)) byFp.set(k, []); byFp.get(k).push(i); } });
+  const take = fp => { const q = byFp.get(fp); return q && q.length ? q.shift() : -1; };
+  const patches = new Map();
+  for (const p of DIARY_CLEANUP.patches) { const i = take(p.fp); if (i >= 0) patches.set(i, p.set); }
+  // Some duplicates are exact copies of the keeper; never delete below the surviving count.
+  const keep = DIARY_CLEANUP.keep || {};
+  const deletes = new Set();
+  for (const fp of DIARY_CLEANUP.deletes) { const q = byFp.get(fp); if (q && q.length > (keep[fp] || 0)) deletes.add(q.shift()); }
+  return { deletes, patches };
+}
+function applyDiaryCleanup(log) {
+  const { deletes, patches } = planDiaryCleanup(log);
+  return log.flatMap((e, i) => deletes.has(i) ? [] : patches.has(i) ? [{ ...e, ...patches.get(i) }] : [e]);
 }
 
 // Canonical concentration key so EDT / EDP / Extrait etc. can disambiguate
@@ -8105,7 +8139,24 @@ function RestoreCloudBackup({ onRestored, binId, apiKey }) {
   </div>;
 }
 
-function SettingsView({ syncStatus, onSyncChange }) {
+function SettingsView({ syncStatus, onSyncChange, wearLog = [], onCleanupDiary }) {
+  const cleanupPlan = useMemo(() => planDiaryCleanup(wearLog), [wearLog]);
+  const [cleanupResult, setCleanupResult] = useState("");
+  const runCleanup = () => {
+    const nDel = cleanupPlan.deletes.size, nFix = cleanupPlan.patches.size;
+    // Backup first: the exact synced diary as it is right now.
+    const diary = wearLog.filter(e => !WEAR_LOG_SEED.includes(e));
+    const blob = new Blob([JSON.stringify({ wearLog: diary, exportedAt: new Date().toISOString() }, null, 2)], { type: "application/json" });
+    const u = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = u;
+    a.download = `perfume-os-diary-before-cleanup-${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(u);
+    if (!window.confirm(`Backup downloaded. Remove ${nDel} duplicate diary entries and update ${nFix} kept entries?`)) { setCleanupResult("Cancelled — nothing changed."); return; }
+    onCleanupDiary();
+    setCleanupResult(`✓ Removed ${nDel} duplicates and updated ${nFix} entries.`);
+  };
   // JSONBin state
   const [binId, setBinId] = useState(localStorage.getItem("cloud_bin_id") || "");
   const [apiKey, setApiKey] = useState(localStorage.getItem("cloud_api_key") || "");
@@ -8185,6 +8236,17 @@ function SettingsView({ syncStatus, onSyncChange }) {
         <button className="btn-ghost" onClick={pushNow} disabled={binPushing}>{binPushing ? "Syncing…" : "Sync now"}</button>
       </div>
       {binResult && <div className={`test-result ${binResult.startsWith("✓") ? "ok" : binResult.startsWith("✗") ? "fail" : ""}`}>{binResult}</div>}
+    </div>
+
+    <div className="settings-card">
+      <h2 className="settings-h">Clean Up Duplicate Diary Entries</h2>
+      <p style={{fontSize:13,color:"var(--fg-mute)",marginBottom:12,lineHeight:1.6}}>One-time fix for wears that were logged more than once when the diary format changed. Keeps the copy with house, perfume and concentration, and merges the details you chose. Downloads a backup first.</p>
+      {cleanupPlan.deletes.size + cleanupPlan.patches.size > 0
+        ? <div className="form-actions">
+            <button className="btn-ghost" onClick={runCleanup}>Remove {cleanupPlan.deletes.size} duplicates · update {cleanupPlan.patches.size}</button>
+          </div>
+        : !cleanupResult && <p style={{fontSize:13}}>✓ Diary is clean — nothing left to remove.</p>}
+      {cleanupResult && <div className={`test-result ${cleanupResult.startsWith("✓") ? "ok" : ""}`}>{cleanupResult}</div>}
     </div>
 
     <div className="settings-card">
@@ -8563,7 +8625,7 @@ function App() {
           return `${e.date}|${_norm(e.house)}|${base}|${conc}`;
         };
         const _cloudKeys = new Set(cloudWear.map(_wkey));
-        const _localOnly = localDiary.filter(e => !_cloudKeys.has(_wkey(e)));
+        const _localOnly = localDiary.filter(e => !_cloudKeys.has(_wkey(e)) && !DIARY_CLEANUP_RETIRED.has(_wearFp(e)));
         const resolvedWear = [...cloudWear, ..._localOnly];
         const resolvedWishlist = data.wishlist || localWishlist;
         const resolvedUserPerfumes = data.userPerfumes && data.userPerfumes.length ? data.userPerfumes : localPerfumes;
@@ -8664,6 +8726,16 @@ function App() {
       return next;
     });
   }, [perfumes]);
+
+  const cleanupDiary = useCallback(() => {
+    setWearLog(prev => {
+      const next = applyDiaryCleanup(prev);
+      const user = next.filter(e => !WEAR_LOG_SEED.includes(e));
+      try { localStorage.setItem("perfume_diary", JSON.stringify(user)); } catch (e) {}
+      pushWithStatus();
+      return next;
+    });
+  }, []);
 
   const deleteWearEntry = useCallback((entry) => {
     setWearLog(prev => {
@@ -8822,7 +8894,7 @@ function App() {
       {loaded && view === "fragrance" && <FragranceView perfumes={perfumes} onSelect={setSelected} />}
       {loaded && view === "insights" && <InsightsView onSelect={setSelected} wearStats={wearStats} perfumes={perfumes} />}
       {loaded && view === "add" && <AddPerfumeView onAdd={addPerfume} perfumes={perfumes} />}
-      {loaded && view === "settings" && <SettingsView syncStatus={syncStatus} onSyncChange={loadAll} />}
+      {loaded && view === "settings" && <SettingsView syncStatus={syncStatus} onSyncChange={loadAll} wearLog={wearLog} onCleanupDiary={cleanupDiary} />}
     </main>
 
     {selected && <Modal p={selected} onClose={() => setSelected(null)} onEdit={editPerfume} onResetToSeed={resetPerfumeToSeed} hasEdits={!!perfumeEdits[selected.id]} perfumes={perfumes} onNavigate={setSelected} />}
