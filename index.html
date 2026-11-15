@@ -97,8 +97,12 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   flex-direction: column;
   border-top: 1px solid var(--border);
   background: var(--bg);
-  max-height: calc(100vh - 56px);
+  /* dvh = the visible screen on iPhone (100vh hides the bottom behind Safari's toolbar) */
+  max-height: calc(100vh - 56px - var(--safe-top));
+  max-height: calc(100dvh - 56px - var(--safe-top));
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 .nav-links.open {
   display: flex;
@@ -122,8 +126,8 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   padding-left: 17px;
 }
 
-/* Tablet+: horizontal nav */
-@media (min-width: 640px) {
+/* Tablet+: horizontal nav. Phones in landscape (short screens) keep the burger menu. */
+@media (min-width: 640px) and (min-height: 500px) {
   .menu-btn { display: none; }
   .nav-links {
     display: flex !important;
