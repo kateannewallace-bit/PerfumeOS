@@ -8391,6 +8391,19 @@ function contextScore(p, { season, occasion, vibe }) {
   return bonus;
 }
 
+// New arrivals get a boost that fades over 90 days: +10 the day it's added, ~+5 at six
+// weeks, 0 after three months. Big enough to outrank context fit, so recent buys lead.
+const NEW_ARRIVAL_DAYS = 90;
+function daysSinceAdded(p) {
+  if (!p.dateAdded || !/^\d{4}-\d{2}-\d{2}$/.test(p.dateAdded)) return null;
+  return Math.max(0, Math.floor((Date.now() - new Date(p.dateAdded + "T00:00:00")) / 86400000));
+}
+function newArrivalBonus(p) {
+  const d = daysSinceAdded(p);
+  if (d == null || d >= NEW_ARRIVAL_DAYS) return 0;
+  return 10 * (1 - d / NEW_ARRIVAL_DAYS);
+}
+
 function WearTodayView({ onSelect, wearStats, perfumes }) {
   const [season, setSeason] = useState(() => {
     const m = new Date().getMonth();
@@ -8426,8 +8439,9 @@ function WearTodayView({ onSelect, wearStats, perfumes }) {
         .filter(p => !p.tried && p.status !== "Avoid" && p.status !== "Dislike" && p.preference !== "Dislike")
         .map(p => {
           const ctxBonus = contextScore(p, ctx);
-          const total = ctxBonus * 2 + (p.sigScore || 0) * 0.8 + (p.balScore || 0) * 0.2 + jitter(p.id) * 1.5;
-          return { ...p, todayScore: total, ctxBonus };
+          const newBonus = newArrivalBonus(p);
+          const total = ctxBonus * 2 + (p.sigScore || 0) * 0.8 + (p.balScore || 0) * 0.2 + jitter(p.id) * 1.5 + newBonus;
+          return { ...p, todayScore: total, ctxBonus, newBonus };
         })
         .sort((a, b) => b.todayScore - a.todayScore)
         .slice(0, 12);
@@ -8531,6 +8545,7 @@ function WearTodayView({ onSelect, wearStats, perfumes }) {
       {ranked.map((p, i) => {
         let annotation = null;
         if (i === 0) annotation = mode === "new" ? "✦ Try Today" : `✦ Today's Pick`;
+        else if (mode === "new" && p.newBonus >= 3) annotation = "New arrival";
         else if (mode === "new" && (p.sigScore || 0) >= 7) annotation = "Likely a match";
         else if (p.isForgottenLove) annotation = "↩ Forgotten Love";
         else if (p.ctxBonus >= 5) annotation = "Great fit";
@@ -8863,6 +8878,11 @@ function App() {
   }, []);
 
   const addPerfume = useCallback((compactPerfume) => {
+    // Stamp the add date so Wear Today can favour new arrivals.
+    if (!compactPerfume.dateAdded) {
+      const d = new Date();
+      compactPerfume = { ...compactPerfume, dateAdded: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}` };
+    }
     setUserPerfumes(prev => {
       const next = [...prev, compactPerfume];
       try { localStorage.setItem("perfume_user_perfumes", JSON.stringify(next)); } catch (e) {}
