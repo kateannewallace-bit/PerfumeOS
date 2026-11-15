@@ -8464,10 +8464,12 @@ function prominentMatch(p, words) {
   return false;
 }
 function fitsContext(p, { season, occasion, vibe }) {
-  const seasonOk = contextScore(p, { season }) >= 0 &&
-    prominentMatch(p, FIT_SETS.season[season] || []);
+  // "__any" / null skip that dimension (used when working out a perfume's home options).
+  const seasonOk = season === "__any" || (contextScore(p, { season }) >= 0 &&
+    prominentMatch(p, FIT_SETS.season[season] || []));
   let vibeOk;
-  if (vibe === "Bold") vibeOk = (p.intScore || 0) >= 7 || prominentMatch(p, FIT_SETS.vibe.Bold);
+  if (vibe === "__any") vibeOk = true;
+  else if (vibe === "Bold") vibeOk = (p.intScore || 0) >= 7 || prominentMatch(p, FIT_SETS.vibe.Bold);
   else if (vibe === "Soft") vibeOk = (p.intScore || 0) <= 8 && prominentMatch(p, FIT_SETS.vibe.Soft);
   else vibeOk = prominentMatch(p, FIT_SETS.vibe[vibe] || []);
   const occasionOk = contextScore(p, { occasion }) >= 0;
@@ -8495,54 +8497,76 @@ function WearTodayView({ onSelect, wearStats, perfumes }) {
 
   const forgottenCount = useMemo(() => enriched.filter(p => p.isForgottenLove).length, [enriched]);
   const untriedCount = useMemo(() => enriched.filter(p => !p.tried && p.status !== "Avoid").length, [enriched]);
-
-  const [ranked, setRanked] = useState([]);
-  useEffect(() => {
-    const ctx = { season, occasion, vibe };
-    if (mode === "new") {
-      // Untried only. Context still leads; the predicted match to your taste (sigScore)
-      // replaces past ratings, which untried perfumes don't have. A little jitter per day
-      // keeps the same untried bottle from topping the list every morning.
-      const day = new Date().toISOString().slice(0, 10);
-      const jitter = (id) => { let h = 0; const s = day + id; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return (Math.abs(h) % 100) / 100; };
-      const result = enriched
-        .filter(p => !p.tried && p.status !== "Avoid" && p.status !== "Dislike" && p.preference !== "Dislike")
-        .filter(p => fitsContext(p, ctx))
-        .map(p => {
-          const ctxBonus = contextScore(p, ctx);
-          // Newness only orders perfumes that already fit; capped so it can't outweigh fit.
-          const newBonus = newArrivalBonus(p) * 0.5;
-          const total = ctxBonus * 2 + (p.sigScore || 0) * 0.8 + (p.balScore || 0) * 0.2 + jitter(p.id) * 1.5 + newBonus;
-          return { ...p, todayScore: total, ctxBonus, newBonus };
-        })
-        .sort((a, b) => b.todayScore - a.todayScore)
-        .slice(0, 12);
-      setRanked(result);
-      return;
-    }
-    const result = enriched
+  // Per-perfume pieces, computed once per mode: which seasons / vibes / occasions it fits
+  // (and how well), plus its non-context score. Every combination is then just a sum.
+  const pool = useMemo(() => {
+    const day = new Date().toISOString().slice(0, 10);
+    const jitter = (id) => { let h = 0; const s = day + id; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return (Math.abs(h) % 100) / 100; };
+    return enriched
       .filter(p => p.status !== "Avoid" && p.status !== "Dislike" && p.preference !== "Dislike")
-      .filter(p => fitsContext(p, ctx))
+      .filter(p => mode !== "new" || !p.tried)
       .map(p => {
-        // Context is the primary signal — multiply it so the right-for-right-now perfume wins.
-        // balScore is a tiebreaker. Love gives a small nudge. Overworn gets a gentle penalty.
-        // Rotation (optional) boosts forgotten loves + long-neglected high-raters.
-        const ctxBonus = contextScore(p, ctx);
-        const base = (p.balScore || 0) * 0.4;
-        const overwornPenalty = p.isOverworn ? -3 : 0;
-        const lovePref = p.preference === "Love" ? 1 : 0;
-        const rotationBonus = rotate
-          ? ((p.isForgottenLove ? 4 : 0) + (p.daysAgo != null && p.daysAgo > 60 && p.rating >= 8 ? 2 : 0))
-          : 0;
-        const total = ctxBonus * 2 + base + overwornPenalty + lovePref + rotationBonus;
-        return { ...p, todayScore: total, ctxBonus };
-      })
-      .sort((a, b) => b.todayScore - a.todayScore)
-      .slice(0, 12);
-    setRanked(result);
-  }, [enriched, season, occasion, vibe, rotate, mode]);
+        let base, newBonus = 0;
+        if (mode === "new") {
+          // Untried only: predicted match (sigScore) stands in for ratings; a small daily
+          // jitter varies the order; newness only orders perfumes that already fit.
+          newBonus = newArrivalBonus(p) * 0.5;
+          base = (p.sigScore || 0) * 0.8 + (p.balScore || 0) * 0.2 + jitter(p.id) * 1.5 + newBonus;
+        } else {
+          // balScore tiebreaker, Love nudge, overworn penalty, optional rotation boost.
+          base = (p.balScore || 0) * 0.4 + (p.isOverworn ? -3 : 0) + (p.preference === "Love" ? 1 : 0)
+            + (rotate ? ((p.isForgottenLove ? 4 : 0) + (p.daysAgo != null && p.daysAgo > 60 && p.rating >= 8 ? 2 : 0)) : 0);
+        }
+        const sc = {}, oc = {}, vc = {};
+        for (const S of SEASONS) sc[S] = fitsContext(p, { season: S, occasion: null, vibe: "__any" }) ? contextScore(p, { season: S }) : null;
+        for (const V of VIBES) vc[V] = fitsContext(p, { season: "__any", occasion: null, vibe: V }) ? contextScore(p, { vibe: V }) : null;
+        for (const O of OCCASIONS) { const c = contextScore(p, { occasion: O }); oc[O] = c >= 0 ? c : null; }
+        return { p, base, newBonus, sc, oc, vc };
+      });
+  }, [enriched, mode, rotate]);
 
-  const top = ranked[0];
+  const rankCell = (S, O, V) => pool
+    .filter(e => e.sc[S] != null && e.oc[O] != null && e.vc[V] != null)
+    .map(e => ({ e, ctxBonus: e.sc[S] + e.oc[O] + e.vc[V] }))
+    .map(x => ({ ...x, score: x.ctxBonus * 2 + x.e.base }))
+    .sort((a, b) => b.score - a.score);
+
+  // Unique frontrunners: pick a top perfume for all 144 combinations together, so that two
+  // combinations differing in just one choice (Fresh vs Energizing, Work vs Evening, Spring
+  // vs Winter…) never share a top pick. Scarcest combinations choose first.
+  const frontrunners = useMemo(() => {
+    const cells = [];
+    for (const S of SEASONS) for (const O of OCCASIONS) for (const V of VIBES) {
+      const list = rankCell(S, O, V);
+      cells.push({ S, O, V, n: list.length, best: list.length ? list[0].score : 0, cands: list.slice(0, 30).map(x => x.e.p) });
+    }
+    cells.sort((a, b) => a.n - b.n || b.best - a.best);
+    const used = new Map();
+    const take = (k, id) => { if (!used.has(k)) used.set(k, new Set()); used.get(k).add(id); };
+    const taken = (k, id) => used.has(k) && used.get(k).has(id);
+    // Different concentrations of one perfume (Fleur de Peau EDP / EDT) count as the same.
+    const same = p => `${(p.house || "").toLowerCase()}|${(p.name || "").toLowerCase()}`;
+    const out = new Map();
+    for (const c of cells) {
+      const kSO = `so|${c.S}|${c.O}`, kSV = `sv|${c.S}|${c.V}`, kOV = `ov|${c.O}|${c.V}`;
+      const p = c.cands.find(p => { const k = same(p); return !taken(kSO, k) && !taken(kSV, k) && !taken(kOV, k); });
+      if (!p) continue;
+      out.set(`${c.S}|${c.O}|${c.V}`, p.id);
+      const k = same(p); take(kSO, k); take(kSV, k); take(kOV, k);
+    }
+    return out;
+  }, [pool]);
+
+  const ranked = useMemo(() => {
+    const list = rankCell(season, occasion, vibe);
+    const frontId = frontrunners.get(`${season}|${occasion}|${vibe}`);
+    const i = list.findIndex(x => x.e.p.id === frontId);
+    if (i > 0) list.unshift(list.splice(i, 1)[0]);
+    return list.slice(0, 12).map(x => ({ ...x.e.p, todayScore: x.score, ctxBonus: x.ctxBonus, newBonus: x.e.newBonus }));
+  }, [pool, frontrunners, season, occasion, vibe]);
+  const crowned = ranked.length > 0 && ranked[0].id === frontrunners.get(`${season}|${occasion}|${vibe}`);
+
+  const top = crowned ? ranked[0] : null;
 
   return <div>
     <h1 className="page-title">What to Wear Today</h1>
@@ -8591,7 +8615,8 @@ function WearTodayView({ onSelect, wearStats, perfumes }) {
     </div>}
     {mode === "new" && <div style={{marginBottom: 28}} />}
 
-    {!top && <div className="empty">Nothing {mode === "new" ? "untried " : ""}fits {season} · {occasion} · {vibe}. Try a different vibe or occasion.</div>}
+    {ranked.length === 0 && <div className="empty">Nothing {mode === "new" ? "untried " : ""}fits {season} · {occasion} · {vibe}. Try a different vibe or occasion.</div>}
+    {ranked.length > 0 && !top && <div className="empty">No {mode === "new" ? "untried " : ""}perfume has {season} · {occasion} · {vibe} as its single best fit, so there's no Top Pick for this one. These all fit:</div>}
     {top && ranked.length < 4 && <div className="empty" style={{paddingTop: 0}}>Only {ranked.length} {mode === "new" ? "untried " : ""}perfume{ranked.length === 1 ? "" : "s"} fit{ranked.length === 1 ? "s" : ""} this combination.</div>}
 
     {top && (
@@ -8618,7 +8643,7 @@ function WearTodayView({ onSelect, wearStats, perfumes }) {
     <div className="grid">
       {ranked.map((p, i) => {
         let annotation = null;
-        if (i === 0) annotation = mode === "new" ? "✦ Try Today" : `✦ Today's Pick`;
+        if (i === 0 && top) annotation = mode === "new" ? "✦ Try Today" : `✦ Today's Pick`;
         else if (mode === "new" && p.newBonus >= 1.5) annotation = "New arrival";
         else if (mode === "new" && (p.sigScore || 0) >= 7) annotation = "Likely a match";
         else if (p.isForgottenLove) annotation = "↩ Forgotten Love";
