@@ -5387,6 +5387,7 @@ function Modal({ p, onClose, onEdit, onResetToSeed, hasEdits, perfumes, onNaviga
       blurbOverride: p.blurbOverride || "",
       oud: p.oud || "",
       perfumer: p.perfumer || "",
+      dateAdded: p.dateAdded || "",
       primaryTags: (p.primary || []).join(", "),
       smellsLike: (p.smellsLike || []).join(", "),
       notLike: (p.notLike || []).join(", "),
@@ -5412,6 +5413,7 @@ function Modal({ p, onClose, onEdit, onResetToSeed, hasEdits, perfumes, onNaviga
       oud: editForm.oud || null,
       perfumer: editForm.perfumer.trim() || null,
     };
+    if ((editForm.dateAdded || "") !== (p.dateAdded || "")) updates.dateAdded = editForm.dateAdded || "";
     if (editForm.rawNotes !== (p.rawNotes || "") ||
         editForm.family !== (p.family || "") ||
         editForm.primaryTags !== (p.primary || []).join(", ")) {
@@ -5617,6 +5619,9 @@ function Modal({ p, onClose, onEdit, onResetToSeed, hasEdits, perfumes, onNaviga
             </label>
             <label><span className="mini-lbl">Perfumer</span>
               <input type="text" value={editForm.perfumer} onChange={e => ef("perfumer", e.target.value)} placeholder="e.g. Dominique Ropion" />
+            </label>
+            <label><span className="mini-lbl">Date added</span>
+              <input type="date" value={editForm.dateAdded} onChange={e => ef("dateAdded", e.target.value)} />
             </label>
             <label><span className="mini-lbl">Primary notes (comma separated)</span>
               <input type="text" value={editForm.primaryTags} onChange={e => ef("primaryTags", e.target.value)} placeholder="e.g. rose, sandalwood" />
@@ -7975,6 +7980,7 @@ function AddPerfumeView({ onAdd, perfumes }) {
     house: '', name: '', concentration: '',
     family: '', notes: '', myNotes: '',
     rating: '', tried: false,
+    dateAdded: (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; })(),
     tagsMode: 'auto',  // 'auto' or 'manual'
     manualTags: [],
   });
@@ -8030,6 +8036,7 @@ function AddPerfumeView({ onAdd, perfumes }) {
       bs: previewScores.balScore,
       ts: previewScores.safeScore,
       m: previewScores.mood,
+      dateAdded: form.dateAdded || undefined,
       userAdded: true,
     };
     onAdd(newPerfume);
@@ -8040,6 +8047,7 @@ function AddPerfumeView({ onAdd, perfumes }) {
       house: '', name: '', concentration: '',
       family: '', notes: '', myNotes: '',
       rating: '', tried: false,
+      dateAdded: (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; })(),
       tagsMode: 'auto', manualTags: [],
     });
   };
@@ -8061,6 +8069,7 @@ function AddPerfumeView({ onAdd, perfumes }) {
         <label><span className="mini-lbl">Family</span><input value={form.family} onChange={e => setForm(f => ({...f, family: e.target.value}))} placeholder="e.g. Iris, floral, powdery" /></label>
         <label className="full-span"><span className="mini-lbl">Notes (the official note pyramid)</span><textarea value={form.notes} onChange={e => setForm(f => ({...f, notes: e.target.value}))} placeholder="Iris; violet; ambrette musk; cedar; ..." /></label>
         <label className="full-span"><span className="mini-lbl">My experience</span><textarea value={form.myNotes} onChange={e => setForm(f => ({...f, myNotes: e.target.value}))} placeholder="What it smelled like, how it wore, memories..." /></label>
+        <label><span className="mini-lbl">Date added</span><input type="date" value={form.dateAdded} onChange={e => setForm(f => ({...f, dateAdded: e.target.value}))} /></label>
         <label><span className="mini-lbl">Rating (x/10)</span><input type="number" min="0" max="10" step="0.5" value={form.rating} onChange={e => setForm(f => ({...f, rating: e.target.value}))} placeholder="leave empty if untried" /></label>
         <label style={{flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 22}}>
           <input type="checkbox" checked={form.tried} onChange={e => setForm(f => ({...f, tried: e.target.checked}))} style={{width: 18, height: 18, minHeight: 'auto'}} />
