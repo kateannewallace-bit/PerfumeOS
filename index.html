@@ -951,6 +951,12 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   margin-bottom: 20px;
 }
 .empty { color: var(--fg-very-soft); font-style: italic; padding: 20px 0; }
+.quicklog { margin: 4px 0 16px; }
+.quicklog-open { border: 1px solid var(--border); padding: 14px; background: var(--bg-soft); }
+.quicklog-done { color: var(--sage, #6a8a5a); font-size: 13px; letter-spacing: 0.04em; }
+.quicklog-ratings { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.quicklog-note { width: 100%; padding: 8px 10px; border: 1px solid var(--border); background: var(--bg); font-size: 14px; resize: vertical; margin-bottom: 10px; }
+.stats-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 20px; }
 
 /* ─── SURPRISE ────────────────────────────────────────────────────────────── */
 .surprise-card {
@@ -5325,7 +5331,40 @@ function Card({ p, onClick, annotation, simScore, trevorMode, excludeTags }) {
   </div>;
 }
 
-function Modal({ p, onClose, onEdit, onResetToSeed, hasEdits, perfumes, onNavigate }) {
+// Two-tap diary entry from a perfume's pop-up: optional rating + note, logged for today.
+// Goes through the same addWearEntry as the Diary page, so it syncs the same way.
+function QuickLog({ p, onLogWear }) {
+  const [open, setOpen] = useState(false);
+  const [rating, setRating] = useState("");
+  const [note, setNote] = useState("");
+  const [done, setDone] = useState(false);
+  useEffect(() => { setOpen(false); setRating(""); setNote(""); setDone(false); }, [p.id]);
+  if (!onLogWear) return null;
+  const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
+  const save = () => {
+    onLogWear({
+      date: today(), house: p.house || "", perfume: p.name, concentration: p.concentration || "",
+      rating: rating !== "" ? parseFloat(rating) : null, notes: note.trim(), safeReaction: "", perfumeId: p.id,
+    });
+    setDone(true); setOpen(false);
+  };
+  if (done) return <div className="quicklog quicklog-done">✓ Logged in your diary for today</div>;
+  if (!open) return <div className="quicklog"><button className="btn-primary" onClick={() => setOpen(true)}>Wore it today</button></div>;
+  return <div className="quicklog quicklog-open">
+    <div className="sec-lbl" style={{marginBottom: 8}}>Rating</div>
+    <div className="quicklog-ratings">
+      {[5,6,7,7.5,8,8.5,9,9.5,10].map(r =>
+        <button key={r} className={`ctx-chip ${String(rating) === String(r) ? "active" : ""}`} onClick={() => setRating(String(rating) === String(r) ? "" : String(r))}>{r}</button>)}
+    </div>
+    <textarea className="quicklog-note" value={note} onChange={e => setNote(e.target.value)} placeholder="Quick note (optional)" rows={2} />
+    <div className="form-actions">
+      <button className="btn-primary" onClick={save}>Log it</button>
+      <button className="btn-ghost" onClick={() => setOpen(false)}>Cancel</button>
+    </div>
+  </div>;
+}
+
+function Modal({ p, onClose, onEdit, onResetToSeed, hasEdits, perfumes, onNavigate, onLogWear }) {
   const [editMode, setEditMode] = useState(false);
   const [editForm, setEditForm] = useState({});
 
@@ -5434,6 +5473,7 @@ function Modal({ p, onClose, onEdit, onResetToSeed, hasEdits, perfumes, onNaviga
           {p.gender && <div style={{marginTop:4}}><span style={{fontSize:11,fontWeight:600,letterSpacing:"0.05em",padding:"3px 8px",borderRadius:10,textTransform:"uppercase",background:p.gender==="feminine"?"#f3e6f0":p.gender==="masculine"?"#e6edf8":"#eef3e6",color:p.gender==="feminine"?"#9b5f8a":p.gender==="masculine"?"#4a6fa5":"#5a7a4a"}}>{p.gender}</span></div>}
         </div>
       </div>
+      <QuickLog p={p} onLogWear={onLogWear} />
       {p.tags.length > 0 && (() => {
         const vis = displayTags(p);
         const prims = (p.primary || []).filter(t => vis.includes(t));
@@ -8364,14 +8404,36 @@ function WearTodayView({ onSelect, wearStats, perfumes }) {
   // Smart rotation (folded in from the old "Pick" view): boosts forgotten loves and
   // long-neglected favourites so you cycle through the collection instead of repeating.
   const [rotate, setRotate] = useState(true);
+  // "new" = only perfumes you haven't tried yet (the default — that's usually the point);
+  // "favorite" = the old behaviour, ranking things you already know you like.
+  const [mode, setMode] = useState("new");
 
   const enriched = useMemo(() => enrich(perfumes, wearStats), [wearStats, perfumes]);
 
   const forgottenCount = useMemo(() => enriched.filter(p => p.isForgottenLove).length, [enriched]);
+  const untriedCount = useMemo(() => enriched.filter(p => !p.tried && p.status !== "Avoid").length, [enriched]);
 
   const [ranked, setRanked] = useState([]);
   useEffect(() => {
     const ctx = { season, occasion, vibe };
+    if (mode === "new") {
+      // Untried only. Context still leads; the predicted match to your taste (sigScore)
+      // replaces past ratings, which untried perfumes don't have. A little jitter per day
+      // keeps the same untried bottle from topping the list every morning.
+      const day = new Date().toISOString().slice(0, 10);
+      const jitter = (id) => { let h = 0; const s = day + id; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return (Math.abs(h) % 100) / 100; };
+      const result = enriched
+        .filter(p => !p.tried && p.status !== "Avoid" && p.status !== "Dislike" && p.preference !== "Dislike")
+        .map(p => {
+          const ctxBonus = contextScore(p, ctx);
+          const total = ctxBonus * 2 + (p.sigScore || 0) * 0.8 + (p.balScore || 0) * 0.2 + jitter(p.id) * 1.5;
+          return { ...p, todayScore: total, ctxBonus };
+        })
+        .sort((a, b) => b.todayScore - a.todayScore)
+        .slice(0, 12);
+      setRanked(result);
+      return;
+    }
     const result = enriched
       .filter(p => p.status !== "Avoid" && p.status !== "Dislike" && p.preference !== "Dislike")
       .map(p => {
@@ -8391,7 +8453,7 @@ function WearTodayView({ onSelect, wearStats, perfumes }) {
       .sort((a, b) => b.todayScore - a.todayScore)
       .slice(0, 12);
     setRanked(result);
-  }, [enriched, season, occasion, vibe, rotate]);
+  }, [enriched, season, occasion, vibe, rotate, mode]);
 
   const top = ranked[0];
 
@@ -8399,7 +8461,15 @@ function WearTodayView({ onSelect, wearStats, perfumes }) {
     <h1 className="page-title">What to Wear Today</h1>
     <p className="page-sub">Tell me the context — I'll rank your collection for right now.</p>
 
-    {rotate && forgottenCount > 0 && (
+    <div className="context-group">
+      <div className="context-group-label">Pick from</div>
+      <div className="context-chips">
+        <button className={`ctx-chip ${mode === "new" ? "active" : ""}`} onClick={() => setMode("new")}>Something new ({untriedCount} untried)</button>
+        <button className={`ctx-chip ${mode === "favorite" ? "active" : ""}`} onClick={() => setMode("favorite")}>An old favorite</button>
+      </div>
+    </div>
+
+    {mode === "favorite" && rotate && forgottenCount > 0 && (
       <div className="banner">
         <strong>{forgottenCount} forgotten love{forgottenCount === 1 ? "" : "s"}</strong> — favourites rated 9+ you haven't worn in 30+ days are boosted below.
       </div>
@@ -8426,16 +8496,19 @@ function WearTodayView({ onSelect, wearStats, perfumes }) {
       </div>
     </div>
 
-    <div className="context-group" style={{marginBottom: 28}}>
+    {mode === "favorite" && <div className="context-group" style={{marginBottom: 28}}>
       <div className="context-group-label">Rotation</div>
       <div className="context-chips">
         <button className={`ctx-chip ${rotate ? "active" : ""}`} onClick={() => setRotate(r => !r)}>↩ Favor neglected &amp; forgotten loves</button>
       </div>
-    </div>
+    </div>}
+    {mode === "new" && <div style={{marginBottom: 28}} />}
+
+    {mode === "new" && !top && <div className="empty">You've tried everything — switch to "An old favorite".</div>}
 
     {top && (
       <div className="surprise-card" style={{marginBottom: 28}}>
-        <div className="surprise-label">Top Pick for {season} · {occasion} · {vibe}</div>
+        <div className="surprise-label">{mode === "new" ? "Try Today" : "Top Pick"} for {season} · {occasion} · {vibe}</div>
         <div className="surprise-house">{top.house}</div>
         <div className="surprise-name">{top.name}</div>
         {top.concentration && <div className="surprise-conc">{top.concentration}</div>}
@@ -8457,7 +8530,8 @@ function WearTodayView({ onSelect, wearStats, perfumes }) {
     <div className="grid">
       {ranked.map((p, i) => {
         let annotation = null;
-        if (i === 0) annotation = `✦ Today's Pick`;
+        if (i === 0) annotation = mode === "new" ? "✦ Try Today" : `✦ Today's Pick`;
+        else if (mode === "new" && (p.sigScore || 0) >= 7) annotation = "Likely a match";
         else if (p.isForgottenLove) annotation = "↩ Forgotten Love";
         else if (p.ctxBonus >= 5) annotation = "Great fit";
         return <Card key={p.id} p={p} onClick={onSelect} annotation={annotation} />;
@@ -8566,6 +8640,7 @@ function App() {
   const [view, setView] = useState("today");
   const [selected, setSelected] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [statsTab, setStatsTab] = useState("insights");
   const [wearLog, setWearLog] = useState(WEAR_LOG_SEED);
   const [wishlist, setWishlist] = useState(activeWishlistSeed);
   const [userPerfumes, setUserPerfumes] = useState([]);
@@ -8860,10 +8935,8 @@ function App() {
     { k: "diary", l: "Diary" },
     { k: "wishlist", l: "Wishlist" },
     { k: "add", l: "Add Perfume" },
-    { k: "charts", l: "Charts" },
-    { k: "dataviz", l: "Data Viz" },
+    { k: "stats", l: "Stats" },
     { k: "fragrance", l: "Fragrance" },
-    { k: "insights", l: "Insights" },
     { k: "settings", l: "Settings" },
   ];
 
@@ -8896,15 +8969,19 @@ function App() {
       {loaded && view === "similar" && <SimilarView onSelect={setSelected} perfumes={perfumes} />}
       {loaded && view === "diary" && <DiaryView wearLog={wearLog} onAdd={addWearEntry} onEdit={editWearEntry} onDelete={deleteWearEntry} syncStatus={syncStatus} />}
       {loaded && view === "wishlist" && <WishlistView wishlist={wishlist} onAdd={addWishlistItem} onRemove={removeWishlistItem} />}
-      {loaded && view === "charts" && <ChartsView wearLog={resolvedWearLog} perfumes={perfumes} wearStats={wearStats} onRefresh={loadAll} onSelect={setSelected} />}
-      {loaded && view === "dataviz" && <DataVizView perfumes={perfumes} wearLog={resolvedWearLog} onSelect={setSelected} />}
+      {loaded && view === "stats" && <div className="stats-tabs">
+        {[["insights", "Overview"], ["charts", "Charts"], ["dataviz", "Data Viz"]].map(([k, l]) =>
+          <button key={k} className={`ctx-chip ${statsTab === k ? "active" : ""}`} onClick={() => setStatsTab(k)}>{l}</button>)}
+      </div>}
+      {loaded && view === "stats" && statsTab === "insights" && <InsightsView onSelect={setSelected} wearStats={wearStats} perfumes={perfumes} />}
+      {loaded && view === "stats" && statsTab === "charts" && <ChartsView wearLog={resolvedWearLog} perfumes={perfumes} wearStats={wearStats} onRefresh={loadAll} onSelect={setSelected} />}
+      {loaded && view === "stats" && statsTab === "dataviz" && <DataVizView perfumes={perfumes} wearLog={resolvedWearLog} onSelect={setSelected} />}
       {loaded && view === "fragrance" && <FragranceView perfumes={perfumes} onSelect={setSelected} />}
-      {loaded && view === "insights" && <InsightsView onSelect={setSelected} wearStats={wearStats} perfumes={perfumes} />}
       {loaded && view === "add" && <AddPerfumeView onAdd={addPerfume} perfumes={perfumes} />}
       {loaded && view === "settings" && <SettingsView syncStatus={syncStatus} onSyncChange={loadAll} wearLog={wearLog} onCleanupDiary={cleanupDiary} />}
     </main>
 
-    {selected && <Modal p={selected} onClose={() => setSelected(null)} onEdit={editPerfume} onResetToSeed={resetPerfumeToSeed} hasEdits={!!perfumeEdits[selected.id]} perfumes={perfumes} onNavigate={setSelected} />}
+    {selected && <Modal p={selected} onClose={() => setSelected(null)} onEdit={editPerfume} onResetToSeed={resetPerfumeToSeed} hasEdits={!!perfumeEdits[selected.id]} perfumes={perfumes} onNavigate={setSelected} onLogWear={addWearEntry} />}
   </div>;
 }
 
