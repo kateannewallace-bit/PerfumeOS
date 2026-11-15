@@ -8423,6 +8423,57 @@ function newArrivalBonus(p) {
   return 10 * (1 - d / NEW_ARRIVAL_DAYS);
 }
 
+// A suggestion has to actually fit what you picked before any bonus (newness, rotation)
+// can rank it. "Fit" means the matching character is PROMINENT, not just one stray note:
+// it's in the perfume's standout (primary) notes or the lead term of its family (the part
+// before the first comma, unless the family is just an alphabetical list), or — for perfumes with no standout notes recorded — at least
+// three of its notes match. Season and vibe must both
+// fit; the occasion must not count against it (e.g. too loud for Work).
+const _CITRUS = ["citrus","bergamot","lemon","grapefruit","mandarin","orange","bitter orange","yuzu","lime","petitgrain","tangerine","clementine"];
+const _GREEN = ["green","galbanum","fig leaf","grass","tomato leaf","blackcurrant leaf","basil","green tea"];
+const FIT_SETS = {
+  season: {
+    Spring: ["floral","violet","iris","rose","peony","lily of the valley","cherry blossom","mimosa","freesia","magnolia","neroli", ..._GREEN, ..._CITRUS],
+    Summer: [..._CITRUS, ..._GREEN, "aquatic","marine","sea salt","mint","herbal fresh","cucumber","melon","neroli","fig"],
+    Autumn: ["woody","resinous","amber","spicy","leather","vetiver","patchouli","tobacco","cedar","sandalwood","incense","plum","fig","saffron","cinnamon","clove","oud","tea","black tea","lapsang souchong","gaiac"],
+    Winter: ["resinous","gourmand","vanilla","musk","oud","amber","smoky","incense","benzoin","labdanum","myrrh","tonka","cinnamon","leather","tobacco","honey","praline","chocolate"],
+  },
+  vibe: {
+    Fresh: [..._CITRUS, ..._GREEN, "aquatic","marine","mint","herbal fresh","cucumber","tea","green tea"],
+    Cozy: ["vanilla","tonka","amber","resinous","sandalwood","honey","cream","benzoin","cashmere","cashmere wood","praline","almond","heliotrope","gourmand","tea","black tea"],
+    Romantic: ["rose","jasmine","musk","gardenia","peony","iris","tuberose","orange blossom","ylang","ylang-ylang","violet","heliotrope","magnolia"],
+    Bold: ["oud","leather","smoky","incense","tobacco","patchouli","birch tar","castoreum","animalic","myrrh","labdanum"],
+    Soft: ["musk","powdery","iris","violet","heliotrope","ambrette","skin scent","orris","mimosa","cashmere","cashmere wood"],
+    Energizing: [..._CITRUS, "mint","cardamom","pepper","pink pepper","ginger","black pepper"],
+  },
+};
+function prominentMatch(p, words) {
+  const set = new Set(words);
+  const primary = (p.primary || []).map(t => String(t).toLowerCase());
+  if (primary.some(t => set.has(t))) return true;
+  // Families written as an alphabetical list ("amber, floral, green, musk") don't say
+  // which one leads, so only an ordered description counts.
+  const famSegs = (p.family || "").toLowerCase().split(",").map(x => x.trim()).filter(Boolean);
+  const isAlphaList = famSegs.length > 2 && famSegs.every((x, i) => i === 0 || famSegs[i-1] <= x);
+  const leadFam = isAlphaList ? "" : (famSegs[0] || "");
+  if (words.some(w => w.length > 3 && leadFam.includes(w))) return true;
+  if (primary.length === 0) {
+    const tags = (p.tags || []).map(t => String(t).toLowerCase());
+    return tags.filter(t => set.has(t)).length >= 3;
+  }
+  return false;
+}
+function fitsContext(p, { season, occasion, vibe }) {
+  const seasonOk = contextScore(p, { season }) >= 0 &&
+    prominentMatch(p, FIT_SETS.season[season] || []);
+  let vibeOk;
+  if (vibe === "Bold") vibeOk = (p.intScore || 0) >= 7 || prominentMatch(p, FIT_SETS.vibe.Bold);
+  else if (vibe === "Soft") vibeOk = (p.intScore || 0) <= 8 && prominentMatch(p, FIT_SETS.vibe.Soft);
+  else vibeOk = prominentMatch(p, FIT_SETS.vibe[vibe] || []);
+  const occasionOk = contextScore(p, { occasion }) >= 0;
+  return seasonOk && vibeOk && occasionOk;
+}
+
 function WearTodayView({ onSelect, wearStats, perfumes }) {
   const [season, setSeason] = useState(() => {
     const m = new Date().getMonth();
@@ -8456,9 +8507,11 @@ function WearTodayView({ onSelect, wearStats, perfumes }) {
       const jitter = (id) => { let h = 0; const s = day + id; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return (Math.abs(h) % 100) / 100; };
       const result = enriched
         .filter(p => !p.tried && p.status !== "Avoid" && p.status !== "Dislike" && p.preference !== "Dislike")
+        .filter(p => fitsContext(p, ctx))
         .map(p => {
           const ctxBonus = contextScore(p, ctx);
-          const newBonus = newArrivalBonus(p);
+          // Newness only orders perfumes that already fit; capped so it can't outweigh fit.
+          const newBonus = newArrivalBonus(p) * 0.5;
           const total = ctxBonus * 2 + (p.sigScore || 0) * 0.8 + (p.balScore || 0) * 0.2 + jitter(p.id) * 1.5 + newBonus;
           return { ...p, todayScore: total, ctxBonus, newBonus };
         })
@@ -8469,6 +8522,7 @@ function WearTodayView({ onSelect, wearStats, perfumes }) {
     }
     const result = enriched
       .filter(p => p.status !== "Avoid" && p.status !== "Dislike" && p.preference !== "Dislike")
+      .filter(p => fitsContext(p, ctx))
       .map(p => {
         // Context is the primary signal — multiply it so the right-for-right-now perfume wins.
         // balScore is a tiebreaker. Love gives a small nudge. Overworn gets a gentle penalty.
@@ -8537,7 +8591,8 @@ function WearTodayView({ onSelect, wearStats, perfumes }) {
     </div>}
     {mode === "new" && <div style={{marginBottom: 28}} />}
 
-    {mode === "new" && !top && <div className="empty">You've tried everything — switch to "An old favorite".</div>}
+    {!top && <div className="empty">Nothing {mode === "new" ? "untried " : ""}fits {season} · {occasion} · {vibe}. Try a different vibe or occasion.</div>}
+    {top && ranked.length < 4 && <div className="empty" style={{paddingTop: 0}}>Only {ranked.length} {mode === "new" ? "untried " : ""}perfume{ranked.length === 1 ? "" : "s"} fit{ranked.length === 1 ? "s" : ""} this combination.</div>}
 
     {top && (
       <div className="surprise-card" style={{marginBottom: 28}}>
@@ -8559,12 +8614,12 @@ function WearTodayView({ onSelect, wearStats, perfumes }) {
       </div>
     )}
 
-    <div className="result-count">{ranked.length} ranked for your context</div>
+    <div className="result-count">{ranked.length} that fit your choices{ranked.length === 12 ? " (top 12)" : ""}</div>
     <div className="grid">
       {ranked.map((p, i) => {
         let annotation = null;
         if (i === 0) annotation = mode === "new" ? "✦ Try Today" : `✦ Today's Pick`;
-        else if (mode === "new" && p.newBonus >= 3) annotation = "New arrival";
+        else if (mode === "new" && p.newBonus >= 1.5) annotation = "New arrival";
         else if (mode === "new" && (p.sigScore || 0) >= 7) annotation = "Likely a match";
         else if (p.isForgottenLove) annotation = "↩ Forgotten Love";
         else if (p.ctxBonus >= 5) annotation = "Great fit";
