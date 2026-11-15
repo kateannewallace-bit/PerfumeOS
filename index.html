@@ -6881,28 +6881,38 @@ function ChartsView({ wearLog, perfumes, wearStats, onRefresh, onSelect }) {
     {key:'summer', label:'Summer', months:[6,7,8],  color:'var(--gold)'},
     {key:'fall',   label:'Autumn', months:[9,10,11], color:'#a07855'},
   ];
+  // Each season is kept to its own year, so two autumns don't merge into one panel.
+  // December counts toward the winter that runs into the next year ("Winter 2025–26").
+  // Dates are read from the string so time zones can't shift an entry into another month.
   const seasonOf = date => {
-    const mo = new Date(date).getMonth()+1;
-    return SEASONS.find(s=>s.months.includes(mo))?.key || null;
+    const ds = String(date || "");
+    const y = +ds.slice(0,4), mo = +ds.slice(5,7);
+    if (!y || !mo) return null;
+    const s = SEASONS.find(s=>s.months.includes(mo)); if (!s) return null;
+    const startYear = s.key === 'winter' && mo <= 2 ? y - 1 : y;
+    const order = startYear * 4 + ['winter','spring','summer','fall'].indexOf(s.key) + (s.key === 'winter' ? 4 : 0);
+    const label = s.key === 'winter' ? `${s.label} ${startYear}–${String(startYear + 1).slice(2)}` : `${s.label} ${startYear}`;
+    return { id: `${s.key}-${startYear}`, order, label, base: s };
   };
   const seasonalData = useMemo(() => {
-    // count family tag occurrences per season from wear log
-    const bySeason = {};
-    for (const s of SEASONS) bySeason[s.key] = {};
+    // count family tag occurrences per season-and-year from the wear log
+    const bySeason = new Map();
     for (const e of wearLog) {
-      const sk = seasonOf(e.date); if (!sk) continue;
+      const so = seasonOf(e.date); if (!so) continue;
       const p = perfMap.get(e.perfumeId); if (!p) continue;
+      if (!bySeason.has(so.id)) bySeason.set(so.id, { so, counts: {}, wears: 0 });
+      const bucket = bySeason.get(so.id); bucket.wears += 1;
+      const counts = bucket.counts;
       const tags = Array.isArray(p.tags) ? p.tags : [];
       for (const f of BROAD_FAM) {
-        if (tags.includes(f)) bySeason[sk][f] = (bySeason[sk][f]||0)+1;
+        if (tags.includes(f)) counts[f] = (counts[f]||0)+1;
       }
     }
-    return SEASONS.map(s => {
-      const counts = bySeason[s.key];
+    return [...bySeason.values()].sort((a,b)=>a.so.order-b.so.order).map(({so, counts, wears}) => {
       const total = Object.values(counts).reduce((a,b)=>a+b,0);
       const top = Object.entries(counts).sort(([,a],[,b])=>b-a).slice(0,6)
         .map(([f,n])=>({fam:f, label:f.charAt(0).toUpperCase()+f.slice(1), n, pct:total?Math.round((n/total)*100):0}));
-      return {...s, top, total};
+      return {key: so.id, label: so.label, color: so.base.color, top, total, wears};
     });
   }, [wearLog, perfMap]);
 
@@ -7088,14 +7098,14 @@ function ChartsView({ wearLog, perfumes, wearStats, onRefresh, onSelect }) {
   const maxScentDNA = scentDNA[0]?.value||1;
 
   // Seasonal family mini-bars
-  const SeasonPanel = ({label, color, top, total}) => {
+  const SeasonPanel = ({label, color, top, total, wears}) => {
     const maxN = top[0]?.n||1;
     return (
       <div style={{flex:'1 1 200px',minWidth:180}}>
         <div style={{fontSize:12,fontFamily:'Georgia,serif',color,fontWeight:600,
           letterSpacing:'0.05em',marginBottom:10,textTransform:'uppercase',fontSize:11}}>{label}</div>
         <div style={{fontSize:10,color:'var(--fg-mute)',fontFamily:'Georgia,serif',marginBottom:10}}>
-          {total} wear{total!==1?'s':''}
+          {wears} wear{wears!==1?'s':''}
         </div>
         {top.length===0
           ? <p style={{fontSize:11,color:'var(--fg-mute)',fontFamily:'Georgia,serif'}}>No diary entries.</p>
@@ -7285,7 +7295,7 @@ const recentMostWorn = useMemo(() => {
         {/* Seasonal Wear Patterns */}
         <div className="chart-card">
           <div className="chart-card-title">Seasonal Wear Patterns</div>
-          <div className="chart-card-sub">Which olfactory families you reach for each season — does your nose shift with the weather?</div>
+          <div className="chart-card-sub">Which olfactory families you reach for each season, year by year — does your nose shift with the weather?</div>
           <div style={{display:'flex',flexWrap:'wrap',gap:28,marginTop:8}}>
             {seasonalData.map(s=><SeasonPanel key={s.key} {...s}/>)}
           </div>
