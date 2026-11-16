@@ -8591,6 +8591,27 @@ function violetLeafOnly(t) {
   return !/violet(?! lea)|ionone|parma/.test(t.replace(/violet lea(f|ves)/g, ""));
 }
 
+// Accords: the overall effect several notes make together, which note-by-note matching
+// misses. Detected from the notes, Katie's own words, and name allusions (Jadis is the
+// White Witch in Narnia, who tempts Edmund with Turkish delight).
+const NAME_ALLUSIONS = { jadis: "loukhoum", "white witch": "loukhoum", "rahat": "loukhoum", "bosphore": "loukhoum", "bosphorus": "loukhoum" };
+const ACCORDS = [
+  { k: "loukhoum", label: "Turkish delight",
+    test: (t, any) => any(["loukhoum", "loukoum", "lokum", "turkish delight", "rahat"])
+      || (pfHas(t, "rose") && any(["almond", "dragée", "dragee", "honey", "maltol", "pistachio", "marzipan"]) && any(["vanilla", "sugar", "powder", "powdery", "orris", "iris", "musk"])) },
+  { k: "whitefloral", label: "white floral bomb",
+    test: t => ["tuberose", "jasmine", "ylang", "gardenia"].filter(w => pfHas(t, w)).length >= 2 },
+  { k: "cherryalmond", label: "cherry-almond",
+    test: t => pfHas(t, "cherry") && ["almond", "tonka", "heliotrope", "marzipan", "benzaldehyde"].some(w => pfHas(t, w)) },
+];
+function accordsOf(p) {
+  const t = pfText(p), mine = (p.myNotes || "").toLowerCase(), name = (p.name || "").toLowerCase();
+  const any = ws => ws.some(w => pfHas(t, w) || pfHas(mine, w));
+  const out = new Set();
+  for (const a of ACCORDS) if (a.test(t, any)) out.add(a.k);
+  for (const w in NAME_ALLUSIONS) if (pfHas(name, w)) out.add(NAME_ALLUSIONS[w]);
+  return out;
+}
 function charSim(a, b) {
   if (!a || !b) return 0.7;
   let s = 0, c = 0;
@@ -8605,7 +8626,7 @@ function buildTakeModel(list) {
   const prep = p => {
     const genre = p._genre || p.genreOverride || kateCategorize(p);
     const text = pfText(p);
-    return { genre, text, ch: p.character || null, notes: new Set([...(p.notesList || []).map(x => ("" + x).toLowerCase()), ...(p.primary || []).map(x => ("" + x).toLowerCase())]),
+    return { genre, text, ch: p.character || null, acc: accordsOf(p), notes: new Set([...(p.notesList || []).map(x => ("" + x).toLowerCase()), ...(p.primary || []).map(x => ("" + x).toLowerCase())]),
       flags: TASTE_FLAGS.filter(f => f.test(p, text, genre)).map(f => f.k) };
   };
   const rated = [];
@@ -8639,7 +8660,8 @@ function buildTakeModel(list) {
     const top = [];
     for (const [i, c] of inter) {
       const x = rated[i]; if (x.key === key) continue;
-      const s = c / ((pre.notes.size + x.notes.size - c) || 1) + (x.genre === pre.genre ? 0.15 : 0) + 7 * Math.max(0, charSim(pre.ch, x.ch) - 0.7);
+      const s = c / ((pre.notes.size + x.notes.size - c) || 1) + (x.genre === pre.genre ? 0.15 : 0) + 7 * Math.max(0, charSim(pre.ch, x.ch) - 0.7)
+        + (pre.acc.size && x.acc.size ? 0.6 * [...pre.acc].filter(a => x.acc.has(a)).length : 0);
       if (top.length === 10 && s <= top[9].s) continue;
       let j = top.length < 10 ? top.length : 9;
       while (j > 0 && top[j - 1].s < s) { if (j < 10) top[j] = top[j - 1]; j--; }
@@ -8658,7 +8680,8 @@ function buildTakeModel(list) {
       take,
       why: {
         houseAvg: hAvg != null ? Math.round(hAvg * 10) / 10 : null, houseN: hs.length,
-        similar: top.slice(0, 4).map(({ x }) => ({ id: x.p.id, house: x.p.house, name: x.p.name, rating: x.r })),
+        similar: top.filter(({ x }, i) => top.findIndex(o => o.x.p.name.toLowerCase().trim() === x.p.name.toLowerCase().trim()) === i)
+          .slice(0, 4).map(({ x }) => ({ id: x.p.id, house: x.p.house, name: x.p.name, rating: x.r })),
         flags: pre.flags.map(k => ({ k, label: TASTE_FLAGS.find(f => f.k === k).label, avg: flagStats[k].avg != null ? Math.round(flagStats[k].avg * 10) / 10 : null, n: flagStats[k].n })),
         violetLeaf: violetLeafOnly(pre.text),
       },
