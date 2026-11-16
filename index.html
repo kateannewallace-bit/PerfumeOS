@@ -1374,6 +1374,12 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   letter-spacing: 0.04em;
   transition: all 0.1s;
 }
+.ctx-chip.any { font-style: italic; }
+.wt-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px 12px; }
+.wt-filters label { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.wt-filters select, .wt-filters input { width: 100%; box-sizing: border-box; min-height: 36px; padding: 6px 10px; border: 1px solid var(--border); background: #fff; font-family: inherit; font-size: 16px; color: var(--fg); }
+.wt-hint { font-size: 12px; color: var(--fg-soft); margin-top: 8px; }
+.linklike { background: none; border: 0; padding: 0; color: var(--gold); text-decoration: underline; cursor: pointer; font: inherit; }
 .ctx-chip.active {
   background: var(--fg);
   color: #fff;
@@ -8476,6 +8482,20 @@ function fitsContext(p, { season, occasion, vibe }) {
   return seasonOk && vibeOk && occasionOk;
 }
 
+const ANY = "__any";
+// The family field is free text ("Floral Woody Musk", "Amber, Vanilla", "woody-spicy"…),
+// so break it into plain family words for the Family dropdown.
+const FAMILY_ALIAS = { musky: "musk", oriental: "amber", ambery: "amber", hesperidic: "citrus", aldehyde: "aldehydic", aldehydes: "aldehydic", florals: "floral", fruit: "fruity", spice: "spicy", wood: "woody", woods: "woody", powder: "powdery", leathery: "leather", animal: "animalic", fougere: "fougère", resinous: "resin", resins: "resin", smoke: "smoky", earth: "earthy", aquatics: "aquatic" };
+const FAMILY_SKIP = new Set(["and", "&", "with", "fresh", "sweet", "notes", "accord", "white", "light", "warm", "soft", "dark", "", "for", "women", "men"]);
+function familyWords(p) {
+  const out = new Set();
+  for (const w of (p.family || "").toLowerCase().split(/[\s,;\/\-–&+]+/)) {
+    const k = FAMILY_ALIAS[w] || w;
+    if (!FAMILY_SKIP.has(k) && k.length > 2) out.add(k);
+  }
+  return [...out];
+}
+
 function WearTodayView({ onSelect, wearStats, perfumes }) {
   const [season, setSeason] = useState(() => {
     const m = new Date().getMonth();
@@ -8492,6 +8512,11 @@ function WearTodayView({ onSelect, wearStats, perfumes }) {
   // "new" = only perfumes you haven't tried yet (the default — that's usually the point);
   // "favorite" = the old behaviour, ranking things you already know you like.
   const [mode, setMode] = useState("new");
+  // Optional narrowing: "what should I wear today from Byredo / with violet / that's a musk?"
+  const [fHouse, setFHouse] = useState("");
+  const [fNote, setFNote] = useState("");
+  const [fFamily, setFFamily] = useState("");
+  const [fGenre, setFGenre] = useState("");
 
   const enriched = useMemo(() => enrich(perfumes, wearStats), [wearStats, perfumes]);
 
@@ -8521,13 +8546,38 @@ function WearTodayView({ onSelect, wearStats, perfumes }) {
         for (const S of SEASONS) sc[S] = fitsContext(p, { season: S, occasion: null, vibe: "__any" }) ? contextScore(p, { season: S }) : null;
         for (const V of VIBES) vc[V] = fitsContext(p, { season: "__any", occasion: null, vibe: V }) ? contextScore(p, { vibe: V }) : null;
         for (const O of OCCASIONS) { const c = contextScore(p, { occasion: O }); oc[O] = c >= 0 ? c : null; }
-        return { p, base, newBonus, sc, oc, vc };
+        const notes = new Set((p.notesList || []).map(n => n.toLowerCase()));
+        return { p, base, newBonus, sc, oc, vc, notes, fams: familyWords(p), genre: kateCategorize(p) };
       });
   }, [enriched, mode, rotate]);
 
-  const rankCell = (S, O, V) => pool
-    .filter(e => e.sc[S] != null && e.oc[O] != null && e.vc[V] != null)
-    .map(e => ({ e, ctxBonus: e.sc[S] + e.oc[O] + e.vc[V] }))
+  // Narrowing filters. Each dropdown's options come from perfumes matching the OTHER
+  // filters, so picking Byredo only offers notes / families / genres Byredo actually has.
+  const noteKey = fNote.trim().toLowerCase();
+  const passF = (e, skip) =>
+    (skip === "house" || !fHouse || e.p.house === fHouse) &&
+    (skip === "note" || !noteKey || e.notes.has(noteKey)) &&
+    (skip === "family" || !fFamily || e.fams.includes(fFamily)) &&
+    (skip === "genre" || !fGenre || e.genre === fGenre);
+  const filtering = !!(fHouse || noteKey || fFamily || fGenre);
+  const facets = useMemo(() => {
+    const h = new Map(), n = new Map(), fa = new Map(), g = new Map();
+    const inc = (m, k) => m.set(k, (m.get(k) || 0) + 1);
+    for (const e of pool) {
+      if (passF(e, "house")) inc(h, e.p.house);
+      if (passF(e, "note")) for (const x of e.notes) inc(n, x);
+      if (passF(e, "family")) for (const x of e.fams) inc(fa, x);
+      if (passF(e, "genre")) inc(g, e.genre);
+    }
+    const az = m => [...m].sort((a, b) => a[0].localeCompare(b[0]));
+    return { houses: az(h), notes: az(n), families: az(fa).filter(([, c]) => c >= 2 || c === fa.size), genres: az(g) };
+  }, [pool, fHouse, noteKey, fFamily, fGenre]);
+  const filteredPool = useMemo(() => filtering ? pool.filter(e => passF(e)) : pool, [pool, fHouse, noteKey, fFamily, fGenre]);
+
+  const ctxOf = (m, k) => k === ANY ? 0 : m[k];
+  const rankCell = (S, O, V, src = pool) => src
+    .filter(e => ctxOf(e.sc, S) != null && ctxOf(e.oc, O) != null && ctxOf(e.vc, V) != null)
+    .map(e => ({ e, ctxBonus: ctxOf(e.sc, S) + ctxOf(e.oc, O) + ctxOf(e.vc, V) }))
     .map(x => ({ ...x, score: x.ctxBonus * 2 + x.e.base }))
     .sort((a, b) => b.score - a.score);
 
@@ -8557,14 +8607,22 @@ function WearTodayView({ onSelect, wearStats, perfumes }) {
     return out;
   }, [pool]);
 
+  // When you've narrowed it down (a house, a note, "Any" season…) the unique-frontrunner
+  // rule steps aside: you asked for the best of that slice, so the best one leads.
+  const open = filtering || season === ANY || occasion === ANY || vibe === ANY;
   const ranked = useMemo(() => {
-    const list = rankCell(season, occasion, vibe);
-    const frontId = frontrunners.get(`${season}|${occasion}|${vibe}`);
-    const i = list.findIndex(x => x.e.p.id === frontId);
-    if (i > 0) list.unshift(list.splice(i, 1)[0]);
+    const list = rankCell(season, occasion, vibe, filteredPool);
+    if (!open) {
+      const frontId = frontrunners.get(`${season}|${occasion}|${vibe}`);
+      const i = list.findIndex(x => x.e.p.id === frontId);
+      if (i > 0) list.unshift(list.splice(i, 1)[0]);
+    }
     return list.slice(0, 12).map(x => ({ ...x.e.p, todayScore: x.score, ctxBonus: x.ctxBonus, newBonus: x.e.newBonus }));
-  }, [pool, frontrunners, season, occasion, vibe]);
-  const crowned = ranked.length > 0 && ranked[0].id === frontrunners.get(`${season}|${occasion}|${vibe}`);
+  }, [filteredPool, frontrunners, season, occasion, vibe, open]);
+  const crowned = ranked.length > 0 && (open || ranked[0].id === frontrunners.get(`${season}|${occasion}|${vibe}`));
+  const ctxLabel = [season, occasion, vibe].filter(x => x !== ANY).join(" · ")
+    + (filtering ? `${season === ANY && occasion === ANY && vibe === ANY ? "" : " · "}${[fHouse, fNote.trim(), fFamily && dvTitleCase(fFamily) + " family", fGenre].filter(Boolean).join(" · ")}` : "");
+  const ctxText = ctxLabel || "anything";
 
   const top = crowned ? ranked[0] : null;
 
@@ -8590,6 +8648,7 @@ function WearTodayView({ onSelect, wearStats, perfumes }) {
       <div className="context-group-label">Season</div>
       <div className="context-chips">
         {SEASONS.map(s => <button key={s} className={`ctx-chip ${season === s ? "active" : ""}`} onClick={() => setSeason(s)}>{s}</button>)}
+        <button className={`ctx-chip any ${season === ANY ? "active" : ""}`} onClick={() => setSeason(ANY)}>Any</button>
       </div>
     </div>
 
@@ -8597,6 +8656,7 @@ function WearTodayView({ onSelect, wearStats, perfumes }) {
       <div className="context-group-label">Occasion</div>
       <div className="context-chips">
         {OCCASIONS.map(o => <button key={o} className={`ctx-chip ${occasion === o ? "active" : ""}`} onClick={() => setOccasion(o)}>{o}</button>)}
+        <button className={`ctx-chip any ${occasion === ANY ? "active" : ""}`} onClick={() => setOccasion(ANY)}>Any</button>
       </div>
     </div>
 
@@ -8604,7 +8664,34 @@ function WearTodayView({ onSelect, wearStats, perfumes }) {
       <div className="context-group-label">Vibe</div>
       <div className="context-chips">
         {VIBES.map(v => <button key={v} className={`ctx-chip ${vibe === v ? "active" : ""}`} onClick={() => setVibe(v)}>{v}</button>)}
+        <button className={`ctx-chip any ${vibe === ANY ? "active" : ""}`} onClick={() => setVibe(ANY)}>Any</button>
       </div>
+    </div>
+
+    <div className="context-group">
+      <div className="context-group-label">Narrow it down (optional)</div>
+      <div className="wt-filters">
+        <label><span className="mini-lbl">House</span>
+          <select value={fHouse} onChange={e => setFHouse(e.target.value)}>
+            <option value="">Any house</option>
+            {facets.houses.map(([k, c]) => <option key={k} value={k}>{k} ({c})</option>)}
+          </select></label>
+        <label><span className="mini-lbl">Note</span>
+          <input list="wt-notes" value={fNote} onChange={e => setFNote(e.target.value)} placeholder="Any note — type to search" autoComplete="off" />
+          <datalist id="wt-notes">{facets.notes.map(([k, c]) => <option key={k} value={k}>{c} perfume{c === 1 ? "" : "s"}</option>)}</datalist></label>
+        <label><span className="mini-lbl">Family</span>
+          <select value={fFamily} onChange={e => setFFamily(e.target.value)}>
+            <option value="">Any family</option>
+            {facets.families.map(([k, c]) => <option key={k} value={k}>{dvTitleCase(k)} ({c})</option>)}
+          </select></label>
+        <label><span className="mini-lbl">Genre</span>
+          <select value={fGenre} onChange={e => setFGenre(e.target.value)}>
+            <option value="">Any genre</option>
+            {facets.genres.map(([k, c]) => <option key={k} value={k}>{k} ({c})</option>)}
+          </select></label>
+      </div>
+      {noteKey && !facets.notes.some(([k]) => k === noteKey) && <div className="wt-hint">No {mode === "new" ? "untried " : ""}perfume{fHouse || fFamily || fGenre ? " in this selection" : ""} lists “{fNote.trim()}” as a note — pick one from the suggestions.</div>}
+      {filtering && <div className="wt-hint">{filteredPool.length} {mode === "new" ? "untried " : ""}perfume{filteredPool.length === 1 ? "" : "s"} match · <button className="linklike" onClick={() => { setFHouse(""); setFNote(""); setFFamily(""); setFGenre(""); }}>Clear</button></div>}
     </div>
 
     {mode === "favorite" && <div className="context-group" style={{marginBottom: 28}}>
@@ -8615,13 +8702,13 @@ function WearTodayView({ onSelect, wearStats, perfumes }) {
     </div>}
     {mode === "new" && <div style={{marginBottom: 28}} />}
 
-    {ranked.length === 0 && <div className="empty">Nothing {mode === "new" ? "untried " : ""}fits {season} · {occasion} · {vibe}. Try a different vibe or occasion.</div>}
-    {ranked.length > 0 && !top && <div className="empty">No {mode === "new" ? "untried " : ""}perfume has {season} · {occasion} · {vibe} as its single best fit, so there's no Top Pick for this one. These all fit:</div>}
+    {ranked.length === 0 && <div className="empty">Nothing {mode === "new" ? "untried " : ""}fits {ctxText}. {filtering ? "Try “Any” for season, occasion or vibe." : "Try a different vibe or occasion."}</div>}
+    {ranked.length > 0 && !top && <div className="empty">No {mode === "new" ? "untried " : ""}perfume has {ctxText} as its single best fit, so there's no Top Pick for this one. These all fit:</div>}
     {top && ranked.length < 4 && <div className="empty" style={{paddingTop: 0}}>Only {ranked.length} {mode === "new" ? "untried " : ""}perfume{ranked.length === 1 ? "" : "s"} fit{ranked.length === 1 ? "s" : ""} this combination.</div>}
 
     {top && (
       <div className="surprise-card" style={{marginBottom: 28}}>
-        <div className="surprise-label">{mode === "new" ? "Try Today" : "Top Pick"} for {season} · {occasion} · {vibe}</div>
+        <div className="surprise-label">{mode === "new" ? "Try Today" : "Top Pick"} for {ctxText}</div>
         <div className="surprise-house">{top.house}</div>
         <div className="surprise-name">{top.name}</div>
         {top.concentration && <div className="surprise-conc">{top.concentration}</div>}
