@@ -8908,6 +8908,10 @@ function App() {
     if (openId == null) return;
     const p = perfumes.find(pf => String(pf.id) === openId);
     if (p) { setSelected(p); openedFromUrl.current = true; }
+    // Drop ?open= from the address bar so a refresh doesn't reopen the same card.
+    params.delete("open");
+    const qs = params.toString();
+    try { history.replaceState(history.state, "", window.location.pathname + (qs ? "?" + qs : "") + window.location.hash); } catch (e) {}
   }, [loaded, perfumes]);
 
   const loadAll = useCallback(async () => {
