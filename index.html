@@ -8617,11 +8617,14 @@ function buildTakeModel(list) {
   const flagStats = {};
   for (const f of TASTE_FLAGS) { const hits = rated.filter(x => x.flags.includes(f.k)); flagStats[f.k] = { n: hits.length, avg: hits.length ? hits.reduce((s, x) => s + x.r, 0) / hits.length : null }; }
 
+  const cnt = new Int16Array(rated.length), seen = new Uint8Array(rated.length), touched = [];
   const predict = (p, pre = prep(p)) => {
     const key = pfNoteKey(p);
-    const inter = new Map();
-    for (const n of pre.notes) for (const i of idx.get(n) || []) inter.set(i, (inter.get(i) || 0) + 1);
-    for (const i of byGenre.get(pre.genre) || []) if (!inter.has(i)) inter.set(i, 0);
+    touched.length = 0;
+    for (const n of pre.notes) for (const i of idx.get(n) || []) { if (!seen[i]) { seen[i] = 1; touched.push(i); } cnt[i]++; }
+    for (const i of byGenre.get(pre.genre) || []) if (!seen[i]) { seen[i] = 1; touched.push(i); }
+    const inter = [];
+    for (const i of touched) { inter.push([i, cnt[i]]); cnt[i] = 0; seen[i] = 0; }
     // Keep only the 10 most similar (insertion into a short list beats sorting hundreds).
     const top = [];
     for (const [i, c] of inter) {
@@ -8655,10 +8658,17 @@ function buildTakeModel(list) {
   return { predict, prep, mean };
 }
 
+const GENRE_CACHE = new Map(); // id → genre, same idea
 const CHAR_CACHE = new Map(); // id → character lines, recomputed only when the perfume's text changes
 function addProfiles(list) {
   // Genre is the slow part (keyword scoring), so work it out once per perfume.
-  list = list.map(p => ({ ...p, _genre: p.genreOverride || kateCategorize(p) }));
+  list = list.map(p => {
+    if (p.genreOverride) return { ...p, _genre: p.genreOverride };
+    const gk = pfText(p) + "#" + (p.myNotes || "") + "#" + (p.name || "") + "#" + (p.house || "");
+    let c = GENRE_CACHE.get(p.id);
+    if (!c || c.k !== gk) { c = { k: gk, g: kateCategorize(p) }; GENRE_CACHE.set(p.id, c); }
+    return { ...p, _genre: c.g };
+  });
   const model = buildTakeModel(list);
   const out = list.map(p => {
     const pre = model.prep(p);
@@ -8673,9 +8683,9 @@ function addProfiles(list) {
     const g = p._genre, t = pfText(p);
     p.trevorRules = TREVOR_RULES.filter(r => r.test(p, g, t));
     if (srToScore(p.safeReaction) == null) for (const r of p.trevorRules) p.safeScore = Math.max(0, Math.min(10, (p.safeScore ?? 5) + r.w));
-    p.trevorEvidence = trevorEvidence(p, rec);
     // He disliked 4 of 5 sweet gourmands on you — the note rules alone don't catch that.
     if (srToScore(p.safeReaction) == null && p.takeWhy.flags.some(f => f.k === "sweet")) p.safeScore = Math.max(0, (p.safeScore ?? 5) - 2);
+    p.trevorEvidence = trevorEvidence(p, rec);
   }
   return out;
 }
@@ -8712,8 +8722,10 @@ const TREVOR_GROUPS = [
 ];
 // Katie's own read on Trevor (2026-11-16): he likes easy wins. A young floral (Miu Miu)
 // is good; a department-store chypre or mass-market Chanel reads "old lady"; anything
-// Angel-like is very bad; and if she has to work to read it, he isn't doing that work.
+// Angel-like is very bad; if she has to work to read it, he isn't doing that work; and
+// he doesn't like perfumes that smell like food.
 // Too few of his reactions fall in these buckets to test, so they're applied as her rules.
+const TREVOR_FOOD = ["vanilla", "bourbon vanilla", "madagascar vanilla", "chocolate", "cocoa", "cacao", "coffee", "caramel", "praline", "toffee", "honey", "almond", "pistachio", "hazelnut", "coconut", "milk", "butter", "bread", "biscuit", "cookie", "cake", "marshmallow", "sugar", "cotton candy", "rum", "cognac", "whiskey", "maple", "chestnut", "popcorn", "jam", "whipped cream", "licorice", "liquorice", "gourmand"];
 const TREVOR_RULES = [
   { k: "young", w: +1.5, why: "a young floral — you say he likes those (Miu Miu)",
     test: (p, g) => g === "Young Florals" || (p.tags || []).includes("young fresh") },
@@ -8722,6 +8734,17 @@ const TREVOR_RULES = [
       || (/chypre/.test((p.family || "").toLowerCase()) && (MAINSTREAM_HOUSES.has((p.house || "").toLowerCase()) || pfHas(t, "patchouli"))) },
   { k: "angel", w: -4, why: "Angel-style patchouli gourmand — very bad for him",
     test: (p, g, t) => /\bangel\b/i.test((p.smellsLike || []).join(" ")) || (pfHas(t, "patchouli") && ["chocolate", "cocoa", "praline", "caramel", "honey", "cotton candy"].some(w => pfHas(t, w))) },
+  // He doesn't like perfumes that smell like food. Vanilla rounding out a base is fine
+  // (N°5, Portrait of a Lady); vanilla or another food note as a main note is a minus.
+  { k: "food", w: -2, why: "smells like food — he doesn't go for that (vanilla's fine only as a base)",
+    test: (p, g) => {
+      // Main notes; when a perfume has none listed, its name and first three notes stand in.
+      let prim = (p.primary || []).map(x => ("" + x).toLowerCase());
+      if (!prim.length) prim = (p.notesList || []).slice(0, 3).map(x => ("" + x).toLowerCase());
+      prim = prim.concat([(p.name || "").toLowerCase()]);
+      const white = (p.tags || []).some(t => ["tuberose", "gardenia", "white floral", "jasmine"].includes(t));
+      return prim.some(x => TREVOR_FOOD.some(w => pfHas(x, w) && !(w === "coconut" && white)));
+    } },
   { k: "work", w: -1.5, why: "you found it challenging — he likes easy wins",
     test: p => ["challenging", "difficult", "abstract", "cerebral", "polarizing", "have to think", "4 perfumes"].some(w => pfHas((p.myNotes || "").toLowerCase(), w)) },
 ];
@@ -8753,8 +8776,19 @@ function trevorEvidence(p, rec) {
   const groups = trevorGroupsOf(p);
   const easy = (p.trevorRules || []).map(r => r.why);
   const dup = groups.includes("Sweet Gourmand perfumes") ? "sweet gourmands" : null;
+  // Reasons that agree with the verdict come first, so a "probably not" isn't explained
+  // only by things he likes.
+  const want = (p.safeScore ?? 5) >= 4 ? 1 : -1;
+  const dir = r => (r.liked / r.n >= base ? 1 : -1);
+  const strength = r => Math.abs(r.liked / r.n - base) * Math.sqrt(r.n);
+  // A "probably not" that comes from the notes themselves says so.
+  if (want < 0 && !easy.length) {
+    const all = new Set([...(p.tags || []), ...(p.primary || [])]);
+    const notes = ["smoky", "leather", "tobacco", "oud", "incense", "civet", "castoreum", "animalic", "amber", "resinous", "vanilla"].filter(t => all.has(t)).slice(0, 3);
+    if (notes.length) easy.push(`mostly its notes: ${notes.join(", ")}`);
+  }
   return easy.concat(groups.filter(k => k !== dup).map(k => [k, rec[k]]).filter(([, r]) => r && r.n >= 3)
-    .sort((a, b) => Math.abs(b[1].liked / b[1].n - base) * Math.sqrt(b[1].n) - Math.abs(a[1].liked / a[1].n - base) * Math.sqrt(a[1].n))
+    .sort((a, b) => ((dir(b[1]) === want) - (dir(a[1]) === want)) || strength(b[1]) - strength(a[1]))
     .slice(0, Math.max(0, 2 - easy.length))
     .map(([k, r]) => {
       const lr = r.liked / r.n, dr = r.disliked / r.n;
