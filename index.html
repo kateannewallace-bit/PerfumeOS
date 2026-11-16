@@ -8527,12 +8527,30 @@ function WearTodayView({ onSelect, wearStats, perfumes }) {
   const pool = useMemo(() => {
     const day = new Date().toISOString().slice(0, 10);
     const jitter = (id) => { let h = 0; const s = day + id; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return (Math.abs(h) % 100) / 100; };
-    return enriched
+    const eligible = enriched
       .filter(p => p.status !== "Avoid" && p.status !== "Dislike" && p.preference !== "Dislike")
-      .filter(p => mode !== "new" || !p.tried)
+      .filter(p => mode !== "new" || !p.tried);
+    // "Both": ratings (tried, median ~8) and predicted matches (untried, median ~5) aren't
+    // on the same scale, so each perfume is placed by its percentile within its own group —
+    // a top-quarter untried perfume competes evenly with a top-quarter favourite.
+    let pct = null;
+    if (mode === "both") {
+      const val = p => (p.tried && p.rating != null) ? p.rating : (p.sigScore || 0);
+      const grp = p => (p.tried && p.rating != null) ? "t" : "u";
+      const sorted = { t: [], u: [] };
+      for (const p of eligible) sorted[grp(p)].push(val(p));
+      for (const k in sorted) sorted[k].sort((a, b) => a - b);
+      const rankIn = (arr, v) => { let lo = 0, hi = arr.length; while (lo < hi) { const m = (lo + hi) >> 1; if (arr[m] < v) lo = m + 1; else hi = m; } let hi2 = lo; while (hi2 < arr.length && arr[hi2] === v) hi2++; return arr.length > 1 ? ((lo + hi2 - 1) / 2) / (arr.length - 1) : 0.5; };
+      pct = p => rankIn(sorted[grp(p)], val(p));
+    }
+    return eligible
       .map(p => {
         let base, newBonus = 0;
-        if (mode === "new") {
+        if (mode === "both") {
+          newBonus = p.tried ? 0 : newArrivalBonus(p) * 0.5;
+          base = pct(p) * 10 + jitter(p.id) * 1.5 + newBonus + (p.isOverworn ? -3 : 0)
+            + (rotate ? ((p.isForgottenLove ? 2 : 0) + (p.daysAgo != null && p.daysAgo > 60 && p.rating >= 8 ? 1 : 0)) : 0);
+        } else if (mode === "new") {
           // Untried only: predicted match (sigScore) stands in for ratings; a small daily
           // jitter varies the order; newness only orders perfumes that already fit.
           newBonus = newArrivalBonus(p) * 0.5;
@@ -8635,10 +8653,11 @@ function WearTodayView({ onSelect, wearStats, perfumes }) {
       <div className="context-chips">
         <button className={`ctx-chip ${mode === "new" ? "active" : ""}`} onClick={() => setMode("new")}>Something new ({untriedCount} untried)</button>
         <button className={`ctx-chip ${mode === "favorite" ? "active" : ""}`} onClick={() => setMode("favorite")}>An old favorite</button>
+        <button className={`ctx-chip ${mode === "both" ? "active" : ""}`} onClick={() => setMode("both")}>Both</button>
       </div>
     </div>
 
-    {mode === "favorite" && rotate && forgottenCount > 0 && (
+    {mode !== "new" && rotate && forgottenCount > 0 && (
       <div className="banner">
         <strong>{forgottenCount} forgotten love{forgottenCount === 1 ? "" : "s"}</strong> — favourites rated 9+ you haven't worn in 30+ days are boosted below.
       </div>
@@ -8694,7 +8713,7 @@ function WearTodayView({ onSelect, wearStats, perfumes }) {
       {filtering && <div className="wt-hint">{filteredPool.length} {mode === "new" ? "untried " : ""}perfume{filteredPool.length === 1 ? "" : "s"} match · <button className="linklike" onClick={() => { setFHouse(""); setFNote(""); setFFamily(""); setFGenre(""); }}>Clear</button></div>}
     </div>
 
-    {mode === "favorite" && <div className="context-group" style={{marginBottom: 28}}>
+    {mode !== "new" && <div className="context-group" style={{marginBottom: 28}}>
       <div className="context-group-label">Rotation</div>
       <div className="context-chips">
         <button className={`ctx-chip ${rotate ? "active" : ""}`} onClick={() => setRotate(r => !r)}>↩ Favor neglected &amp; forgotten loves</button>
@@ -8719,6 +8738,7 @@ function WearTodayView({ onSelect, wearStats, perfumes }) {
         <div className="surprise-rating" style={{color:"var(--gold)"}}>
           {top.rating != null ? `${top.rating}/10` : ""}
           {top.isForgottenLove && " · ↩ Forgotten Love"}
+          {mode === "both" && !top.tried && "Untried"}
         </div>
         <div className="surprise-actions">
           <button className="btn-primary" onClick={() => onSelect(top)}>Details</button>
@@ -8731,8 +8751,9 @@ function WearTodayView({ onSelect, wearStats, perfumes }) {
       {ranked.map((p, i) => {
         let annotation = null;
         if (i === 0 && top) annotation = mode === "new" ? "✦ Try Today" : `✦ Today's Pick`;
-        else if (mode === "new" && p.newBonus >= 1.5) annotation = "New arrival";
-        else if (mode === "new" && (p.sigScore || 0) >= 7) annotation = "Likely a match";
+        else if (mode !== "favorite" && !p.tried && p.newBonus >= 1.5) annotation = mode === "both" ? "Untried · new arrival" : "New arrival";
+        else if (mode !== "favorite" && !p.tried && (p.sigScore || 0) >= 7) annotation = mode === "both" ? "Untried · likely a match" : "Likely a match";
+        else if (mode === "both" && !p.tried) annotation = "Untried";
         else if (p.isForgottenLove) annotation = "↩ Forgotten Love";
         else if (p.ctxBonus >= 5) annotation = "Great fit";
         return <Card key={p.id} p={p} onClick={onSelect} annotation={annotation} />;
