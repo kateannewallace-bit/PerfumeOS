@@ -768,6 +768,36 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   margin: 16px 0;
 }
 
+.profile { margin-bottom: 16px; }
+.take-box { border: 1px solid var(--border-soft); padding: 12px 14px; margin: 6px 0 14px; background: var(--bg-soft); }
+.take-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+.take-label { font-size: 16px; font-weight: 600; }
+.take-label.love { color: #8b6f3e; } .take-label.good { color: #5f7f56; } .take-label.maybe { color: var(--fg-mute); } .take-label.risky { color: #a0605c; }
+.take-num { font-size: 12px; color: var(--fg-soft); }
+.take-line { font-size: 13px; color: var(--fg-mute); margin: 3px 0; line-height: 1.4; }
+.take-line.flag { color: #a0605c; }
+.take-sub { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg-soft); margin: 10px 0 6px; }
+.take-similar { display: flex; flex-wrap: wrap; gap: 6px; }
+.sim-chip { background: #fff; border: 1px solid var(--border-soft); border-radius: 999px; padding: 4px 10px; font: inherit; font-size: 12px; color: var(--fg-mute); cursor: pointer; text-align: left; }
+.sim-chip:hover { border-color: var(--gold); }
+.sim-r { font-weight: 700; color: var(--fg); margin-left: 2px; }
+.char-lines { display: grid; gap: 7px; margin: 6px 0 4px; }
+.char-row { display: grid; grid-template-columns: 96px 1fr 96px; align-items: center; gap: 8px; font-size: 12px; color: var(--fg-soft); }
+.char-l { text-align: right; } .char-r { text-align: left; }
+.char-l.lean, .char-r.lean { color: var(--fg); font-weight: 600; }
+.char-track { position: relative; height: 2px; background: var(--border); }
+.char-dot { position: absolute; top: 50%; width: 11px; height: 11px; margin: -5.5px 0 0 -5.5px; border-radius: 50%; background: var(--gold); }
+.char-row.unknown { opacity: 0.4; } .char-row.unknown .char-track { background: repeating-linear-gradient(90deg, var(--border) 0 4px, transparent 4px 8px); }
+@media (max-width: 400px) { .char-row { grid-template-columns: 78px 1fr 78px; font-size: 11px; } }
+.occ-v { color: var(--fg); }
+.trev-take { display: grid; gap: 8px; font-size: 13px; }
+.trev-row { display: grid; grid-template-columns: 110px 1fr; gap: 10px; align-items: baseline; }
+.trev-k { font-size: 11px; color: var(--fg-soft); letter-spacing: 0.04em; }
+.trev-quote { color: var(--fg); margin-bottom: 2px; }
+.trev-date { font-size: 11px; color: var(--fg-soft); }
+.trev-guess { color: var(--fg-mute); font-style: italic; }
+.trev-why { color: var(--fg-soft); }
+.trev-yn { font-weight: 600; } .trev-yn.yes { color: var(--sage); } .trev-yn.no { color: var(--dusty-rose); } .trev-yn.maybe { color: var(--fg-mute); }
 .scores-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -4241,7 +4271,7 @@ function computeWearStats(wearLog) {
     // and is carried through as the quote instead.
     if (entry.safeReaction) {
       const _sr = ('' + entry.safeReaction).toLowerCase().trim();
-      cur.reactions.push({ date: d, canonical: srToScore(_sr) != null ? _sr : null, text: entry.safeReaction });
+      cur.reactions.push({ date: d, canonical: srToScore(_sr) != null ? _sr : srFuzzy(_sr), text: entry.safeReaction });
     }
     if (entry.rating != null && entry.rating !== "" && !isNaN(Number(entry.rating))) {
       cur.ratings.push({ date: d, rating: Number(entry.rating) });
@@ -4278,6 +4308,7 @@ function enrich(perfumes, stats) {
       safeReaction: s?.latestReaction || p.safeReaction,
       safeReview: p.safeReview || (s?.latestReactionText && !s?.latestReaction ? s.latestReactionText : ""),
       ratingHistory: s?.ratings || [],
+      trevorReactions: s?.reactions || [],
       ratingDelta: s?.ratingDelta ?? null,
       wearCount: s?.count || 0,
       daysAgo: s?.daysAgo,
@@ -5322,8 +5353,8 @@ function Card({ p, onClick, annotation, simScore, trevorMode, excludeTags }) {
       return <div className="tag-row">{show.map(t => <Tag key={t} tag={t} primary={prims.includes(t)} />)}</div>;
     })()}
     <div className="card-foot">
-      <div><div className="mini-lbl">Sig</div><div className="mini-val">{p.sigScore}</div></div>
-      <div><div className="mini-lbl">Intr</div><div className="mini-val">{p.intScore}</div></div>
+      {p.take != null && <div><div className="mini-lbl">Your take</div><div className="mini-val">~{p.take.toFixed(1)}</div></div>}
+      {characterWords(p.character).length > 0 && <div><div className="mini-lbl">Feel</div><div className="mini-val" style={{fontSize: 12}}>{characterWords(p.character).join(" · ")}</div></div>}
       {simScore != null && <div className="sim-badge">sim {simScore}</div>}
       {reactMeta && <div className="trev-reaction-chip" style={{ color: reactMeta.color, background: reactMeta.bg }}>{reactMeta.label}</div>}
       {isPrediction && <div className="pred-badge">predicted</div>}
@@ -5367,6 +5398,100 @@ function QuickLog({ p, onLogWear }) {
       <button className="btn-primary" onClick={save}>Log it</button>
       <button className="btn-ghost" onClick={() => setOpen(false)}>Cancel</button>
     </div>
+  </div>;
+}
+
+// The card's profile: your take, what it smells like, when to wear it, Trevor's take.
+function CharacterLines({ ch }) {
+  if (!ch) return null;
+  return <div className="char-lines">
+    {CHAR_AXES.filter(ax => !(ax.fruitOnly && ch[ax.k] == null)).map(ax => {
+      const v = ch[ax.k];
+      return <div key={ax.k} className={`char-row ${v == null ? "unknown" : ""}`} title={v == null ? "Not enough to go on" : ""}>
+        <span className={`char-l ${v != null && v <= 3.5 ? "lean" : ""}`}>{ax.l}</span>
+        <div className="char-track">{v != null && <div className="char-dot" style={{ left: `${v * 10}%` }} />}</div>
+        <span className={`char-r ${v != null && v >= 6.5 ? "lean" : ""}`}>{ax.r}</span>
+      </div>;
+    })}
+  </div>;
+}
+
+function TakeBox({ p, why, take, onNavigate, perfumes }) {
+  if (take == null) return null;
+  const label = takeLabel(take);
+  const rated = p.tried && p.rating != null && p.rating !== "";
+  const tone = take >= 8.05 ? "love" : take >= 7.75 ? "good" : take >= 7.35 ? "maybe" : "risky";
+  return <div className="take-box">
+    <div className="take-head">
+      <span className={`take-label ${tone}`}>{label}</span>
+      <span className="take-num">predicted ~{take.toFixed(1)}</span>
+    </div>
+    {rated && <div className="take-line">You rated it {p.rating}. The prediction leaves your own rating out, so you can see how it would have guessed.</div>}
+    {why.houseAvg != null && <div className="take-line">You average <strong>{why.houseAvg}</strong> for {p.house} ({why.houseN} rated)</div>}
+    {why.houseAvg == null && <div className="take-line">You haven't rated anything else from {p.house} yet</div>}
+    {why.flags.map(f => <div key={f.k} className="take-line flag">{f.label}{f.avg != null ? ` — your ones like this average ${f.avg} (${f.n})` : ""}</div>)}
+    {why.similar.length > 0 && <>
+      <div className="take-sub">Most like it that you've rated</div>
+      <div className="take-similar">
+        {why.similar.map(s => {
+          const found = perfumes && perfumes.find(x => x.id === s.id);
+          return <button key={s.id} className="sim-chip" onClick={() => found && onNavigate && onNavigate(found)}>
+            <span className="sim-name">{s.house} {s.name}</span> <span className="sim-r">{s.rating}</span>
+          </button>;
+        })}
+      </div>
+    </>}
+  </div>;
+}
+
+function OccasionLine({ p }) {
+  const best = (list, fit, score) => list.filter(fit).map(x => [x, score(x)]).sort((a, b) => b[1] - a[1]).slice(0, 2).map(x => x[0]);
+  const seasons = best(SEASONS, S => fitsContext(p, { season: S, occasion: null, vibe: "__any" }), S => contextScore(p, { season: S }));
+  const occ = best(OCCASIONS, O => contextScore(p, { occasion: O }) >= 0, O => contextScore(p, { occasion: O }));
+  const vibes = best(VIBES, V => fitsContext(p, { season: "__any", occasion: null, vibe: V }), V => contextScore(p, { vibe: V }));
+  const rows = [["Season", seasons], ["Occasion", occ], ["Vibe", vibes]].filter(([, v]) => v.length);
+  if (!rows.length) return <div className="take-line">No clear season or vibe from its notes.</div>;
+  return <div className="trev-take">{rows.map(([k, v]) => <div key={k} className="trev-row"><span className="trev-k">{k}</span><span className="occ-v">{v.join(", ")}</span></div>)}</div>;
+}
+
+function TrevorTake({ p }) {
+  const name = CONFIG.partnerName || "Partner";
+  const real = (p.trevorReactions || []).filter(r => r.text).slice(-3).reverse();
+  const fallback = !real.length && p.safeReaction ? [{ text: p.safeReaction, date: null }] : [];
+  const shown = real.length ? real : fallback;
+  const self = p.trevorSelfScore;
+  const selfWord = self == null ? null : self >= 7 ? "Yes" : self <= 4 ? "No" : "Maybe";
+  const guess = p.safeScore >= 7 ? "Probably likes it on you" : p.safeScore <= 4 ? "Probably not a fan" : "Could go either way";
+  const why = trevorWhy(p);
+  const reasons = p.safeScore >= 7 ? why.pos : p.safeScore <= 4 ? why.neg : [...why.pos, ...why.neg];
+  return <div className="trev-take">
+    <div className="trev-row">
+      <span className="trev-k">On you</span>
+      {shown.length
+        ? <div className="trev-v">{shown.map((r, i) => <div key={i} className="trev-quote">“{dvTitleCase(("" + r.text).trim())}”{r.date ? <span className="trev-date"> {new Date(r.date).toISOString().slice(0, 10)}</span> : ""}</div>)}</div>
+        : <div className="trev-v"><span className="trev-guess">Guess: {guess}</span>{reasons.length > 0 && <span className="trev-why"> — {reasons.join(", ")}</span>}</div>}
+    </div>
+    {selfWord && <div className="trev-row">
+      <span className="trev-k">For him to wear</span>
+      <span className={`trev-yn ${selfWord.toLowerCase()}`}>{selfWord}</span>
+    </div>}
+  </div>;
+}
+
+function ProfilePanel({ p, perfumes, onNavigate }) {
+  if (!p.takeWhy) return null;
+  return <div className="profile">
+    <div className="sec-lbl">Your take</div>
+    <TakeBox p={p} why={p.takeWhy} take={p.take} onNavigate={onNavigate} perfumes={perfumes} />
+    <div className="sec-lbl">What it smells like</div>
+    <CharacterLines ch={p.character} />
+    {p.takeWhy.violetLeaf && <div className="take-line">The violet here is violet <em>leaf</em> (green), not candied violet.</div>}
+    <div className="sec-lbl" style={{ marginTop: 14 }}>When to wear it</div>
+    <OccasionLine p={p} />
+    {CONFIG.partnerName && <>
+      <div className="sec-lbl" style={{ marginTop: 14 }}>{CONFIG.partnerName}'s take</div>
+      <TrevorTake p={p} />
+    </>}
   </div>;
 }
 
@@ -5498,14 +5623,9 @@ function Modal({ p, onClose, onEdit, onResetToSeed, hasEdits, perfumes, onNaviga
         </>;
       })()}
       <hr className="divider" />
-      <div className="scores-grid">
-        {[["Match", p.sigScore, "#c8a97e"],["Edge", p.intScore, "#8aaa80"],["Appeal", p.balScore, "#9b7db8"],["On me", p.safeScore, "#d4899a"]].map(([l,v,c]) =>
-          <div key={l}><div className="sec-lbl">{l}</div><Bar v={v} color={c} /></div>
-        )}
-      </div>
+      <ProfilePanel p={p} perfumes={perfumes} onNavigate={onNavigate} />
       <div className="meta-grid">
         <div><span className="sec-lbl">Family</span> <span>{p.family || "—"}</span></div>
-        {CONFIG.partnerName && <div><span className="sec-lbl">For {CONFIG.partnerName}</span> <span style={{color: p.trevorSelfScore >= 7 ? "var(--sage)" : p.trevorSelfScore <= 4 ? "var(--dusty-rose)" : "var(--fg-mute)"}}>{p.trevorSelfScore ?? "—"}/10</span></div>}
         {p.oud && <div><span className="sec-lbl">Oud</span> <span style={{fontSize:11,fontWeight:600,letterSpacing:"0.03em",padding:"3px 8px",borderRadius:10,background:p.oud==="real"?"#e6f3ea":p.oud==="mixed"?"#f7e8e0":"#eef0f2",color:p.oud==="real"?"#3d7a52":p.oud==="mixed"?"#a0522d":"#6b7280"}}>{p.oud==="real"?"Real oud":p.oud==="mixed"?"Real + accord":"Oud accord"}</span></div>}
         {p.perfumer && <div><span className="sec-lbl">Perfumer</span> <span>{p.perfumer}</span></div>}
       </div>
@@ -5777,7 +5897,7 @@ function CollectionView({ onSelect, wearStats, perfumes }) {
   const [trevorOnly, setTrevorOnly] = useState(false);
   const [trevorWearOnly, setTrevorWearOnly] = useState(false);
   const [primaryOnly, setPrimaryOnly] = useState(false);
-  const [sort, setSort] = useState("balScore");
+  const [sort, setSort] = useState("take");
   const [sortDir, setSortDir] = useState("desc"); // desc = best/high first, asc = worst/low first
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [genders, setGenders] = useState([]); // [] = all; multi-select
@@ -5870,8 +5990,7 @@ function CollectionView({ onSelect, wearStats, perfumes }) {
         </div>
       </div>
       <label><span className="mini-lbl">Sort</span><select value={sort} onChange={e => setSort(e.target.value)}>
-        <option value="balScore">By Appeal</option>
-        <option value="sigScore">By Match</option>
+        <option value="take">By your take</option>
         {CONFIG.partnerName && <option value="safeScore">By {CONFIG.partnerName} (on you)</option>}
         {CONFIG.partnerName && <option value="trevorSelfScore">By {CONFIG.partnerName} (wears)</option>}
         <option value="rating">By Rating</option>
@@ -6156,7 +6275,7 @@ function CompareView({ perfumes }) {
   };
 
   const chosen = slots.map(sl => sl.id !== null ? perfumes.find(p => p.id === sl.id) : null);
-  const active = chosen.filter(Boolean);
+  const active = chosen.filter(Boolean).map(p => ({ ...p, _warm: p.character?.warm ?? undefined, _sweet: p.character?.sweet ?? undefined, _loud: p.character?.loud ?? undefined, _busy: p.character?.busy ?? undefined }));
   const n = active.length;
 
   // N-way note analysis: how many selected perfumes carry each tag, and in how many
@@ -6282,7 +6401,7 @@ function CompareView({ perfumes }) {
             {active.map((p, i) => <th key={i} style={{ padding: "4px 8px", fontWeight: 600, color: "#555" }}>{p.name}</th>)}
           </tr></thead>
           <tbody>
-            {[["Match", "sigScore", 5], ["Intensity", "intScore", 3], ["Appeal", "balScore", 5], ["On me", "safeScore", 5]].map(([label, key, dflt]) => (
+            {[["Your take", "take", 7.5], ["Warm", "_warm", 5], ["Sweet", "_sweet", 5], ["Loud", "_loud", 5], ["Busy", "_busy", 5], ["Trevor on you", "safeScore", 5]].map(([label, key, dflt]) => (
               <tr key={label} style={{ borderTop: "1px solid #eee7dd" }}>
                 <td style={{ padding: "5px 8px", color: "#999" }}>{label}</td>
                 {active.map((p, i) => { const v = p[key] ?? dflt; const best = Math.max(...active.map(q => q[key] ?? dflt)); return <td key={i} style={{ padding: "5px 8px", fontWeight: v === best ? 700 : 400, color: v === best ? "#8b6f3e" : "#666" }}>{v}</td>; })}
@@ -6312,7 +6431,7 @@ function TaxonomyView({ onSelect, perfumes }) {
   const [lane, setLane] = useState("Floral");
   const [inclAvoid, setInclAvoid] = useState(true);
   const [primaryOnly, setPrimaryOnly] = useState(false);
-  const [sort, setSort] = useState("sigScore");
+  const [sort, setSort] = useState("take");
   const [gender, setGender] = useState("All");
   const tabs = LANE_GROUPS.flatMap(g => g.lanes);
 
@@ -6344,9 +6463,7 @@ function TaxonomyView({ onSelect, perfumes }) {
 
     <div className="inline-row">
       <select value={sort} onChange={e => setSort(e.target.value)}>
-        <option value="sigScore">Match</option>
-        <option value="intScore">Edge</option>
-        <option value="balScore">Appeal</option>
+        <option value="take">Your take</option>
         <option value="rating">Rating</option>
       </select>
       <button className={`toggle ${!inclAvoid ? "active" : ""}`} onClick={() => setInclAvoid(a => !a)}>{inclAvoid ? "All" : "Hide avoid"}</button>
@@ -7941,10 +8058,10 @@ function FragranceView({ perfumes, onSelect }) {
 
 function InsightsView({ onSelect, wearStats, perfumes }) {
   const enriched = useMemo(() => enrich(perfumes, wearStats), [wearStats, perfumes]);
-  const loves = enriched.filter(p => p.preference === "Love").sort((a,b) => b.balScore - a.balScore);
+  const loves = enriched.filter(p => p.preference === "Love").sort((a,b) => (b.rating || 0) - (a.rating || 0) || (b.take || 0) - (a.take || 0));
   const avoids = enriched.filter(p => p.status === "Avoid");
   const retries = enriched.filter(p => p.status === "Retry");
-  const gems = enriched.filter(p => !p.tried && p.sigScore >= 7).sort((a,b) => b.sigScore - a.sigScore).slice(0, 12);
+  const gems = enriched.filter(p => !p.tried && (p.take ?? 0) >= 7.75).sort((a,b) => b.take - a.take).slice(0, 12);
   const topTrev = enriched.filter(p => p.status !== "Avoid" && p.status !== "Dislike").sort((a,b) => b.safeScore - a.safeScore).slice(0, 8);
   const forgotten = enriched.filter(p => p.isForgottenLove).slice(0, 8);
   const mostWorn = enriched.filter(p => p.wearCount > 0).sort((a,b) => b.wearCount - a.wearCount).slice(0, 8);
@@ -7973,9 +8090,9 @@ function InsightsView({ onSelect, wearStats, perfumes }) {
 
     <Sec title="Forgotten Loves" sub="Rated 9+ but not worn in 30+ days" items={forgotten} />
     <Sec title="Most Worn" sub="Your rotation mainstays" items={mostWorn} />
-    <Sec title="The Loves" sub="9–10/10, ranked by balance" items={loves} />
+    <Sec title="The Loves" sub="9–10/10, ranked by rating" items={loves} />
     <Sec title={CONFIG.partnerName ? `${CONFIG.partnerName}'s Picks` : "Partner Picks"} sub={`Highest ${CONFIG.partnerName || "partner"} score`} items={topTrev} />
-    <Sec title="Hidden Gems" sub="Untried, high signature match" items={gems} />
+    <Sec title="Hidden Gems" sub="Untried, highest predicted take" items={gems} />
     {retries.length > 0 && <Sec title="Retry Queue" sub="Worth another chance" items={retries} />}
 
     {avoids.length > 0 && <div className="insight-section">
@@ -8009,6 +8126,14 @@ function AddPerfumeView({ onAdd, perfumes }) {
     return buildTagsFromText(form.notes, form.family);
   }, [form.tagsMode, form.manualTags, form.notes, form.family]);
 
+  const takeModel = useMemo(() => buildTakeModel(perfumes), [perfumes]);
+  const previewProfile = useMemo(() => {
+    if (!form.notes.trim() && !form.house.trim()) return null;
+    const cand = { house: form.house.trim(), name: form.name.trim() || "(new)", concentration: form.concentration, family: form.family,
+      rawNotes: form.notes, notesList: processNotes(form.notes || ""), primary: [], tags: previewTags, myNotes: form.myNotes };
+    const r = takeModel.predict(cand);
+    return { take: r.take, why: r.why, character: characterOf(cand, r.genre), cand };
+  }, [takeModel, form.notes, form.house, form.name, form.concentration, form.family, form.myNotes, previewTags]);
   const previewScores = useMemo(() => {
     return scoreNewPerfume({
       notes: form.notes,
@@ -8129,11 +8254,15 @@ function AddPerfumeView({ onAdd, perfumes }) {
 
     <div className="form-card">
       <div className="form-title">Preview</div>
-      <div className="scores-grid">
-        <div><div className="sec-lbl">Match</div><Bar v={previewScores.sigScore} color="#c8a97e" /></div>
-        <div><div className="sec-lbl">Edge</div><Bar v={previewScores.intScore} color="#8aaa80" /></div>
-        <div><div className="sec-lbl">Appeal</div><Bar v={previewScores.balScore} color="#9b7db8" /></div>
-        <div><div className="sec-lbl">{CONFIG.partnerName || 'Partner'}</div><Bar v={previewScores.safeScore} color="#7a8fc4" /></div>
+      {previewProfile ? <>
+        <div className="sec-lbl">Your take</div>
+        <TakeBox p={previewProfile.cand} why={previewProfile.why} take={previewProfile.take} perfumes={perfumes} />
+        <div className="sec-lbl">What it smells like</div>
+        <CharacterLines ch={previewProfile.character} />
+        {previewProfile.why.violetLeaf && <div className="take-line">The violet here is violet <em>leaf</em> (green), not candied violet.</div>}
+      </> : <div className="take-line">Fill in the house and notes to see your predicted take.</div>}
+      <div className="meta-grid" style={{marginTop: 12}}>
+        <div><span className="sec-lbl">{CONFIG.partnerName || 'Partner'} on you (guess)</span> <span>{previewScores.safeScore >= 7 ? "Probably likes it" : previewScores.safeScore <= 4 ? "Probably not" : "Could go either way"}</span></div>
       </div>
       <div className="meta-grid">
         <div><span className="sec-lbl">Mood</span> <span>{MOOD_ICON[previewScores.mood]} {previewScores.mood}</span></div>
@@ -8342,6 +8471,224 @@ const SEASONS = ["Spring","Summer","Autumn","Winter"];
 const OCCASIONS = ["Casual","Work","Evening","Date Night","Outdoors","Weekend"];
 const VIBES = ["Fresh","Cozy","Romantic","Bold","Soft","Energizing"];
 
+// ─── PROFILE: your take, character lines, taste flags ────────────────────────
+// Replaces the old Match / Edge / Appeal scores (hand-written keyword points that
+// barely tracked Katie's real ratings, r≈0.16). "Your take" is a predicted rating
+// learned from her own rated perfumes: how she rates that house, how she rated the
+// most similar perfumes, and four taste flags. On her 536 live ratings this tracks
+// r≈0.33 — about double — and it never uses a perfume's own rating to predict it.
+const PF_RX = {};
+const pfRx = w => PF_RX[w] || (PF_RX[w] = new RegExp(`(^|[^a-z])${w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}($|[^a-z])`));
+const pfHas = (text, w) => pfRx(w).test(text);
+function pfText(p) {
+  return ((p.rawNotes || p.notes || "") + " | " + (p.notesList || []).join(" | ") + " | " + (p.tags || []).join(" | ") + " | " + (p.family || "")).toLowerCase();
+}
+const pfNoteKey = p => `${(p.house || "").toLowerCase()}|${(p.name || "").toLowerCase()}`;
+
+// Each line runs from a left word to a right word. L/R are note & tag words (weight),
+// ML/MR are words from her own notes on the perfume, which count extra.
+const CHAR_AXES = [
+  { k: "warm", l: "Fresh", r: "Warm",
+    L: { citrus: 2, bergamot: 1.5, lemon: 1.5, grapefruit: 1.5, neroli: 1, mandarin: 1, yuzu: 1.5, aquatic: 2, marine: 2, ozonic: 2, mint: 1.5, green: 1.5, cucumber: 1.5, tea: 1, cologne: 1.5, aromatic: 1, lavender: 1, petitgrain: 1, "sea salt": 1, fresh: 1 },
+    R: { amber: 2, vanilla: 1.5, tonka: 1.5, benzoin: 1.5, labdanum: 1.5, resin: 1.5, resinous: 1.5, myrrh: 1.5, incense: 1, oud: 1.5, tobacco: 1.5, cinnamon: 1.5, clove: 1, sandalwood: 1, honey: 1, gourmand: 1.5, leather: 1, patchouli: 1, cashmeran: 1, warm: 1, spicy: 1, opoponax: 1.5, saffron: 1 },
+    ML: ["fresh", "crisp", "cool", "summer"], MR: ["warm", "cozy", "cosy", "winter"] },
+  { k: "dirty", l: "Clean", r: "Dirty",
+    L: { "white musk": 2, clean: 2, soapy: 2, soap: 2, aldehydes: 1.5, aldehydic: 1.5, laundry: 2, cotton: 1.5, linen: 1.5, ozonic: 1 },
+    R: { civet: 3, castoreum: 3, hyraceum: 3, animalic: 2.5, indole: 2, indolic: 2, cumin: 2, sweat: 2, leather: 1.5, oud: 1.5, costus: 2, "birch tar": 2, honey: 1, skin: 1, styrax: 1 },
+    ML: ["clean", "soapy", "laundry", "shower"], MR: ["dirty", "skanky", "animalic", "sweaty", "funky", "raunchy"] },
+  { k: "dense", l: "Airy", r: "Dense",
+    L: { musk: 1, ambrette: 1.5, aldehydes: 1.5, ozonic: 1.5, tea: 1, airy: 2.5, transparent: 2, sheer: 2, hedione: 1.5, "iso e super": 1, cologne: 1.5, "skin scent": 1.5, mineral: 1 },
+    R: { resin: 1.5, resinous: 1.5, amber: 1.5, oud: 2, labdanum: 1.5, benzoin: 1.5, tuberose: 1.5, gourmand: 1.5, vanilla: 1, patchouli: 1.5, myrrh: 1.5, opoponax: 1.5, balsamic: 1.5, "tolu balsam": 1.5, "peru balsam": 1.5, chocolate: 1, praline: 1 },
+    ML: ["airy", "sheer", "light", "transparent", "weightless"], MR: ["dense", "thick", "heavy", "rich", "syrupy", "cloying"] },
+  { k: "dark", l: "Bright", r: "Dark",
+    L: { citrus: 1.5, aldehydes: 1.5, fruity: 1, neroli: 1, mimosa: 1, solar: 2, "pink pepper": 1, ginger: 1, bergamot: 1, lemon: 1, yuzu: 1, "orange blossom": 1, sunny: 2 },
+    R: { incense: 2, smoke: 2, smoky: 2, oud: 2, leather: 1.5, tobacco: 1.5, patchouli: 1.5, coffee: 1.5, "birch tar": 2, myrrh: 1.5, cacao: 1, cocoa: 1, vetiver: 0.5, dark: 1.5, "black tea": 1, lapsang: 2 },
+    ML: ["bright", "sunny", "sparkling", "cheerful", "happy"], MR: ["dark", "brooding", "moody", "smoky", "gothic"] },
+  { k: "crisp", l: "Powdery", r: "Crisp",
+    L: { powder: 2, powdery: 2, iris: 1.5, orris: 1.5, violet: 1, heliotrope: 2, rice: 1, lipstick: 2, makeup: 2, mimosa: 1, cosmetic: 2, aldehydes: 0.5, tonka: 0.5 },
+    R: { green: 1.5, galbanum: 2, crisp: 2, citrus: 1, mineral: 1.5, vetiver: 1, juniper: 1.5, gin: 1.5, ozonic: 1, metallic: 1.5, salt: 1, cucumber: 1.5, bamboo: 1, "fig leaf": 1.5, "tomato leaf": 1.5, "green apple": 1, mint: 1 },
+    ML: ["powdery", "powder", "lipstick", "makeup", "cosmetic"], MR: ["crisp", "sharp", "bracing"] },
+  { k: "sweet", l: "Bitter / savory", r: "Sweet",
+    L: { bitter: 2, vetiver: 1, galbanum: 1.5, grapefruit: 1, artemisia: 1.5, wormwood: 1.5, absinthe: 1.5, salt: 1.5, celery: 2, "carrot seed": 1.5, cumin: 1.5, "tomato leaf": 1.5, papyrus: 1, lapsang: 1.5, olive: 1.5, savory: 2, "black tea": 1, mate: 1, "bitter orange": 1.5, petitgrain: 1, sage: 1 },
+    R: { vanilla: 1.5, caramel: 2, praline: 2, honey: 1.5, sugar: 2, tonka: 1, candied: 1.5, "cotton candy": 2.5, maltol: 2.5, marshmallow: 2.5, benzoin: 1, gourmand: 2, sweet: 1.5, chocolate: 1.5, heliotrope: 1, almond: 1, toffee: 2, jam: 1.5, syrup: 2, meringue: 2 },
+    ML: ["bitter", "savory", "savoury", "salty"], MR: ["sweet", "sugary", "candy", "cupcake", "syrupy", "dessert"] },
+  { k: "tart", l: "Tart", r: "Sweet", fruitOnly: true,
+    L: { tart: 2, sour: 2, rhubarb: 2, blackcurrant: 1.5, cassis: 1.5, "black currant": 1.5, cranberry: 2, lemon: 1, grapefruit: 1.5, yuzu: 1.5, "sour cherry": 2, pomegranate: 1, "green apple": 1.5, redcurrant: 2, "red currant": 2, gooseberry: 2, lime: 1, raspberry: 0.5 },
+    R: { jam: 2, candied: 1.5, sugar: 1.5, mango: 1.5, banana: 1.5, coconut: 1.5, pineapple: 1, vanilla: 1, caramel: 1.5, lychee: 1, strawberry: 1, syrup: 2, honey: 1, praline: 1.5, peach: 0.5, plum: 0.5, "cotton candy": 2, date: 1 },
+    ML: ["tart", "sour", "tangy", "zesty"], MR: ["jammy", "sugary", "syrupy", "candy", "juicy"] },
+  { k: "loud", l: "Quiet", r: "Loud",
+    L: { "skin scent": 2.5, ambrette: 1, "white musk": 1.5, musk: 0.5, tea: 1, iris: 0.5, cologne: 1.5, sheer: 2, soft: 1, intimate: 2, "iso e super": 1, hedione: 1 },
+    R: { tuberose: 2, oud: 2, incense: 1, amber: 1, patchouli: 1, gourmand: 1, ambroxan: 1, "jasmine sambac": 1, "cotton candy": 1, "white floral": 1, gardenia: 1, leather: 0.5, labdanum: 1, cinnamon: 0.5 },
+    ML: ["skin scent", "quiet", "soft", "intimate", "faint", "fleeting", "disappears", "weak"], MR: ["loud", "projects", "projection", "beast", "sillage", "huge", "strong", "powerful"] },
+  { k: "busy", l: "Simple", r: "Busy",
+    ML: ["simple", "linear", "minimalist", "soliflore", "straightforward"], MR: ["busy", "complex", "lots going on", "chaotic", "messy"] },
+  { k: "weird", l: "Polished", r: "Weird",
+    L: { rose: 0.5, jasmine: 0.5, aldehydes: 0.5, chypre: 0.5 },
+    R: { unusual: 3, "carrot seed": 2, celery: 2.5, mushroom: 3, metallic: 2, gasoline: 3, petrol: 3, ink: 2.5, hay: 1.5, latex: 3, plastic: 3, rubber: 2.5, concrete: 3, dust: 2, glue: 3, burnt: 1.5, "tomato leaf": 1.5, oyster: 3, seaweed: 2, soil: 2, earth: 1, beetroot: 3, "hot iron": 3, sweat: 2, cumin: 1, "birch tar": 1.5, crayon: 2 },
+    ML: ["elegant", "classic", "polished", "refined", "pretty", "wearable"], MR: ["weird", "strange", "odd", "unusual", "bizarre", "challenging", "experimental", "quirky"] },
+];
+const FRUIT_WORDS = ["berry", "berries", "raspberry", "blackcurrant", "cassis", "cherry", "plum", "peach", "apricot", "apple", "pear", "mango", "lychee", "strawberry", "rhubarb", "pomegranate", "fig", "pineapple", "banana", "coconut", "melon", "grape", "quince", "cranberry", "redcurrant", "passion fruit", "blackberry"];
+
+function characterOf(p, genre) {
+  const text = pfText(p), prim = (p.primary || []).join(" | ").toLowerCase(), mn = (p.myNotes || "").toLowerCase();
+  const sum = (words) => { let s = 0; for (const w in words || {}) if (pfHas(text, w)) s += words[w] * (pfHas(prim, w) ? 1.5 : 1); return s; };
+  const mine = (list) => (list || []).reduce((s, w) => s + (mn && pfHas(mn, w) ? 2 : 0), 0);
+  const conc = (p.concentration || "").toLowerCase();
+  const out = {};
+  for (const ax of CHAR_AXES) {
+    if (ax.fruitOnly) {
+      const fruity = /fruit/.test((p.family || "").toLowerCase()) || (p.tags || []).includes("fruity") || genre === "Tart Fruit" || genre === "Peach" || genre === "Cherry"
+        || FRUIT_WORDS.filter(w => pfHas(text, w)).length >= 2;
+      if (!fruity) { out[ax.k] = null; continue; }
+    }
+    let L = sum(ax.L) + mine(ax.ML), R = sum(ax.R) + mine(ax.MR);
+    if (ax.k === "busy") {
+      const n = (p.notesList || []).length;
+      if (!n && !L && !R) { out[ax.k] = null; continue; }
+      const d = (n - 8) / 1.5;
+      if (d > 0) R += d; else L -= d;
+    }
+    if (ax.k === "loud") {
+      if (/extrait|pure parfum|elixir|intense|^parfum$/.test(conc)) R += 1.5;
+      else if (/cologne|edc|fraiche|fraîche|mist/.test(conc)) L += 2;
+      else if (/edt|toilette/.test(conc)) L += 0.5;
+    }
+    if (ax.k === "weird" && typeof MAINSTREAM_HOUSES !== "undefined" && MAINSTREAM_HOUSES.has((p.house || "").toLowerCase())) L += 1.5;
+    if (ax.k === "tart" && genre === "Tart Fruit") L += 2;
+    if (L + R < 1) { out[ax.k] = null; continue; }
+    out[ax.k] = Math.round((5 + 5 * Math.tanh((R - L) / 4)) * 10) / 10;
+  }
+  return out;
+}
+
+// The two strongest character words, for compact places like the cards.
+function characterWords(ch, n = 2) {
+  if (!ch) return [];
+  return CHAR_AXES.filter(ax => ch[ax.k] != null && Math.abs(ch[ax.k] - 5) >= 1.5)
+    .sort((a, b) => Math.abs(ch[b.k] - 5) - Math.abs(ch[a.k] - 5))
+    .slice(0, n).map(ax => ch[ax.k] > 5 ? ax.r : ax.l);
+}
+
+const SUGARY = ["maltol", "cotton candy", "candy floss", "caramel", "praline", "marshmallow", "toffee", "butterscotch", "meringue", "sugar", "sugared", "candy", "dulce de leche", "cupcake", "cake", "cookie", "biscuit", "nougat", "syrup", "brown sugar", "honey", "chocolate", "cocoa"];
+const TASTE_FLAGS = [
+  { k: "sweet", label: "Sweet gourmand", w: -0.35,
+    test: (p, t, g) => g === "Sweet Gourmand" || SUGARY.filter(w => pfHas(t.replace(/candied violets?/g, ""), w)).length >= 3 },
+  { k: "lact", label: "Milky / lactonic", w: -0.5,
+    test: (p, t) => ["milk", "milky", "lactonic", "lactone", "lactones", "condensed milk", "butter", "buttery"].some(w => pfHas(t, w)) },
+  { k: "cheap", label: "Could smell cheap", w: -0.8,
+    test: (p, t) => (p.tags || []).includes("smells cheap") || ["amberwood", "ambrofix", "georgywood", "akigalawood", "ambermax"].some(w => pfHas(t, w)) },
+  { k: "imm", label: "Syrupy immortelle", w: -0.85,
+    test: (p, t) => ["immortelle", "helichrysum"].some(w => pfHas(t, w)) && ["maple", "syrup", "caramel", "honey", "tonka", "vanilla", "praline", "toffee", "fenugreek"].some(w => pfHas(t, w)) },
+];
+// Violet leaf isn't a flag (it's fine as its own green thing) — it's a heads-up that
+// this violet is the leaf, not the candied flower.
+function violetLeafOnly(t) {
+  if (!/violet lea(f|ves)/.test(t)) return false;
+  return !/violet(?! lea)|ionone|parma/.test(t.replace(/violet lea(f|ves)/g, ""));
+}
+
+const TAKE_LABELS = [[8.05, "Likely a love"], [7.75, "Likely good"], [7.35, "Could go either way"], [-Infinity, "Risky for you"]];
+const takeLabel = v => v == null ? null : TAKE_LABELS.find(([t]) => v >= t)[1];
+
+// Builds the prediction model from every rated perfume in the collection.
+function buildTakeModel(list) {
+  const prep = p => {
+    const genre = p.genreOverride || kateCategorize(p);
+    const text = pfText(p);
+    return { genre, text, notes: new Set([...(p.notesList || []).map(x => ("" + x).toLowerCase()), ...(p.primary || []).map(x => ("" + x).toLowerCase())]),
+      flags: TASTE_FLAGS.filter(f => f.test(p, text, genre)).map(f => f.k) };
+  };
+  const rated = [];
+  for (const p of list) {
+    const r = Number(p.rating);
+    if (p.tried && p.rating != null && p.rating !== "" && !isNaN(r)) rated.push({ p, r, key: pfNoteKey(p), ...prep(p) });
+  }
+  const mean = rated.length ? rated.reduce((s, x) => s + x.r, 0) / rated.length : 7.5;
+  const idx = new Map();
+  rated.forEach((x, i) => { for (const n of x.notes) { if (!idx.has(n)) idx.set(n, []); idx.get(n).push(i); } });
+  const byGenre = new Map(), byHouse = new Map();
+  rated.forEach((x, i) => {
+    if (!byGenre.has(x.genre)) byGenre.set(x.genre, []); byGenre.get(x.genre).push(i);
+    const h = (x.p.house || "").toLowerCase(); if (!byHouse.has(h)) byHouse.set(h, []); byHouse.get(h).push(i);
+  });
+  const flagStats = {};
+  for (const f of TASTE_FLAGS) { const hits = rated.filter(x => x.flags.includes(f.k)); flagStats[f.k] = { n: hits.length, avg: hits.length ? hits.reduce((s, x) => s + x.r, 0) / hits.length : null }; }
+
+  const predict = (p, pre = prep(p)) => {
+    const key = pfNoteKey(p);
+    const inter = new Map();
+    for (const n of pre.notes) for (const i of idx.get(n) || []) inter.set(i, (inter.get(i) || 0) + 1);
+    for (const i of byGenre.get(pre.genre) || []) if (!inter.has(i)) inter.set(i, 0);
+    const sims = [];
+    for (const [i, c] of inter) {
+      const x = rated[i]; if (x.key === key) continue;
+      const s = c / ((pre.notes.size + x.notes.size - c) || 1) + (x.genre === pre.genre ? 0.15 : 0);
+      sims.push({ x, s });
+    }
+    sims.sort((a, b) => b.s - a.s);
+    const top = sims.slice(0, 10);
+    const w = top.reduce((a, b) => a + b.s, 0);
+    const knn = (top.reduce((a, b) => a + b.s * b.x.r, 0) + 2 * mean) / (w + 2);
+    const hs = (byHouse.get((p.house || "").toLowerCase()) || []).map(i => rated[i]).filter(x => x.key !== key);
+    const hAvg = hs.length ? hs.reduce((s, x) => s + x.r, 0) / hs.length : null;
+    const hm = (hs.reduce((s, x) => s + x.r, 0) + 3 * mean) / (hs.length + 3);
+    let take = mean + 0.3 * (knn - mean) + 0.75 * (hm - mean);
+    for (const f of TASTE_FLAGS) if (pre.flags.includes(f.k)) take += f.w;
+    take = Math.round(Math.max(0, Math.min(10, take)) * 10) / 10;
+    return {
+      take,
+      why: {
+        houseAvg: hAvg != null ? Math.round(hAvg * 10) / 10 : null, houseN: hs.length,
+        similar: top.slice(0, 4).map(({ x }) => ({ id: x.p.id, house: x.p.house, name: x.p.name, rating: x.r })),
+        flags: pre.flags.map(k => ({ k, label: TASTE_FLAGS.find(f => f.k === k).label, avg: flagStats[k].avg != null ? Math.round(flagStats[k].avg * 10) / 10 : null, n: flagStats[k].n })),
+        violetLeaf: violetLeafOnly(pre.text),
+      },
+      genre: pre.genre,
+    };
+  };
+  return { predict, prep, mean };
+}
+
+function addProfiles(list) {
+  const model = buildTakeModel(list);
+  return list.map(p => {
+    const pre = model.prep(p);
+    const { take, why } = model.predict(p, pre);
+    const character = characterOf(p, pre.genre);
+    return { ...p, take, takeWhy: why, character, loud: character.loud };
+  });
+}
+
+// Trevor's free-text diary reactions ("You smell fancy", "walked it back — too sweet")
+// mapped onto the five canonical levels. Guesses and non-reactions stay null.
+function srFuzzy(s) {
+  s = ("" + (s || "")).toLowerCase().trim();
+  if (!s) return null;
+  if (/likely|probably|theoretically|unsure|not sure|\bwould\b|wouldn't|positive to neutral/.test(s)) return null;
+  if (/didn't (smell|say|mention|notice)|did not (smell|say|mention)|no reaction|didn't comment/.test(s)) return null;
+  if (/very negative|hated|hates|old lady|gross|awful|disgusting/.test(s)) return "very negative";
+  if (/walked it back|negative|didn't like|did not like|doesn't like|not a fan/.test(s)) return "negative";
+  if (/very positive|loves|love it|loved it|really good|amazing|obsessed/.test(s)) return "very positive";
+  if (/neutral|not remarkable|fine\b|meh/.test(s)) return "neutral";
+  if (/pos[io]tive|fancy|smell good|smells good|nice|likes|liked/.test(s)) return "positive";
+  return null;
+}
+
+// One-line reasons for a Trevor-on-you guess, in the direction of the guess.
+function trevorWhy(p) {
+  const all = new Set([...(p.tags || []), ...(p.primary || [])]);
+  const has = (...w) => w.some(x => all.has(x));
+  const pos = [], neg = [];
+  if (!has("civet", "castoreum", "hyraceum") && has("ambrette", "ambrette seed", "white musk", "skin scent", "cetalox", "ambroxan")) pos.push("clean skin musk");
+  if (has("grapefruit", "bergamot", "neroli", "orange blossom", "mandarin", "lemon")) pos.push("citrus");
+  if (has("violet")) pos.push("violet");
+  if (has("tuberose", "gardenia", "white floral", "ylang", "ylang-ylang")) neg.push("big white florals");
+  if (has("oud", "incense", "olibanum", "frankincense")) neg.push("oud or incense");
+  if (has("civet", "castoreum", "hyraceum")) neg.push("animalic notes");
+  if (p.takeWhy && p.takeWhy.flags.some(f => f.k === "sweet")) neg.push("sweetness");
+  return { pos, neg };
+}
+
 function contextScore(p, { season, occasion, vibe }) {
   const tags = new Set((p.tags || []).map(t => t.toLowerCase()));
   const family = (p.family || "").toLowerCase();
@@ -8370,11 +8717,10 @@ function contextScore(p, { season, occasion, vibe }) {
 
   // Occasion
   if (occasion === "Work") {
-    bonus += Math.min(p.sigScore || 0, 7) * 0.3;
-    if ((p.intScore || 0) > 8) bonus -= 2; // too loud
+    if ((p.loud ?? 5) > 7.5) bonus -= 2; // too loud
     if (tags.has("smoky") || tags.has("tobacco") || tags.has("oud")) bonus -= 1;
   } else if (occasion === "Evening") {
-    bonus += (p.intScore || 0) * 0.3;
+    bonus += (p.loud ?? 5) * 0.3;
     if (p.mood === "Resin" || p.mood === "Classic") bonus += 2;
   } else if (occasion === "Date Night") {
     bonus += (p.safeScore || 0) * 0.4;
@@ -8384,10 +8730,7 @@ function contextScore(p, { season, occasion, vibe }) {
     if (tags.has("citrus") || tags.has("green") || tags.has("herbal fresh") || tags.has("mint") ||
         tags.has("aquatic") || tags.has("bergamot")) bonus += 3;
     if (p.mood === "Air") bonus += 2;
-  } else if (occasion === "Weekend") {
-    bonus += (p.balScore || 0) * 0.2;
   } else if (occasion === "Casual") {
-    bonus += (p.balScore || 0) * 0.15;
     if (tags.has("musk") || tags.has("sandalwood") || tags.has("cedar")) bonus += 1;
   }
 
@@ -8402,11 +8745,11 @@ function contextScore(p, { season, occasion, vibe }) {
         tags.has("peony") || tags.has("iris")) bonus += 3;
     bonus += (p.safeScore || 0) * 0.2;
   } else if (vibe === "Bold") {
-    bonus += (p.intScore || 0) * 0.4;
+    bonus += (p.loud ?? 5) * 0.4;
     if (tags.has("oud") || tags.has("leather") || tags.has("smoky") || tags.has("incense")) bonus += 2;
   } else if (vibe === "Soft") {
     if (tags.has("musk") || tags.has("powdery") || tags.has("floral") || tags.has("iris") || tags.has("violet")) bonus += 3;
-    if ((p.intScore || 0) > 8) bonus -= 2;
+    if ((p.loud ?? 5) > 7.5) bonus -= 2;
   } else if (vibe === "Energizing") {
     if (tags.has("citrus") || tags.has("grapefruit") || tags.has("bergamot") || tags.has("mint") ||
         tags.has("cardamom") || tags.has("pepper")) bonus += 3;
@@ -8475,8 +8818,8 @@ function fitsContext(p, { season, occasion, vibe }) {
     prominentMatch(p, FIT_SETS.season[season] || []));
   let vibeOk;
   if (vibe === "__any") vibeOk = true;
-  else if (vibe === "Bold") vibeOk = (p.intScore || 0) >= 7 || prominentMatch(p, FIT_SETS.vibe.Bold);
-  else if (vibe === "Soft") vibeOk = (p.intScore || 0) <= 8 && prominentMatch(p, FIT_SETS.vibe.Soft);
+  else if (vibe === "Bold") vibeOk = (p.loud ?? 5) >= 7 || prominentMatch(p, FIT_SETS.vibe.Bold);
+  else if (vibe === "Soft") vibeOk = (p.loud ?? 5) <= 7 && prominentMatch(p, FIT_SETS.vibe.Soft);
   else vibeOk = prominentMatch(p, FIT_SETS.vibe[vibe] || []);
   const occasionOk = contextScore(p, { occasion }) >= 0;
   return seasonOk && vibeOk && occasionOk;
@@ -8535,7 +8878,7 @@ function WearTodayView({ onSelect, wearStats, perfumes }) {
     // a top-quarter untried perfume competes evenly with a top-quarter favourite.
     let pct = null;
     if (mode === "both") {
-      const val = p => (p.tried && p.rating != null) ? p.rating : (p.sigScore || 0);
+      const val = p => (p.tried && p.rating != null) ? p.rating : (p.take ?? 7.5);
       const grp = p => (p.tried && p.rating != null) ? "t" : "u";
       const sorted = { t: [], u: [] };
       for (const p of eligible) sorted[grp(p)].push(val(p));
@@ -8551,13 +8894,13 @@ function WearTodayView({ onSelect, wearStats, perfumes }) {
           base = pct(p) * 10 + jitter(p.id) * 1.5 + newBonus + (p.isOverworn ? -3 : 0)
             + (rotate ? ((p.isForgottenLove ? 2 : 0) + (p.daysAgo != null && p.daysAgo > 60 && p.rating >= 8 ? 1 : 0)) : 0);
         } else if (mode === "new") {
-          // Untried only: predicted match (sigScore) stands in for ratings; a small daily
+          // Untried only: your predicted take stands in for a rating; a small daily
           // jitter varies the order; newness only orders perfumes that already fit.
           newBonus = newArrivalBonus(p) * 0.5;
-          base = (p.sigScore || 0) * 0.8 + (p.balScore || 0) * 0.2 + jitter(p.id) * 1.5 + newBonus;
+          base = ((p.take ?? 7.5) - 7) * 4 + jitter(p.id) * 1.5 + newBonus;
         } else {
-          // balScore tiebreaker, Love nudge, overworn penalty, optional rotation boost.
-          base = (p.balScore || 0) * 0.4 + (p.isOverworn ? -3 : 0) + (p.preference === "Love" ? 1 : 0)
+          // Rating tiebreaker, Love nudge, overworn penalty, optional rotation boost.
+          base = (Number(p.rating) || p.take || 7) * 0.4 + (p.isOverworn ? -3 : 0) + (p.preference === "Love" ? 1 : 0)
             + (rotate ? ((p.isForgottenLove ? 4 : 0) + (p.daysAgo != null && p.daysAgo > 60 && p.rating >= 8 ? 2 : 0)) : 0);
         }
         const sc = {}, oc = {}, vc = {};
@@ -8752,7 +9095,7 @@ function WearTodayView({ onSelect, wearStats, perfumes }) {
         let annotation = null;
         if (i === 0 && top) annotation = mode === "new" ? "✦ Try Today" : `✦ Today's Pick`;
         else if (mode !== "favorite" && !p.tried && p.newBonus >= 1.5) annotation = mode === "both" ? "Untried · new arrival" : "New arrival";
-        else if (mode !== "favorite" && !p.tried && (p.sigScore || 0) >= 7) annotation = mode === "both" ? "Untried · likely a match" : "Likely a match";
+        else if (mode !== "favorite" && !p.tried && (p.take ?? 0) >= 8.05) annotation = mode === "both" ? "Untried · likely a match" : "Likely a match";
         else if (mode === "both" && !p.tried) annotation = "Untried";
         else if (p.isForgottenLove) annotation = "↩ Forgotten Love";
         else if (p.ctxBonus >= 5) annotation = "Great fit";
@@ -8893,7 +9236,7 @@ function App() {
     });
     const resolvedLog = wearLog.map(e => attachPerfumeIdToEntry(normalizeWearEntry(e), withEdits));
     const stats = computeWearStats(resolvedLog);
-    return enrich(withEdits, stats).map(reconcileTrevor);
+    return addProfiles(enrich(withEdits, stats).map(reconcileTrevor));
   }, [userPerfumes, perfumeEdits, wearLog]);
   const [syncStatus, setSyncStatus] = useState("Local storage");
   const [loaded, setLoaded] = useState(false);
