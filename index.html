@@ -5461,19 +5461,22 @@ function TrevorTake({ p }) {
   const shown = real.length ? real : fallback;
   const self = p.trevorSelfScore;
   const selfWord = self == null ? null : self >= 7 ? "Yes" : self <= 4 ? "No" : "Maybe";
-  const guess = p.safeScore >= 7 ? "Probably likes it on you" : p.safeScore <= 4 ? "Probably not a fan" : "Could go either way";
-  const why = trevorWhy(p);
-  const reasons = p.safeScore >= 7 ? why.pos : p.safeScore <= 4 ? why.neg : [...why.pos, ...why.neg];
+  // Calibrated on his 64 real reactions (he likes ~60% of what you wear): only a really
+  // low guess means "probably not" — that labels 44 of 64 right vs 30 with the old cut-offs.
+  const guess = p.safeScore >= 4 ? "Probably likes it on you" : p.safeScore <= 3 ? "Probably not a fan" : "Could go either way";
+  const reasons = p.trevorEvidence || [];
+  const sw = trevorSelfWhy(p);
+  const selfReasons = (selfWord === "Yes" ? sw.pos : selfWord === "No" ? sw.neg : [...sw.pos, ...sw.neg]).slice(0, 3);
   return <div className="trev-take">
     <div className="trev-row">
       <span className="trev-k">On you</span>
       {shown.length
         ? <div className="trev-v">{shown.map((r, i) => <div key={i} className="trev-quote">“{dvTitleCase(("" + r.text).trim())}”{r.date ? <span className="trev-date"> {new Date(r.date).toISOString().slice(0, 10)}</span> : ""}</div>)}</div>
-        : <div className="trev-v"><span className="trev-guess">Guess: {guess}</span>{reasons.length > 0 && <span className="trev-why"> — {reasons.join(", ")}</span>}</div>}
+        : <div className="trev-v"><span className="trev-guess">Guess: {guess}</span>{reasons.length > 0 && <div className="trev-why">{dvTitleCase(reasons.join("; "))}</div>}</div>}
     </div>
     {selfWord && <div className="trev-row">
       <span className="trev-k">For him to wear</span>
-      <span className={`trev-yn ${selfWord.toLowerCase()}`}>{selfWord}</span>
+      <span><span className={`trev-yn ${selfWord.toLowerCase()}`}>{selfWord}</span>{selfReasons.length > 0 && <span className="trev-why"> — {selfReasons.join(", ")}</span>}<div className="trev-why" style={{fontSize: 11}}>A guess from his own taste: dry citrus and fresh, not powder or smoke</div></span>
     </div>}
   </div>;
 }
@@ -8262,7 +8265,7 @@ function AddPerfumeView({ onAdd, perfumes }) {
         {previewProfile.why.violetLeaf && <div className="take-line">The violet here is violet <em>leaf</em> (green), not candied violet.</div>}
       </> : <div className="take-line">Fill in the house and notes to see your predicted take.</div>}
       <div className="meta-grid" style={{marginTop: 12}}>
-        <div><span className="sec-lbl">{CONFIG.partnerName || 'Partner'} on you (guess)</span> <span>{previewScores.safeScore >= 7 ? "Probably likes it" : previewScores.safeScore <= 4 ? "Probably not" : "Could go either way"}</span></div>
+        <div><span className="sec-lbl">{CONFIG.partnerName || 'Partner'} on you (guess)</span> <span>{previewScores.safeScore >= 4 ? "Probably likes it" : previewScores.safeScore <= 3 ? "Probably not" : "Could go either way"}</span></div>
       </div>
       <div className="meta-grid">
         <div><span className="sec-lbl">Mood</span> <span>{MOOD_ICON[previewScores.mood]} {previewScores.mood}</span></div>
@@ -8651,12 +8654,19 @@ function buildTakeModel(list) {
 
 function addProfiles(list) {
   const model = buildTakeModel(list);
-  return list.map(p => {
+  const out = list.map(p => {
     const pre = model.prep(p);
     const { take, why } = model.predict(p, pre);
     const character = characterOf(p, pre.genre);
     return { ...p, take, takeWhy: why, character, loud: character.loud };
   });
+  const rec = buildTrevorRecord(out);
+  for (const p of out) {
+    p.trevorEvidence = trevorEvidence(p, rec);
+    // He disliked 4 of 5 sweet gourmands on you — the note rules alone don't catch that.
+    if (srToScore(p.safeReaction) == null && p.takeWhy.flags.some(f => f.k === "sweet")) p.safeScore = Math.max(0, (p.safeScore ?? 5) - 2);
+  }
+  return out;
 }
 
 // Trevor's free-text diary reactions ("You smell fancy", "walked it back — too sweet")
@@ -8674,18 +8684,73 @@ function srFuzzy(s) {
   return null;
 }
 
-// One-line reasons for a Trevor-on-you guess, in the direction of the guess.
-function trevorWhy(p) {
+// Trevor's track record on you, by kind of scent — taken from his real reactions, so a
+// guess can say "he's liked 15 of 19 white florals on you" instead of assuming.
+const TREVOR_GROUPS = [
+  { k: "white florals", tags: ["tuberose", "gardenia", "white floral", "jasmine", "ylang", "ylang-ylang", "orange blossom"] },
+  { k: "skin musks", tags: ["ambrette", "ambrette seed", "white musk", "skin scent", "cetalox", "ambroxan"] },
+  { k: "citrus scents", tags: ["grapefruit", "bergamot", "neroli", "lemon", "mandarin", "citrus", "yuzu"] },
+  { k: "violets", tags: ["violet"] },
+  { k: "iris or powdery scents", tags: ["iris", "orris", "powdery"] },
+  { k: "roses", tags: ["rose"] },
+  { k: "oud or incense scents", tags: ["oud", "incense", "olibanum", "frankincense"] },
+  { k: "animalic scents", tags: ["civet", "castoreum", "hyraceum", "animalic"] },
+  { k: "woody scents", tags: ["vetiver", "cedar", "sandalwood"] },
+  { k: "green scents", tags: ["green", "galbanum", "fig leaf"] },
+  { k: "sweet gourmands", flag: "sweet" },
+];
+const trevorGroupsOf = p => {
+  const all = new Set([...(p.tags || []), ...(p.primary || [])]);
+  return TREVOR_GROUPS.filter(g => g.flag ? (p.takeWhy?.flags || []).some(f => f.k === g.flag) : g.tags.some(t => all.has(t))).map(g => g.k);
+};
+function buildTrevorRecord(list) {
+  const rec = {};
+  for (const p of list) {
+    const v = srToScore(p.safeReaction);
+    if (v == null) continue;
+    for (const k of trevorGroupsOf(p)) {
+      const r = rec[k] || (rec[k] = { n: 0, liked: 0, disliked: 0 });
+      r.n++; if (v >= 8) r.liked++; else if (v <= 2) r.disliked++;
+    }
+    const a = rec._all || (rec._all = { n: 0, liked: 0, disliked: 0 });
+    a.n++; if (v >= 8) a.liked++; else if (v <= 2) a.disliked++;
+  }
+  return rec;
+}
+// Up to two lines of his real record for the kinds of scent this perfume is.
+// Groups are ranked by how far they sit from his usual rate of liking things, so the
+// lines shown are the ones that actually tell you something (sweet gourmands, oud).
+function trevorEvidence(p, rec) {
+  if (!rec || !rec._all) return [];
+  const base = rec._all.liked / rec._all.n;
+  return trevorGroupsOf(p).map(k => [k, rec[k]]).filter(([, r]) => r && r.n >= 3)
+    .sort((a, b) => Math.abs(b[1].liked / b[1].n - base) * Math.sqrt(b[1].n) - Math.abs(a[1].liked / a[1].n - base) * Math.sqrt(a[1].n))
+    .slice(0, 2)
+    .map(([k, r]) => {
+      const lr = r.liked / r.n, dr = r.disliked / r.n;
+      if (lr >= 0.3 && dr >= 0.3) return `he's been mixed on ${k} on you (${r.liked} liked, ${r.disliked} disliked of ${r.n})`;
+      return lr >= dr ? `he's liked ${r.liked} of ${r.n} ${k} on you` : `he's disliked ${r.disliked} of ${r.n} ${k} on you`;
+    });
+}
+// Why "For him to wear" says Yes / No — mirrors computeTrevorSelf (his own taste:
+// bright dry citrus, CK One-style fresh, light dry woods; not powder, animalics, smoke).
+function trevorSelfWhy(p) {
   const all = new Set([...(p.tags || []), ...(p.primary || [])]);
   const has = (...w) => w.some(x => all.has(x));
   const pos = [], neg = [];
-  if (!has("civet", "castoreum", "hyraceum") && has("ambrette", "ambrette seed", "white musk", "skin scent", "cetalox", "ambroxan")) pos.push("clean skin musk");
-  if (has("grapefruit", "bergamot", "neroli", "orange blossom", "mandarin", "lemon")) pos.push("citrus");
-  if (has("violet")) pos.push("violet");
-  if (has("tuberose", "gardenia", "white floral", "ylang", "ylang-ylang")) neg.push("big white florals");
-  if (has("oud", "incense", "olibanum", "frankincense")) neg.push("oud or incense");
-  if (has("civet", "castoreum", "hyraceum")) neg.push("animalic notes");
-  if (p.takeWhy && p.takeWhy.flags.some(f => f.k === "sweet")) neg.push("sweetness");
+  if (has("grapefruit")) pos.push("grapefruit");
+  else if (has("bitter orange", "petitgrain", "bergamot", "lemon", "lime", "yuzu", "citrus", "dry citrus")) pos.push("dry citrus");
+  if (has("marine", "aquatic")) pos.push("aquatic");
+  if (has("juniper")) pos.push("juniper");
+  if (has("basil", "sage", "rosemary", "thyme", "mint", "eucalyptus", "aromatic", "herbal fresh")) pos.push("herbs");
+  if (has("cedar", "cypress", "vetiver", "woody", "moss", "oakmoss")) pos.push("dry woods");
+  if (has("powdery", "aldehydes")) neg.push("powdery");
+  if (has("animalic", "civet", "castoreum")) neg.push("animalic");
+  if (has("incense", "oud")) neg.push("oud or incense");
+  if (has("smoky", "tobacco")) neg.push("smoky");
+  if (has("leather")) neg.push("leather");
+  if (has("tuberose", "gardenia", "ylang", "ylang-ylang", "white floral")) neg.push("big white florals");
+  else if (has("jasmine", "rose", "iris", "orris", "violet", "heliotrope") && !has("grapefruit", "vetiver")) neg.push("florals");
   return { pos, neg };
 }
 
