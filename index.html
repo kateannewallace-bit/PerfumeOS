@@ -2079,14 +2079,14 @@ const CANONICAL_MAP = {
   'rye':'hay','wheat germ':'hay','cereals':'hay',
   'angelica':'angelica','mastic':'benzoin','gum mastic':'benzoin',
   'bitter almond':'almond','sweet almond':'almond','chestnut':'praline',
-  'waffle cone':'caramel','maltol':'caramel','candied fruit':'caramel',
+  'waffle cone':'caramel','maltol':'sugar','candied fruit':'caramel',
   'bubblegum':'caramel','rye bread':'honey','waffle':'caramel',
   'cognac':'cognac','bourbon whiskey':'whiskey','brandy':'brandy',
   'dates':'fig','pandan':'coconut','toasted sesame':'praline',
   'sesame':'praline','persimmon':'peach','papaya':'peach',
   'green mango':'melon','prickly pear':'berry','passion fruit':'berry',
   'grape':'berry','riesling grape':'berry','dragon fruit':'berry',
-  'dragee':'berry','fig leaf':'fig leaf','pink pineapple':'pineapple',
+  'dragee':'almond','dragée':'almond','fig leaf':'fig leaf','pink pineapple':'pineapple',
   'seaweed':'aquatic','kelp':'aquatic','ozonic':'ozonic','ozonic notes':'ozonic','aquatic notes':'aquatic',
   'ocean breeze':'aquatic','pacific spray':'aquatic','sea fennel':'aquatic',
   'cucumber':'cucumber','cucumber water':'cucumber','aloe vera':'aloe vera',
@@ -2969,6 +2969,66 @@ const CATEGORIES = [
         "varnish":7,"patchouli":2,"cashmeran":2,"cashmere wood":2,"woody":1}}
 ];
 const RECATEGORIZE = {
+  // Synced from kate.html (By Genre) — keep the two lists the same.
+  "The Maker — Dream": "Sweet Gourmand",
+  "The Maker — Revel": "Tart Fruit",
+  "The Maker — Lover": "Fig",
+  "Stella McCartney — Pop": "Young Florals",
+  "Stella McCartney — Pop Bluebell": "Young Florals",
+  "Malin+Goetz — Stem": "Green, Herbal & Fougère",
+  "L'Epoque Parfums — Delusions of Grandeur": "Amber",
+  "Heretic — Werwulf": "Dirty Sexy",
+  "El Morocco — Two Cigarettes in the Dark": "Smoke & Incense",
+  "El Morocco — Lulu's Back in Town": "Tea",
+  "Sisley Paris — Hair Rituel Le Parfum": "Bitter Citrus & Cologne",
+  "John Galliano — John Galliano Eau de Toilette": "Rose",
+  "Aftelier — Violet Ambrosia": "Violet",
+  "Aftelier — Antique Ambergris": "Skin Musk & Ambergris",
+  "Odette Parfum Co — Moulin Rose": "Rose",
+  "Odette Parfum Co — Prima Rose": "Rose",
+  "Tom Ford — Rose de Chine": "Rose",
+  "Régime des Fleurs — Dahlia Fog": "Conifer & Forest Floor",
+  "Chanel — Coco Mademoiselle Crush Absolu": "Amber",
+  "Tom Ford — Ombré Leather": "Leather",
+  "Yves Saint Laurent — Babycat Extrait de Parfum": "Sexy Resinous Powdery",
+  "Fugazzi — Miauw Miauw": "Sweet Gourmand",
+  "Merit — New Wave": "Amber",
+  "Lolita Lempicka — Fleur de Corail": "Young Florals",
+  "Lolita Lempicka — Si Lolita": "Pepper & Spice",
+  "Lolita Lempicka — Le Premier Parfum": "Lolita Lempicka–Adjacent Gourmands",
+  "Mugler — Aura": "Green Vanilla",
+  "Prada — Purple Rain": "Iris",
+  "Frederic Malle — Superstitious": "Classic Floral Aldehyde",
+  "Dior — Bois Talisman": "Spicy Dry Vanilla",
+  "Cyklar — Sex Musk": "Skin Musk & Ambergris",
+  "Sol de Janeiro — Cheirosa 59": "Sweet Gourmand",
+  "Veronique Gabai — Desert Rose": "Rose",
+  "Heeley — Esprit du Tigre": "Green, Herbal & Fougère",
+  "Meo Fusciuni — Amara Vita": "Sweet Gourmand",
+  "UNUM — LAVS": "Smoke & Incense",
+  "Santa Maria Novella — Muschio": "Skin Musk & Ambergris",
+  "Liis — Forest Sounds": "Conifer & Forest Floor",
+  "L.T. Piver — Heliotrope Blanc": "Heliotrope",
+  "les indemodables — Café Arabesque": "Sweet Gourmand",
+  "Hellenist — Éveil du Faune": "Leather",
+  "L'Artisan Parfumeur — Histoire d'Orangers": "Neroli & Orange Blossom",
+  "L'Artisan Parfumeur — Bois Farine": "Rice",
+  "L'Artisan Parfumeur — Traversée du Bosphore": "Lolita Lempicka–Adjacent Gourmands",
+  "L'Artisan Parfumeur — Drôle de Rose": "Rose",
+  "Guerlain — Metallica": "Sexy Resinous Powdery",
+  "Chanel — Paris-St. Moritz": "Young Florals",
+  "Mona di Orio — Nuit Noire": "Dirty Sexy",
+  "Serge Lutens — Muscs Koublaï Khan": "Dirty Sexy",
+  "Serge Lutens — Borneo 1834": "Earth",
+  "Courrèges — L'Eau de Liesse": "Iris",
+  "Rabanne — Fame Parfum": "Sweet Gourmand",
+  "Barre — Overcast": "Earth",
+  "Barre — Witch": "Green, Herbal & Fougère",
+  "Miller Harris — Feuilles de Tabac": "Pepper & Spice",
+  "Miller Harris — Poirier d'un Soir": "Tart Fruit",
+  "Miller Harris — Le Cèdre": "Dry Woods & Vetiver",
+  "Miller Harris — Oud Éclat": "Oud",
+
   "Carolina Herrera — Good Girl Blush": "Sweet Gourmand",
   "Clean Reserve — Whipped Cherry": "Cherry",
   "Versace — Man Eau Fraiche": "Bitter Citrus & Cologne",
@@ -8601,7 +8661,7 @@ const NAME_ALLUSIONS = { jadis: "loukhoum", "white witch": "loukhoum", "rahat": 
 const ACCORDS = [
   { k: "loukhoum", label: "Turkish delight",
     test: (t, any) => any(["loukhoum", "loukoum", "lokum", "turkish delight", "rahat"])
-      || (pfHas(t, "rose") && any(["almond", "dragée", "dragee", "honey", "maltol", "pistachio", "marzipan"]) && any(["vanilla", "sugar", "powder", "powdery", "orris", "iris", "musk"])) },
+      || (pfHas(t, "rose") && any(["almond", "dragée", "dragee", "maltol", "pistachio", "marzipan"]) && any(["sugar", "powder", "powdery", "orris", "iris", "heliotrope"])) },
   { k: "whitefloral", label: "white floral bomb",
     test: t => ["tuberose", "jasmine", "ylang", "gardenia"].filter(w => pfHas(t, w)).length >= 2 },
   { k: "cherryalmond", label: "cherry-almond",
@@ -8625,11 +8685,43 @@ const TAKE_LABELS = [[8.05, "Likely a love"], [7.75, "Likely good"], [7.35, "Cou
 const takeLabel = v => v == null ? null : TAKE_LABELS.find(([t]) => v >= t)[1];
 
 // Builds the prediction model from every rated perfume in the collection.
+// What a perfume is "made of" for matching: its notes, its cleaned-up note tags (so
+// "tobacco leaf" = "tobacco"), main notes counted double, and a note named in the
+// perfume's own name ("Feuilles de Tabac") counted as its defining note.
+const FEAT_GENERIC = new Set(["woody", "floral", "spicy", "fresh", "sweet", "fruity", "unusual", "citrus", "green", "powdery", "musky", "aromatic", "amber", "resinous", "oriental", "gourmand", "smoky", "earthy", "herbal fresh", "airy", "dry citrus", "white floral", "yellow floral", "purple floral", "smells expensive", "smells cheap", "old lady", "borderline old lady", "young fresh", "animalic", "aldehydes", "synthetic", "skin scent", "creamy", "warm", "soft", "fruity floral amber", "floral notes", "woody notes"]);
+// Maltol, sugar and honey do the same job in a perfume (sweetening), so for matching
+// they count as one note — Katie, 2026-11-18. Caramel stays separate (it's burnt).
+const FEAT_SYN = { maltol: "sweetener", "ethyl maltol": "sweetener", sugar: "sweetener", honey: "sweetener", "white honey": "sweetener", "brown sugar": "sweetener", "sugar cane": "sweetener", pimento: "allspice", ylang: "ylang-ylang", orris: "iris", "orris root": "iris", olibanum: "incense", frankincense: "incense", "tobacco leaf": "tobacco", "virginia tobacco": "tobacco" };
+const NAME_NOTES = { tabac: "tobacco", tobacco: "tobacco", cuir: "leather", leather: "leather", vanille: "vanilla", vanilla: "vanilla", figue: "fig", fig: "fig", musc: "musk", santal: "sandalwood", cerise: "cherry", cherry: "cherry", iris: "iris", rose: "rose", oud: "oud", tuberose: "tuberose", "tubéreuse": "tuberose", violette: "violet", violet: "violet", neroli: "neroli", vetiver: "vetiver", encens: "incense", incense: "incense", jasmin: "jasmine", jasmine: "jasmine", lavande: "lavender", lavender: "lavender", "thé": "tea", tea: "tea", ambrette: "ambrette", pineapple: "pineapple", peach: "peach", "pêche": "peach", grapefruit: "grapefruit", pamplemousse: "grapefruit", osmanthus: "osmanthus", mimosa: "mimosa", gardenia: "gardenia", magnolia: "magnolia", hinoki: "hinoki", cedar: "cedar", "cèdre": "cedar", cedre: "cedar", myrrhe: "myrrh", myrrh: "myrrh", patchouli: "patchouli", heliotrope: "heliotrope", tonka: "tonka", almond: "almond", amande: "almond", coffee: "coffee", "café": "coffee", chocolate: "chocolate", honey: "honey", miel: "honey", saffron: "saffron", safran: "saffron", rhubarb: "rhubarb", lys: "lily", lily: "lily", lilac: "lilac", lilas: "lilac", poirier: "pear", pear: "pear", poire: "pear" };
+function matchFeatures(p) {
+  const f = new Map();
+  const add = (t, w) => { t = ("" + t).toLowerCase().trim(); t = FEAT_SYN[t] || t; if (!t || FEAT_GENERIC.has(t)) return; f.set(t, Math.max(f.get(t) || 0, w)); };
+  for (const n of p.notesList || []) add(n, 1);
+  // Raw names only when they're a known synonym (maltol hides under a cleaned-up name).
+  for (const n of ("" + (p.rawNotes || "")).split(/[;,]/)) { const k = n.toLowerCase().trim(); if (FEAT_SYN[k]) add(k, 1); }
+  for (const t of p.tags || []) add(t, 1);
+  for (const n of p.primary || []) add(n, 2);
+  for (const w of (p.name || "").toLowerCase().split(/[^a-zà-ÿ]+/)) if (NAME_NOTES[w]) add(NAME_NOTES[w], 5);
+  return f;
+}
+
 function buildTakeModel(list) {
+  // Rare notes say more than common ones: sharing tobacco or fig means more than
+  // sharing bergamot. Capped so one oddball note can't run the whole match.
+  const df = new Map();
+  for (const p of list) for (const t of matchFeatures(p).keys()) df.set(t, (df.get(t) || 0) + 1);
+  const N = list.length;
+  const idf = t => Math.min(3.5, Math.log((N + 1) / ((df.get(t) || 0) + 1)));
   const prep = p => {
     const genre = p._genre || p.genreOverride || kateCategorize(p);
     const text = pfText(p);
-    return { genre, text, ch: p.character || null, acc: accordsOf(p), notes: new Set([...(p.notesList || []).map(x => ("" + x).toLowerCase()), ...(p.primary || []).map(x => ("" + x).toLowerCase())]),
+    const feats = new Map();
+    let tot = 0;
+    for (const [t, w] of matchFeatures(p)) { const v = w * idf(t); feats.set(t, v); tot += v; }
+    // Theme = its single most defining note; top3 = its three most defining notes.
+    const ranked = [...feats].sort((a, b) => b[1] - a[1]);
+    return { genre, text, ch: p.character || null, acc: accordsOf(p), feats, tot,
+      theme: ranked.length ? ranked[0][0] : null, top3: new Set(ranked.slice(0, 3).map(x => x[0])),
       flags: TASTE_FLAGS.filter(f => f.test(p, text, genre)).map(f => f.k) };
   };
   const rated = [];
@@ -8639,37 +8731,38 @@ function buildTakeModel(list) {
   }
   const mean = rated.length ? rated.reduce((s, x) => s + x.r, 0) / rated.length : 7.5;
   const idx = new Map();
-  rated.forEach((x, i) => { for (const n of x.notes) { if (!idx.has(n)) idx.set(n, []); idx.get(n).push(i); } });
-  const byGenre = new Map(), byHouse = new Map();
-  rated.forEach((x, i) => {
-    if (!byGenre.has(x.genre)) byGenre.set(x.genre, []); byGenre.get(x.genre).push(i);
-    const h = (x.p.house || "").toLowerCase(); if (!byHouse.has(h)) byHouse.set(h, []); byHouse.get(h).push(i);
-  });
+  rated.forEach((x, i) => { for (const t of x.feats.keys()) { if (!idx.has(t)) idx.set(t, []); idx.get(t).push(i); } });
+  const byHouse = new Map();
+  rated.forEach((x, i) => { const h = (x.p.house || "").toLowerCase(); if (!byHouse.has(h)) byHouse.set(h, []); byHouse.get(h).push(i); });
   const flagStats = {};
   for (const f of TASTE_FLAGS) { const hits = rated.filter(x => x.flags.includes(f.k)); flagStats[f.k] = { n: hits.length, avg: hits.length ? hits.reduce((s, x) => s + x.r, 0) / hits.length : null }; }
 
-  // Similar = shares notes AND sits in the same places on the character lines.
-  // Adding the lines raised "most like it" from r≈0.12 to ≈0.17 against her ratings.
-  const cnt = new Int16Array(rated.length), seen = new Uint8Array(rated.length), touched = [];
+  // Similarity asks "does that one have THIS one's defining notes?" (how much of this
+  // perfume's weighted notes it covers), lightly marked down when that one's own
+  // defining notes are missing here (Black Magenta's pineapple). Shared accords, genre
+  // and the character lines are tie-breakers. Fixed 2026-11-18 after Feuilles de Tabac
+  // matched Hinoki and Eau de Lavande instead of Volutes and the other tobaccos.
+  const shA = new Float64Array(rated.length), shB = new Float64Array(rated.length), seen = new Uint8Array(rated.length), touched = [];
   const predict = (p, pre = prep(p)) => {
     const key = pfNoteKey(p);
     touched.length = 0;
-    for (const n of pre.notes) for (const i of idx.get(n) || []) { if (!seen[i]) { seen[i] = 1; touched.push(i); } cnt[i]++; }
-    for (const i of byGenre.get(pre.genre) || []) if (!seen[i]) { seen[i] = 1; touched.push(i); }
-    if (pre.ch) for (let i = 0; i < rated.length; i++) if (!seen[i]) { seen[i] = 1; touched.push(i); }
-    const inter = [];
-    for (const i of touched) { inter.push([i, cnt[i]]); cnt[i] = 0; seen[i] = 0; }
-    // Keep only the 10 most similar (insertion into a short list beats sorting hundreds).
+    for (const [t, v] of pre.feats) for (const i of idx.get(t) || []) {
+      if (!seen[i]) { seen[i] = 1; touched.push(i); }
+      shA[i] += v; shB[i] += rated[i].feats.get(t);
+    }
     const top = [];
-    for (const [i, c] of inter) {
-      const x = rated[i]; if (x.key === key) continue;
-      const s = c / ((pre.notes.size + x.notes.size - c) || 1) + (x.genre === pre.genre ? 0.15 : 0) + 7 * Math.max(0, charSim(pre.ch, x.ch) - 0.7)
-        + (pre.acc.size && x.acc.size ? 0.6 * [...pre.acc].filter(a => x.acc.has(a)).length : 0);
+    for (const i of touched) {
+      const x = rated[i];
+      const c1 = pre.tot ? shA[i] / pre.tot : 0, c2 = x.tot ? shB[i] / x.tot : 0;
+      shA[i] = 0; shB[i] = 0; seen[i] = 0;
+      if (x.key === key) continue;
+      let acc = 0; for (const a of pre.acc) if (x.acc.has(a)) acc++;
+      const theme = (pre.theme && x.top3.has(pre.theme) ? 0.15 : 0) + (x.theme && pre.top3.has(x.theme) ? 0.1 : 0);
+      const s = c1 * (0.5 + 0.5 * c2) + theme + 0.3 * acc + (x.genre === pre.genre ? 0.05 : 0) + 0.5 * Math.max(0, charSim(pre.ch, x.ch) - 0.7);
       if (top.length === 10 && s <= top[9].s) continue;
       let j = top.length < 10 ? top.length : 9;
-      while (j > 0 && top[j - 1].s < s) { if (j < 10) top[j] = top[j - 1]; j--; }
+      while (j > 0 && top[j - 1].s < s) { top[j] = top[j - 1]; j--; }
       top[j] = { x, s };
-      if (top.length > 10) top.length = 10;
     }
     const w = top.reduce((a, b) => a + b.s, 0);
     const knn = (top.reduce((a, b) => a + b.s * b.x.r, 0) + 2 * mean) / (w + 2);
