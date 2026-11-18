@@ -8688,19 +8688,41 @@ const takeLabel = v => v == null ? null : TAKE_LABELS.find(([t]) => v >= t)[1];
 // What a perfume is "made of" for matching: its notes, its cleaned-up note tags (so
 // "tobacco leaf" = "tobacco"), main notes counted double, and a note named in the
 // perfume's own name ("Feuilles de Tabac") counted as its defining note.
-const FEAT_GENERIC = new Set(["woody", "floral", "spicy", "fresh", "sweet", "fruity", "unusual", "citrus", "green", "powdery", "musky", "aromatic", "amber", "resinous", "oriental", "gourmand", "smoky", "earthy", "herbal fresh", "airy", "dry citrus", "white floral", "yellow floral", "purple floral", "smells expensive", "smells cheap", "old lady", "borderline old lady", "young fresh", "animalic", "aldehydes", "synthetic", "skin scent", "creamy", "warm", "soft", "fruity floral amber", "floral notes", "woody notes"]);
+const FEAT_GENERIC = new Set(["woody", "floral", "spicy", "fresh", "sweet", "fruity", "unusual", "citrus", "green", "powdery", "musky", "aromatic", "resinous", "oriental", "gourmand", "smoky", "earthy", "herbal fresh", "airy", "dry citrus", "white floral", "yellow floral", "purple floral", "smells expensive", "smells cheap", "old lady", "borderline old lady", "young fresh", "animalic", "aldehydes", "synthetic", "skin scent", "creamy", "warm", "soft", "fruity floral amber", "floral notes", "woody notes"]);
 // Maltol, sugar and honey do the same job in a perfume (sweetening), so for matching
 // they count as one note — Katie, 2026-11-18. Caramel stays separate (it's burnt).
 const FEAT_SYN = { maltol: "sweetener", "ethyl maltol": "sweetener", sugar: "sweetener", honey: "sweetener", "white honey": "sweetener", "brown sugar": "sweetener", "sugar cane": "sweetener", pimento: "allspice", ylang: "ylang-ylang", orris: "iris", "orris root": "iris", olibanum: "incense", frankincense: "incense", "tobacco leaf": "tobacco", "virginia tobacco": "tobacco" };
 const NAME_NOTES = { tabac: "tobacco", tobacco: "tobacco", cuir: "leather", leather: "leather", vanille: "vanilla", vanilla: "vanilla", figue: "fig", fig: "fig", musc: "musk", santal: "sandalwood", cerise: "cherry", cherry: "cherry", iris: "iris", rose: "rose", oud: "oud", tuberose: "tuberose", "tubéreuse": "tuberose", violette: "violet", violet: "violet", neroli: "neroli", vetiver: "vetiver", encens: "incense", incense: "incense", jasmin: "jasmine", jasmine: "jasmine", lavande: "lavender", lavender: "lavender", "thé": "tea", tea: "tea", ambrette: "ambrette", pineapple: "pineapple", peach: "peach", "pêche": "peach", grapefruit: "grapefruit", pamplemousse: "grapefruit", osmanthus: "osmanthus", mimosa: "mimosa", gardenia: "gardenia", magnolia: "magnolia", hinoki: "hinoki", cedar: "cedar", "cèdre": "cedar", cedre: "cedar", myrrhe: "myrrh", myrrh: "myrrh", patchouli: "patchouli", heliotrope: "heliotrope", tonka: "tonka", almond: "almond", amande: "almond", coffee: "coffee", "café": "coffee", chocolate: "chocolate", honey: "honey", miel: "honey", saffron: "saffron", safran: "saffron", rhubarb: "rhubarb", lys: "lily", lily: "lily", lilac: "lilac", lilas: "lilac", poirier: "pear", pear: "pear", poire: "pear" };
-function matchFeatures(p) {
+function matchFeatures(p, vocab) {
   const f = new Map();
-  const add = (t, w) => { t = ("" + t).toLowerCase().trim(); t = FEAT_SYN[t] || t; if (!t || FEAT_GENERIC.has(t)) return; f.set(t, Math.max(f.get(t) || 0, w)); };
-  for (const n of p.notesList || []) add(n, 1);
+  const add = (t, w, onlyNew) => {
+    t = ("" + t).toLowerCase().trim(); t = FEAT_SYN[t] || t;
+    if (!t || FEAT_GENERIC.has(t) || t.startsWith("trevor") || CURATED_TAGS.includes(t)) return;
+    if (onlyNew && f.has(t)) return;
+    f.set(t, Math.max(f.get(t) || 0, w));
+  };
+  // Notes are listed top → base. Opening notes fade; the base is what it smells like
+  // for hours (Suite 302: the cherry opening fades, leather and tobacco stay).
+  const nl = p.notesList || [];
+  nl.forEach((n, i) => add(n, nl.length > 2 ? 0.6 + 0.8 * (i / (nl.length - 1)) : 1));
   // Raw names only when they're a known synonym (maltol hides under a cleaned-up name).
   for (const n of ("" + (p.rawNotes || "")).split(/[;,]/)) { const k = n.toLowerCase().trim(); if (FEAT_SYN[k]) add(k, 1); }
-  for (const t of p.tags || []) add(t, 1);
+  for (const t of p.tags || []) add(t, 0.8, true);
   for (const n of p.primary || []) add(n, 2);
+  // Her own words: a note she mentions in "My experience" is one she actually notices.
+  // "A whisper of cherry" / "the cherry fades" means LESS cherry, not more.
+  const mine = (p.myNotes || "").toLowerCase().replace(/cigarettes?/g, "tobacco smoke");
+  const faint = (t) => {
+    const m = pfRx(t).exec(mine); if (!m) return false;
+    const i = m.index + m[1].length; // start of the word itself, not the space before it
+    const before = mine.slice(Math.max(0, i - 28), i + 1), after = mine.slice(i, i + t.length + 45);
+    return /(whisper|hint|touch|trace|bit|little|faint|slight|tiny|brief|wisp|smidge)\s+(of\s+)?(a\s+)?\W?\s*$/.test(before.slice(0, -1))
+      || new RegExp(t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "[^.]{0,30}\\b(fades|faded|disappears|vanishes|burns off|is gone)").test(after);
+  };
+  if (mine && vocab) for (const t of vocab) if (mine.includes(t) && pfHas(mine, t)) {
+    if (faint(t)) f.set(FEAT_SYN[t] || t, Math.min(f.get(FEAT_SYN[t] || t) || 0.5, 0.5));
+    else add(t, 2);
+  }
   for (const w of (p.name || "").toLowerCase().split(/[^a-zà-ÿ]+/)) if (NAME_NOTES[w]) add(NAME_NOTES[w], 5);
   return f;
 }
@@ -8710,6 +8732,8 @@ function buildTakeModel(list) {
   // sharing bergamot. Capped so one oddball note can't run the whole match.
   const df = new Map();
   for (const p of list) for (const t of matchFeatures(p).keys()) df.set(t, (df.get(t) || 0) + 1);
+  // Words worth looking for in her own notes: real notes that appear in 3+ perfumes.
+  const vocab = [...df].filter(([t, n]) => n >= 3 && t.length >= 4).map(([t]) => t);
   const N = list.length;
   const idf = t => Math.min(3.5, Math.log((N + 1) / ((df.get(t) || 0) + 1)));
   const prep = p => {
@@ -8717,7 +8741,7 @@ function buildTakeModel(list) {
     const text = pfText(p);
     const feats = new Map();
     let tot = 0;
-    for (const [t, w] of matchFeatures(p)) { const v = w * idf(t); feats.set(t, v); tot += v; }
+    for (const [t, w] of matchFeatures(p, vocab)) { const v = w * idf(t); feats.set(t, v); tot += v; }
     // Theme = its single most defining note; top3 = its three most defining notes.
     const ranked = [...feats].sort((a, b) => b[1] - a[1]);
     return { genre, text, ch: p.character || null, acc: accordsOf(p), feats, tot,
