@@ -8675,6 +8675,11 @@ function accordsOf(p) {
   for (const w in NAME_ALLUSIONS) if (pfHas(name, w)) out.add(NAME_ALLUSIONS[w]);
   return out;
 }
+function charSimV(a, b) {
+  let s = 0, c = 0;
+  for (let i = 0; i < a.length; i++) { const x = a[i], y = b[i]; if (x >= 0 && y >= 0) { s += x > y ? x - y : y - x; c++; } }
+  return c >= 3 ? 1 - s / (c * 10) : 0.7;
+}
 function charSim(a, b) {
   if (!a || !b) return 0.7;
   let s = 0, c = 0;
@@ -8711,7 +8716,7 @@ function matchFeatures(p, vocab) {
   for (const n of p.primary || []) add(n, 2);
   // Her own words: a note she mentions in "My experience" is one she actually notices.
   // "A whisper of cherry" / "the cherry fades" means LESS cherry, not more.
-  const mine = (p.myNotes || "").toLowerCase().replace(/cigarettes?/g, "tobacco smoke");
+  const mine = (p.myNotes || "").toLowerCase().replace(/cigarettes?/g, "smoke"); // cigarette smoke isn't tobacco leaf
   const faint = (t) => {
     const m = pfRx(t).exec(mine); if (!m) return false;
     const i = m.index + m[1].length; // start of the word itself, not the space before it
@@ -8720,8 +8725,13 @@ function matchFeatures(p, vocab) {
       || new RegExp(t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "[^.]{0,30}\\b(fades|faded|disappears|vanishes|burns off|is gone)").test(after);
   };
   if (mine && vocab) for (const t of vocab) if (mine.includes(t) && pfHas(mine, t)) {
-    if (faint(t)) f.set(FEAT_SYN[t] || t, Math.min(f.get(FEAT_SYN[t] || t) || 0.5, 0.5));
-    else add(t, 2);
+    const k = FEAT_SYN[t] || t;
+    if (faint(t)) f.set(k, Math.min(f.get(k) || 0.5, 0.5));
+    // A listed note she also mentions is one she actually notices: boost it. A note
+    // she only mentions ("smells like it's covering up cigarettes") is an impression,
+    // so it's added lightly and can't take over the perfume's own notes.
+    else if (f.has(k)) f.set(k, Math.min(3, f.get(k) * 1.5));
+    else add(t, 0.6);
   }
   for (const w of (p.name || "").toLowerCase().split(/[^a-zà-ÿ]+/)) if (NAME_NOTES[w]) add(NAME_NOTES[w], 5);
   return f;
@@ -8744,8 +8754,16 @@ function buildTakeModel(list) {
     for (const [t, w] of matchFeatures(p, vocab)) { const v = w * idf(t); feats.set(t, v); tot += v; }
     // Theme = its single most defining note; top3 = its three most defining notes.
     const ranked = [...feats].sort((a, b) => b[1] - a[1]);
-    return { genre, text, ch: p.character || null, acc: accordsOf(p), feats, tot,
-      theme: ranked.length ? ranked[0][0] : null, top3: new Set(ranked.slice(0, 3).map(x => x[0])),
+    // Perfumers leave a signature: every Victoria Beckham, Madame Grey and Bal d'Afrique
+    // is Jérôme Epinette and they share a DNA (Katie, 2026-11-18).
+    const pfs = new Set(("" + (p.perfumer || "")).toLowerCase().split(/\s*(?:,|&|\band\b|\/)\s*/).map(x => x.trim()).filter(x => x.length > 3));
+    // Character lines as a flat array (-1 = unknown) so comparing two is cheap.
+    const chv = new Float32Array(CHAR_AXES.length);
+    CHAR_AXES.forEach((ax, i) => { const v = p.character ? p.character[ax.k] : null; chv[i] = v == null ? -1 : v; });
+    const acc = accordsOf(p);
+    let accMask = 0; ACCORDS.forEach((a, i) => { if (acc.has(a.k)) accMask |= 1 << i; });
+    return { genre, text, ch: p.character || null, chv, acc, accMask, feats, tot, pfs: [...pfs],
+      theme: ranked.length ? ranked[0][0] : null, top3: ranked.slice(0, 3).map(x => x[0]),
       flags: TASTE_FLAGS.filter(f => f.test(p, text, genre)).map(f => f.k) };
   };
   const rated = [];
@@ -8755,7 +8773,8 @@ function buildTakeModel(list) {
   }
   const mean = rated.length ? rated.reduce((s, x) => s + x.r, 0) / rated.length : 7.5;
   const idx = new Map();
-  rated.forEach((x, i) => { for (const t of x.feats.keys()) { if (!idx.has(t)) idx.set(t, []); idx.get(t).push(i); } });
+  // Index: note → [perfume, its weight for that note, …] so tallying needs no lookups.
+  rated.forEach((x, i) => { for (const [t, v] of x.feats) { if (!idx.has(t)) idx.set(t, []); idx.get(t).push(i, v); } });
   const byHouse = new Map();
   rated.forEach((x, i) => { const h = (x.p.house || "").toLowerCase(); if (!byHouse.has(h)) byHouse.set(h, []); byHouse.get(h).push(i); });
   const flagStats = {};
@@ -8770,9 +8789,13 @@ function buildTakeModel(list) {
   const predict = (p, pre = prep(p)) => {
     const key = pfNoteKey(p);
     touched.length = 0;
-    for (const [t, v] of pre.feats) for (const i of idx.get(t) || []) {
-      if (!seen[i]) { seen[i] = 1; touched.push(i); }
-      shA[i] += v; shB[i] += rated[i].feats.get(t);
+    for (const [t, v] of pre.feats) {
+      const post = idx.get(t); if (!post) continue;
+      for (let k = 0; k < post.length; k += 2) {
+        const i = post[k];
+        if (!seen[i]) { seen[i] = 1; touched.push(i); }
+        shA[i] += v; shB[i] += post[k + 1];
+      }
     }
     const top = [];
     for (const i of touched) {
@@ -8780,9 +8803,10 @@ function buildTakeModel(list) {
       const c1 = pre.tot ? shA[i] / pre.tot : 0, c2 = x.tot ? shB[i] / x.tot : 0;
       shA[i] = 0; shB[i] = 0; seen[i] = 0;
       if (x.key === key) continue;
-      let acc = 0; for (const a of pre.acc) if (x.acc.has(a)) acc++;
-      const theme = (pre.theme && x.top3.has(pre.theme) ? 0.15 : 0) + (x.theme && pre.top3.has(x.theme) ? 0.1 : 0);
-      const s = c1 * (0.5 + 0.5 * c2) + theme + 0.3 * acc + (x.genre === pre.genre ? 0.05 : 0) + 0.5 * Math.max(0, charSim(pre.ch, x.ch) - 0.7);
+      let acc = 0, m = pre.accMask & x.accMask; while (m) { acc += m & 1; m >>= 1; }
+      const theme = (pre.theme && x.top3.includes(pre.theme) ? 0.15 : 0) + (x.theme && pre.top3.includes(x.theme) ? 0.1 : 0);
+      let samePf = 0; for (const n of pre.pfs) if (x.pfs.includes(n)) { samePf = 0.15; break; }
+      const s = c1 * (0.5 + 0.5 * c2) + theme + samePf + 0.3 * acc + (x.genre === pre.genre ? 0.05 : 0) + 0.5 * Math.max(0, charSimV(pre.chv, x.chv) - 0.7);
       if (top.length === 10 && s <= top[9].s) continue;
       let j = top.length < 10 ? top.length : 9;
       while (j > 0 && top[j - 1].s < s) { top[j] = top[j - 1]; j--; }
@@ -9493,7 +9517,7 @@ function App() {
   const [wishlist, setWishlist] = useState(activeWishlistSeed);
   const [userPerfumes, setUserPerfumes] = useState([]);
   const [perfumeEdits, setPerfumeEdits] = useState({});
-  const perfumes = useMemo(() => {
+  const basePerfumes = useMemo(() => {
     const seedIds = new Set(PERFUMES_SEED.map(p => p.id));
     const seedNames = new Set(PERFUMES_SEED.map(p => p.fullName.toLowerCase()));
     // Fix: filter by name only (not ID), and reassign IDs that collide with seed.
@@ -9519,8 +9543,30 @@ function App() {
     });
     const resolvedLog = wearLog.map(e => attachPerfumeIdToEntry(normalizeWearEntry(e), withEdits));
     const stats = computeWearStats(resolvedLog);
-    return addProfiles(enrich(withEdits, stats).map(reconcileTrevor));
+    return enrich(withEdits, stats).map(reconcileTrevor);
   }, [userPerfumes, perfumeEdits, wearLog]);
+  // Your take, character lines, "most like it" and Trevor's take take ~1s to work out
+  // for the whole collection, so they're computed just after the screen updates.
+  // Until then, the previous results are laid over the fresh data (by id), so a new
+  // rating or diary entry shows instantly and the predictions catch up a moment later.
+  const [profiled, setProfiled] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    const id = setTimeout(() => {
+      const list = addProfiles(basePerfumes);
+      if (!cancelled) setProfiled({ src: basePerfumes, list });
+    }, 30);
+    return () => { cancelled = true; clearTimeout(id); };
+  }, [basePerfumes]);
+  const perfumes = useMemo(() => {
+    if (!profiled) return basePerfumes;
+    if (profiled.src === basePerfumes) return profiled.list;
+    const prev = new Map(profiled.list.map(p => [p.id, p]));
+    return basePerfumes.map(p => {
+      const o = prev.get(p.id);
+      return o ? { ...p, take: o.take, takeWhy: o.takeWhy, character: o.character, loud: o.loud, _genre: o._genre, trevorRules: o.trevorRules, trevorEvidence: o.trevorEvidence } : p;
+    });
+  }, [basePerfumes, profiled]);
   const [syncStatus, setSyncStatus] = useState("Local storage");
   const [loaded, setLoaded] = useState(false);
 
@@ -9838,7 +9884,7 @@ function App() {
       {loaded && view === "settings" && <SettingsView syncStatus={syncStatus} onSyncChange={loadAll} wearLog={wearLog} onCleanupDiary={cleanupDiary} />}
     </main>
 
-    {selected && <Modal p={selected} onClose={() => setSelected(null)} onEdit={editPerfume} onResetToSeed={resetPerfumeToSeed} hasEdits={!!perfumeEdits[selected.id]} perfumes={perfumes} onNavigate={setSelected} onLogWear={addWearEntry} />}
+    {selected && <Modal p={perfumes.find(x => x.id === selected.id) || selected} onClose={() => setSelected(null)} onEdit={editPerfume} onResetToSeed={resetPerfumeToSeed} hasEdits={!!perfumeEdits[selected.id]} perfumes={perfumes} onNavigate={setSelected} onLogWear={addWearEntry} />}
   </div>;
 }
 
